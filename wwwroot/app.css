@@ -1,0 +1,407 @@
+/* ==========================================================================
+   SISTEMA GIR - ELECTRO ORIENTE S.A.
+   Diseño Visual Empresarial y Guía de Estilos UI Modernos
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --eo-blue: #0062B8;
+    --eo-blue-dark: #004F94;
+    --eo-blue-darker: #003B70;
+    --eo-blue-light: #EBF3FA;
+    --eo-yellow: #FFDD00;
+    --eo-yellow-hover: #E5C700;
+
+    --gray-50: #F8FAFC;
+    --gray-100: #F1F5F9;
+    --gray-200: #E2E8F0;
+    --gray-300: #CBD5E1;
+    --gray-400: #94A3B8;
+    --gray-500: #64748B;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1E293B;
+    --gray-900: #0F172A;
+
+    --card-radius: 12px;
+    --input-radius: 8px;
+    --btn-radius: 8px;
+    --badge-radius: 20px;
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 10px 25px rgba(15, 23, 42, 0.12);
+}
+
+/* Base Typography & Resets */
+html, body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
+    background-color: var(--gray-50);
+    color: var(--gray-800);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+    font-weight: 700;
+    color: var(--eo-blue-darker);
+    letter-spacing: -0.02em;
+}
+
+.content-header h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--eo-blue-darker);
+}
+
+.breadcrumb {
+    background: transparent;
+    padding: 0;
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.breadcrumb-item.active {
+    color: var(--gray-500);
+    font-weight: 600;
+}
+
+a, .btn-link {
+    color: var(--eo-blue);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.15s ease-in-out;
+}
+
+a:hover, .btn-link:hover {
+    color: var(--eo-blue-darker);
+    text-decoration: underline;
+}
+
+/* Modern Cards */
+.card {
+    border: 1px solid var(--gray-200) !important;
+    border-radius: var(--card-radius) !important;
+    box-shadow: var(--shadow-sm) !important;
+    background-color: #ffffff;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    margin-bottom: 1.5rem;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md) !important;
+}
+
+.card-header {
+    border-top-left-radius: var(--card-radius) !important;
+    border-top-right-radius: var(--card-radius) !important;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.card-primary:not(.card-outline) > .card-header,
+.card-primary > .card-header {
+    background: linear-gradient(135deg, var(--eo-blue-darker) 0%, var(--eo-blue) 100%) !important;
+    border-bottom: 3px solid var(--eo-yellow) !important;
+    color: #ffffff !important;
+}
+
+.card-primary.card-outline {
+    border-top: 4px solid var(--eo-blue) !important;
+}
+
+.card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* Modern Buttons */
+.btn {
+    border-radius: var(--btn-radius) !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    padding: 0.45rem 1rem !important;
+    transition: all 0.2s ease !important;
+    letter-spacing: 0.01em;
+}
+
+.btn-primary {
+    color: #fff !important;
+    background-color: var(--eo-blue) !important;
+    border-color: var(--eo-blue) !important;
+    box-shadow: 0 2px 6px rgba(0, 98, 184, 0.25) !important;
+}
+
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: var(--eo-blue-dark) !important;
+    border-color: var(--eo-blue-darker) !important;
+    box-shadow: 0 4px 10px rgba(0, 98, 184, 0.35) !important;
+    transform: translateY(-1px);
+}
+
+.btn-warning, .btn-yellow {
+    color: #002D58 !important;
+    background-color: var(--eo-yellow) !important;
+    border-color: var(--eo-yellow-hover) !important;
+    font-weight: 700 !important;
+}
+
+.btn-warning:hover, .btn-yellow:hover {
+    color: #001A33 !important;
+    background-color: var(--eo-yellow-hover) !important;
+    transform: translateY(-1px);
+}
+
+.btn-sm, .btn-xs {
+    border-radius: 6px !important;
+    padding: 0.25rem 0.6rem !important;
+    font-size: 0.78rem !important;
+}
+
+/* Form Controls */
+.form-control, .custom-select, select.form-control {
+    border-radius: var(--input-radius) !important;
+    border: 1px solid var(--gray-300) !important;
+    font-size: 0.88rem !important;
+    color: var(--gray-800) !important;
+    padding: 0.45rem 0.75rem !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.form-control:focus, .custom-select:focus, select.form-control:focus {
+    border-color: var(--eo-blue) !important;
+    box-shadow: 0 0 0 3px rgba(0, 98, 184, 0.15) !important;
+    outline: none !important;
+}
+
+/* Tables */
+.table {
+    color: var(--gray-800);
+    margin-bottom: 0;
+}
+
+.table thead th {
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 2px solid var(--gray-200);
+    padding: 0.65rem 0.75rem;
+}
+
+.table tbody td {
+    padding: 0.65rem 0.75rem;
+    vertical-align: middle;
+    border-top: 1px solid var(--gray-200);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 98, 184, 0.03) !important;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: var(--gray-50);
+}
+
+/* Soft Badges Styling */
+.badge {
+    padding: 0.35em 0.75em !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    border-radius: var(--badge-radius) !important;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.badge-primary {
+    background-color: var(--eo-blue) !important;
+    color: #ffffff !important;
+}
+
+.badge-yellow, .badge-warning {
+    background-color: #FEF3C7 !important;
+    color: #92400E !important;
+    border: 1px solid #FCD34D;
+}
+
+.badge-success {
+    background-color: #D1FAE5 !important;
+    color: #065F46 !important;
+    border: 1px solid #6EE7B7;
+}
+
+.badge-danger {
+    background-color: #FEE2E2 !important;
+    color: #991B1B !important;
+    border: 1px solid #FCA5A5;
+}
+
+.badge-info {
+    background-color: #E0F2FE !important;
+    color: #075985 !important;
+    border: 1px solid #7DD3FC;
+}
+
+.badge-secondary {
+    background-color: #F1F5F9 !important;
+    color: #475569 !important;
+    border: 1px solid #CBD5E1;
+}
+
+.badge-dark {
+    background-color: #334155 !important;
+    color: #ffffff !important;
+}
+
+/* Metric Small Boxes Modern Design */
+.small-box {
+    border-radius: var(--card-radius) !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.small-box:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.small-box .inner {
+    padding: 18px 18px 14px 18px !important;
+}
+
+.small-box .inner h3 {
+    font-size: 2.1rem !important;
+    font-weight: 800 !important;
+    margin-bottom: 2px !important;
+    letter-spacing: -0.5px !important;
+}
+
+.small-box .inner p {
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    opacity: 0.95 !important;
+}
+
+.small-box .icon {
+    top: 12px !important;
+    right: 14px !important;
+    font-size: 52px !important;
+    opacity: 0.22 !important;
+    transition: transform 0.2s ease !important;
+}
+
+.small-box:hover .icon {
+    transform: scale(1.1) !important;
+    opacity: 0.35 !important;
+}
+
+.small-box-footer {
+    background: rgba(0, 0, 0, 0.16) !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px !important;
+    padding: 6px 0 !important;
+    transition: background 0.2s ease !important;
+}
+
+.small-box-footer:hover {
+    background: rgba(0, 0, 0, 0.28) !important;
+}
+
+/* Color Gradients */
+.bg-metric-blue {
+    background: linear-gradient(135deg, #0062B8 0%, #003B70 100%) !important;
+    color: #fff !important;
+}
+
+.bg-metric-green {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    color: #fff !important;
+}
+
+.bg-metric-yellow {
+    background: linear-gradient(135deg, #D97706 0%, #B45309 100%) !important;
+    color: #fff !important;
+}
+
+.bg-metric-orange {
+    background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%) !important;
+    color: #fff !important;
+}
+
+.bg-metric-red {
+    background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%) !important;
+    color: #fff !important;
+}
+
+.bg-metric-purple {
+    background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%) !important;
+    color: #fff !important;
+}
+
+.bg-metric-slate {
+    background: linear-gradient(135deg, #475569 0%, #1E293B 100%) !important;
+    color: #fff !important;
+}
+
+/* Modals */
+.modal-content {
+    border-radius: var(--card-radius) !important;
+    border: none !important;
+    box-shadow: var(--shadow-lg) !important;
+    overflow: hidden;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--eo-blue-darker) 0%, var(--eo-blue) 100%) !important;
+    color: #ffffff !important;
+    border-bottom: 3px solid var(--eo-yellow) !important;
+    padding: 1rem 1.25rem;
+}
+
+.modal-header .modal-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.modal-header .close, .modal-header .btn-close {
+    color: #ffffff !important;
+    opacity: 0.9;
+}
+
+/* Info Box Customization */
+.info-box {
+    border-radius: var(--card-radius) !important;
+    box-shadow: var(--shadow-sm) !important;
+    border: 1px solid var(--gray-200) !important;
+    background: #ffffff !important;
+}
+
+.info-box-icon {
+    border-radius: var(--card-radius) 0 0 var(--card-radius) !important;
+}
+
+/* Pagination Control */
+.pagination .page-item .page-link {
+    border-radius: 6px !important;
+    margin: 0 2px;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--eo-blue-dark);
+    border-color: var(--gray-300);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--eo-blue) !important;
+    border-color: var(--eo-blue) !important;
+    color: #ffffff !important;
+}

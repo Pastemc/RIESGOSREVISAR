@@ -1,0 +1,99 @@
+@page "/perfil"
+@layout MainLayout
+@attribute [Authorize]
+@inject AuthService AuthSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Mi Perfil</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item active">Perfil</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card card-primary">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-key mr-2"></i>Cambiar Contraseña
+                    </h3>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Msg))
+                    {
+                        <div class="alert alert-@(Ok ? "success" : "danger")">
+                            @Msg
+                        </div>
+                    }
+                    <div class="form-group">
+                        <label>Contraseña actual</label>
+                        <input @bind="Actual" type="password" class="form-control"
+                               placeholder="Tu contraseña actual" />
+                    </div>
+                    <div class="form-group">
+                        <label>Nueva contraseña</label>
+                        <input @bind="Nueva" type="password" class="form-control"
+                               placeholder="Mínimo 8 caracteres" />
+                    </div>
+                    <div class="form-group">
+                        <label>Confirmar nueva contraseña</label>
+                        <input @bind="Confirmar" type="password" class="form-control"
+                               placeholder="Repite la nueva contraseña" />
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-primary" @onclick="Cambiar">
+                        <i class="fas fa-save mr-1"></i> Guardar cambios
+                    </button>
+                    <a href="/" class="btn btn-secondary ml-2">Cancelar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    string Actual = "", Nueva = "", Confirmar = "", Msg = "";
+    bool Ok = false;
+    int UserId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var idClaim = state.User.FindFirst("UserId")?.Value;
+        UserId = int.TryParse(idClaim, out var id) ? id : 0;
+    }
+
+    async Task Cambiar()
+    {
+        Msg = "";
+        if (Nueva != Confirmar)
+        {
+            Msg = "Las contraseñas nuevas no coinciden.";
+            Ok = false;
+            return;
+        }
+        if (Nueva.Length < 8)
+        {
+            Msg = "La contraseña debe tener mínimo 8 caracteres.";
+            Ok = false;
+            return;
+        }
+        Ok = await AuthSvc.CambiarPasswordAsync(UserId, Actual, Nueva);
+        Msg = Ok
+            ? "Contraseña actualizada correctamente."
+            : "La contraseña actual es incorrecta.";
+        if (Ok) { Actual = Nueva = Confirmar = ""; }
+    }
+}

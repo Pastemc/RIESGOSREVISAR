@@ -1,0 +1,313 @@
+@page "/evaluacion-controles"
+@layout MainLayout
+@attribute [Authorize]
+@inject GrcService GrcSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-7">
+                <h1 class="m-0"><i class="fas fa-check-double mr-2"></i>Evaluacion de Controles</h1>
+            </div>
+            <div class="col-sm-5">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="/grc">GIR</a></li>
+                    <li class="breadcrumb-item active">Controles</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    @if (MostrarForm)
+    {
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">@(EditandoId == 0 ? "Nueva Evaluacion" : "Editar Evaluacion")</h3>
+            </div>
+            <div class="card-body">
+                @if (MsgForm != "")
+                {
+                    <div class="alert alert-@AlertClass">@MsgForm</div>
+                }
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Control evaluado</label>
+                            <select value="@FControlId" @onchange="e => FControlId = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option value="">Seleccione</option>
+                                @foreach (var c in Controles)
+                                {
+                                    <option value="@c.Id">@c.CodigoControl - @(c.Riesgo?.CodigoRiesgo ?? "Sin riesgo")</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Fecha</label>
+                            <input type="date" value="@FFechaEvaluacion" @oninput="e => FFechaEvaluacion = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Evaluador</label>
+                            <input value="@FEvaluador" @oninput="e => FEvaluador = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Diseno</label>
+                            <select value="@FDiseno" @onchange="e => FDiseno = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Pendiente</option>
+                                <option>Adecuado</option>
+                                <option>Parcial</option>
+                                <option>Deficiente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Ejecucion</label>
+                            <select value="@FEjecucion" @onchange="e => FEjecucion = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Pendiente</option>
+                                <option>Efectiva</option>
+                                <option>Parcial</option>
+                                <option>No efectiva</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Resultado</label>
+                            <select value="@FResultado" @onchange="e => FResultado = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Pendiente</option>
+                                <option>Efectivo</option>
+                                <option>Observado</option>
+                                <option>Inefectivo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Evidencia</label>
+                            <input value="@FEvidencia" @oninput="e => FEvidencia = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label>Observaciones</label>
+                            <textarea value="@FObservaciones" @oninput="e => FObservaciones = e.Value?.ToString() ?? string.Empty" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary mr-2" @onclick="Guardar">
+                    <i class="fas fa-save mr-1"></i>Guardar
+                </button>
+                <button class="btn btn-secondary" @onclick="CerrarForm">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    <div class="card card-primary">
+        <div class="card-header">
+            <h3 class="card-title">Pruebas y resultados de controles</h3>
+            <div class="card-tools">
+                <button class="btn btn-success btn-sm" @onclick="AbrirForm">
+                    <i class="fas fa-plus mr-1"></i>Nueva evaluacion
+                </button>
+            </div>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-hover table-striped table-sm">
+                <thead class="bg-primary">
+                    <tr class="text-white">
+                        <th>Fecha</th>
+                        <th>Control</th>
+                        <th>Riesgo</th>
+                        <th>Evaluador</th>
+                        <th>Diseno</th>
+                        <th>Ejecucion</th>
+                        <th>Resultado</th>
+                        <th>Evidencia</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Lista.Any())
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">No hay evaluaciones registradas.</td>
+                        </tr>
+                    }
+                    @foreach (var item in Lista)
+                    {
+                        <tr>
+                            <td>@item.FechaEvaluacion.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <strong>@(item.RiesgoControl?.CodigoControl ?? "-")</strong>
+                                <div class="small text-muted">@Cortar(item.RiesgoControl?.DescripcionControl ?? "", 90)</div>
+                            </td>
+                            <td>@(item.RiesgoControl?.Riesgo?.CodigoRiesgo ?? "-")</td>
+                            <td>@item.Evaluador</td>
+                            <td><span class="badge badge-@ResultadoColor(item.Diseno)">@item.Diseno</span></td>
+                            <td><span class="badge badge-@ResultadoColor(item.Ejecucion)">@item.Ejecucion</span></td>
+                            <td><span class="badge badge-@ResultadoColor(item.Resultado)">@item.Resultado</span></td>
+                            <td>@Cortar(item.Evidencia, 80)</td>
+                            <td>
+                                <button class="btn btn-xs btn-primary mr-1" @onclick="() => Editar(item)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                @if (EsAdmin)
+                                {
+                                    <button class="btn btn-xs btn-danger" @onclick="() => Eliminar(item.Id)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<EvaluacionControl> Lista = new();
+    List<RiesgoControl> Controles = new();
+    int UserId;
+    string Rol = "Personal";
+    bool EsAdmin;
+    bool MostrarForm;
+    bool FormOk;
+    string MsgForm = "";
+
+    int EditandoId;
+    string FControlId = "";
+    string FFechaEvaluacion = DateTime.Today.ToString("yyyy-MM-dd");
+    string FEvaluador = "";
+    string FDiseno = "Pendiente";
+    string FEjecucion = "Pendiente";
+    string FResultado = "Pendiente";
+    string FEvidencia = "";
+    string FObservaciones = "";
+
+    string AlertClass => FormOk ? "success" : "danger";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        UserId = int.TryParse(state.User.FindFirst("UserId")?.Value, out var id) ? id : 0;
+        Rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Personal";
+        EsAdmin = state.User.IsInRole("SuperAdmin") || state.User.IsInRole("Admin");
+        await Cargar();
+    }
+
+    async Task Cargar()
+    {
+        Controles = await GrcSvc.GetControlesParaSelectorAsync(UserId, Rol);
+        Lista = await GrcSvc.GetEvaluacionesControlAsync(UserId, Rol);
+    }
+
+    void AbrirForm()
+    {
+        LimpiarForm();
+        MostrarForm = true;
+    }
+
+    void CerrarForm()
+    {
+        MostrarForm = false;
+        MsgForm = "";
+    }
+
+    void Editar(EvaluacionControl item)
+    {
+        EditandoId = item.Id;
+        FControlId = item.RiesgoControlId.ToString();
+        FFechaEvaluacion = item.FechaEvaluacion.ToString("yyyy-MM-dd");
+        FEvaluador = item.Evaluador;
+        FDiseno = item.Diseno;
+        FEjecucion = item.Ejecucion;
+        FResultado = item.Resultado;
+        FEvidencia = item.Evidencia;
+        FObservaciones = item.Observaciones;
+        MsgForm = "";
+        MostrarForm = true;
+    }
+
+    async Task Guardar()
+    {
+        if (!int.TryParse(FControlId, out var controlId))
+        {
+            FormOk = false;
+            MsgForm = "Selecciona el control evaluado.";
+            return;
+        }
+
+        var evaluacion = new EvaluacionControl
+        {
+            Id = EditandoId,
+            RiesgoControlId = controlId,
+            FechaEvaluacion = DateTime.TryParse(FFechaEvaluacion, out var fecha) ? fecha : DateTime.Today,
+            Evaluador = FEvaluador,
+            Diseno = FDiseno,
+            Ejecucion = FEjecucion,
+            Resultado = FResultado,
+            Evidencia = FEvidencia,
+            Observaciones = FObservaciones
+        };
+
+        await GrcSvc.GuardarEvaluacionControlAsync(evaluacion);
+        FormOk = true;
+        MsgForm = "Evaluacion guardada correctamente.";
+        LimpiarForm();
+        MostrarForm = false;
+        await Cargar();
+    }
+
+    async Task Eliminar(int id)
+    {
+        await GrcSvc.EliminarEvaluacionControlAsync(id);
+        await Cargar();
+    }
+
+    void LimpiarForm()
+    {
+        EditandoId = 0;
+        FControlId = "";
+        FFechaEvaluacion = DateTime.Today.ToString("yyyy-MM-dd");
+        FEvaluador = "";
+        FDiseno = "Pendiente";
+        FEjecucion = "Pendiente";
+        FResultado = "Pendiente";
+        FEvidencia = "";
+        FObservaciones = "";
+        MsgForm = "";
+    }
+
+    static string ResultadoColor(string valor) => valor switch
+    {
+        "Efectivo" => "success",
+        "Efectiva" => "success",
+        "Adecuado" => "success",
+        "Parcial" => "warning",
+        "Observado" => "warning",
+        "No efectiva" => "danger",
+        "Inefectivo" => "danger",
+        "Deficiente" => "danger",
+        _ => "secondary"
+    };
+
+    static string Cortar(string texto, int max)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Length <= max) return texto;
+        return texto[..max] + "...";
+    }
+}

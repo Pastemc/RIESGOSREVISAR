@@ -1,0 +1,595 @@
+@page "/vista-detallada"
+@layout MainLayout
+@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@inject RiesgoService RiesgoSvc
+@inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
+@inject ExcelService ExcelSvc
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject IWebHostEnvironment Env
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-file-alt mr-2"></i>Vista Detallada — Sábana Completa</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item active">Vista Detallada</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+
+@if (Cargando)
+{
+    <div class="text-center p-5">
+        <i class="fas fa-spinner fa-spin fa-3x text-danger"></i>
+        <p class="mt-2">Cargando sábana completa...</p>
+    </div>
+}
+else
+{
+    <div class="row mb-2">
+        <div class="col-12">
+            <a href="/matriz" class="btn btn-secondary mr-2">
+                <i class="fas fa-arrow-left mr-1"></i> Volver a Registro de Matriz
+            </a>
+            <button class="btn btn-warning font-weight-bold" @onclick="DescargarExcel">
+                <i class="fas fa-file-excel mr-1"></i> Descargar Excel Sábana
+            </button>
+        </div>
+    </div>
+
+    <div class="card mb-3" style="border:2px solid #0062B8;">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
+            <h5 class="text-white mb-0">
+                <i class="fas fa-heading mr-2"></i>Encabezado General de la Sábana
+            </h5>
+            <div>
+                @if (EditandoEnc)
+                {
+                    <button class="btn btn-success btn-sm mr-2" @onclick="GuardarEncabezado">
+                        <i class="fas fa-save mr-1"></i> Guardar
+                    </button>
+                    <button class="btn btn-light btn-sm" @onclick="()=>EditandoEnc=false">Cancelar</button>
+                }
+                else
+                {
+                    <button class="btn btn-light btn-sm font-weight-bold" @onclick="()=>EditandoEnc=true">
+                        <i class="fas fa-edit mr-1"></i> Editar Encabezado
+                    </button>
+                }
+            </div>
+        </div>
+        <div class="card-body p-2">
+            @if (!string.IsNullOrEmpty(MsgEnc))
+            {
+                <div class="alert alert-@(EncOk?"success":"danger") py-1 mb-2">@MsgEnc</div>
+            }
+            @if (!EditandoEnc)
+            {
+                <div style="border:1px solid #ccc;font-size:0.82rem;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <tr>
+                            <td rowspan="4" style="width:110px;border:1px solid #ccc;padding:4px;text-align:center;">
+                                <img src="/logo.png" style="max-width:90px;max-height:55px;" onerror="this.style.display='none'" />
+                            </td>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>FORMATO</strong></td>
+                            <td colspan="3" style="border:1px solid #ccc;padding:3px;"></td>
+                            <td colspan="3" style="border:1px solid #ccc;padding:3px;text-align:right;"><strong>SÁBANA — MATRIZ DE RIESGOS Y CONTROLES (MRC)</strong></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>CÓDIGO</strong></td>
+                            <td style="border:1px solid #ccc;padding:3px;">@Enc.Codigo</td>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>ELABORADO POR:</strong></td>
+                            <td style="border:1px solid #ccc;padding:3px;">@Enc.ElaboradoPor</td>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>REVISADO POR:</strong></td>
+                            <td style="border:1px solid #ccc;padding:3px;">@Enc.RevisadoPor</td>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>APROBADO POR:</strong></td>
+                            <td style="border:1px solid #ccc;padding:3px;">@Enc.AprobadoPor</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>VERSIÓN</strong></td>
+                            <td style="border:1px solid #ccc;padding:3px;">@Enc.Version</td>
+                            <td colspan="6" style="border:1px solid #ccc;padding:3px;font-size:0.75rem;color:#555;">
+                                Elaborado por: @Enc.ElaboradoPorFirma | Revisado por: @Enc.RevisadoPorFirma | Aprobado por: @Enc.AprobadoPorFirma
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>FECHA</strong></td>
+                            <td style="border:1px solid #ccc;padding:3px;">@Enc.Fecha</td>
+                            <td colspan="2" style="border:1px solid #ccc;padding:3px;font-size:0.75rem;color:#555;">
+                                Última modificación: @(Enc.FechaModificacion != default ? Enc.FechaModificacion.ToString("dd/MM/yyyy HH:mm") : "-") — @Enc.ModificadoPor
+                            </td>
+                            <td colspan="4" style="border:1px solid #ccc;padding:3px;"></td>
+                        </tr>
+                    </table>
+                    <div style="background:#f8f9fa;padding:3px 8px;font-size:0.78rem;border-top:1px solid #ccc;" class="d-flex justify-content-between">
+                        <span><strong>Código Matriz:</strong> @Enc.Codigo-SÁBANA</span>
+                        <span><strong>Total Riesgos:</strong> @TodosLosRiesgos.Count</span>
+                        <span><strong>Matrices con datos:</strong> @MatricesConDatos</span>
+                        <span><strong>Fecha de corte:</strong> @DateTime.Now.ToString("dd/MM/yyyy")</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label><strong>Código Formato</strong></label>
+                            <input class="form-control form-control-sm" value="@Enc.Codigo"
+                                   @oninput="e => Enc.Codigo = e.Value == null ? string.Empty : e.Value.ToString()" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label><strong>Versión</strong></label>
+                            <input class="form-control form-control-sm" value="@Enc.Version"
+                                   @oninput="e => Enc.Version = e.Value == null ? string.Empty : e.Value.ToString()" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label><strong>Fecha Formato</strong></label>
+                            <input class="form-control form-control-sm" value="@Enc.Fecha"
+                                   @oninput="e => Enc.Fecha = e.Value == null ? string.Empty : e.Value.ToString()" />
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label><strong>Elaborado Por</strong></label>
+                            <input class="form-control form-control-sm" value="@Enc.ElaboradoPor"
+                                   @oninput="e => Enc.ElaboradoPor = e.Value == null ? string.Empty : e.Value.ToString()" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Revisado Por</strong></label>
+                            <input class="form-control form-control-sm" value="@Enc.RevisadoPor"
+                                   @oninput="e => Enc.RevisadoPor = e.Value == null ? string.Empty : e.Value.ToString()" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label><strong>Aprobado Por</strong></label>
+                            <input class="form-control form-control-sm" value="@Enc.AprobadoPor"
+                                   @oninput="e => Enc.AprobadoPor = e.Value == null ? string.Empty : e.Value.ToString()" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label><strong>Firma Elaborado Por</strong></label>
+                            <input class="form-control form-control-sm" value="@Enc.ElaboradoPorFirma"
+                                   @oninput="e => Enc.ElaboradoPorFirma = e.Value == null ? string.Empty : e.Value.ToString()" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label><strong>Firma Revisado Por</strong></label>
+                            <input class="form-control form-control-sm" value="@Enc.RevisadoPorFirma"
+                                   @oninput="e => Enc.RevisadoPorFirma = e.Value == null ? string.Empty : e.Value.ToString()" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label><strong>Firma Aprobado Por</strong></label>
+                            <input class="form-control form-control-sm" value="@Enc.AprobadoPorFirma"
+                                   @oninput="e => Enc.AprobadoPorFirma = e.Value == null ? string.Empty : e.Value.ToString()" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card card-outline card-primary shadow-sm">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center bg-dark text-white p-3">
+            <h3 class="card-title font-weight-bold mb-2 mb-md-0">
+                <i class="fas fa-table mr-2 text-warning"></i>
+                SÁBANA — MATRIZ DE RIESGOS Y CONTROLES
+                <span class="badge badge-warning ml-2 font-size-100">@RiesgosFiltrados.Count riesgo(s) total</span>
+            </h3>
+            <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
+                <div class="input-group input-group-sm" style="width: 260px;">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text bg-secondary border-0"><i class="fas fa-search text-white"></i></span>
+                    </div>
+                    <input type="text" class="form-control border-0" placeholder="Buscar por código o descripción..."
+                           value="@BusquedaTexto" @oninput="OnBusquedaChanged" />
+                    @if (!string.IsNullOrEmpty(BusquedaTexto))
+                    {
+                        <div class="input-group-append">
+                            <button class="btn btn-secondary" @onclick='() => { BusquedaTexto = ""; PaginaActual = 1; }'>
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+                <div class="d-flex align-items-center">
+                    <label class="mb-0 text-white mr-2 small font-weight-normal">Mostrar:</label>
+                    <select class="custom-select custom-select-sm font-weight-bold" style="width: 130px;"
+                            value="@TamanoPagina" @onchange="OnTamanoPaginaChanged">
+                        <option value="15">15 por pág.</option>
+                        <option value="30">30 por pág.</option>
+                        <option value="50">50 por pág.</option>
+                        <option value="100">100 por pág.</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body table-responsive p-0">
+            @if (!RiesgosFiltrados.Any())
+            {
+                <div class="p-5 text-center text-muted">
+                    <i class="fas fa-search fa-3x mb-3 d-block text-secondary"></i>
+                    <p class="mb-0">No se encontraron riesgos que coincidan con la búsqueda.</p>
+                </div>
+            }
+            else
+            {
+                <table class="table table-bordered table-hover table-sm mb-0" style="font-size:0.72rem;min-width:3500px;">
+                    <thead>
+                        <tr style="text-align:center;">
+                            <th colspan="10" style="background:#0062B8;color:white;">DATOS GENERALES DEL RIESGO</th>
+                            <th colspan="3" style="background:#6c757d;color:white;">RIESGO INHERENTE</th>
+                            <th colspan="8" style="background:#003B70;color:white;">CONTROL</th>
+                            <th colspan="4" style="background:#004F94;color:white;">RIESGO RESIDUAL</th>
+                            <th colspan="8" style="background:#856404;color:white;">PLAN DE ACCIÓN</th>
+                            <th colspan="6" style="background:#0062B8;color:white;">INDICADORES (KRI)</th>
+                        </tr>
+                        <tr style="background:#EBF3FA;color:#003B70;font-size:0.68rem;text-align:center;">
+                            <th style="min-width:60px;">COD</th>
+                            <th style="min-width:60px;">Nivel</th>
+                            <th style="min-width:120px;">Gerencia Resp.</th>
+                            <th style="min-width:120px;">Nombre Proceso</th>
+                            <th style="min-width:90px;">Subproceso</th>
+                            <th style="min-width:80px;">Cód. Riesgo</th>
+                            <th style="min-width:180px;">Descripción Riesgo</th>
+                            <th style="min-width:70px;">Origen</th>
+                            <th style="min-width:90px;">Frecuencia</th>
+                            <th style="min-width:90px;">Tipo</th>
+                            <th style="min-width:45px;">Prob.</th>
+                            <th style="min-width:55px;">Impacto</th>
+                            <th style="min-width:80px;">Severidad</th>
+                            <th style="min-width:80px;">Cód. Control</th>
+                            <th style="min-width:200px;">Desc. Control</th>
+                            <th style="min-width:120px;">Área Control</th>
+                            <th style="min-width:120px;">Resp. Control</th>
+                            <th style="min-width:80px;">Frec. Control</th>
+                            <th style="min-width:80px;">Oportunidad</th>
+                            <th style="min-width:80px;">Automatiz.</th>
+                            <th style="min-width:180px;">Evidencia</th>
+                            <th style="min-width:45px;">Prob.</th>
+                            <th style="min-width:55px;">Impacto</th>
+                            <th style="min-width:80px;">Severidad</th>
+                            <th style="min-width:100px;">Estrategia</th>
+                            <th style="min-width:90px;">Cód. Plan</th>
+                            <th style="min-width:180px;">Desc. Plan</th>
+                            <th style="min-width:120px;">Área Plan</th>
+                            <th style="min-width:120px;">Resp. Plan</th>
+                            <th style="min-width:80px;">Inicio Plan</th>
+                            <th style="min-width:80px;">Estado Plan</th>
+                            <th style="min-width:80px;">Fin Plan</th>
+                            <th style="min-width:80px;">Nivel Res.</th>
+                            <th style="min-width:90px;">Cód. KRI</th>
+                            <th style="min-width:180px;">Definición KRI</th>
+                            <th style="min-width:80px;">Frecuencia</th>
+                            <th style="min-width:80px;">Meta KRI</th>
+                            <th style="min-width:80px;">KRI Actual</th>
+                            <th style="min-width:120px;">Resp. KRI</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var fila in RiesgosPaginados)
+                        {
+                            var r = fila.Riesgo;
+                            var sevI = r.ProbabilidadInherente * r.ImpactoInherente;
+                            var sevR = r.ProbabilidadResidual * r.ImpactoResidual;
+                            var nivI = Riesgo.GetNivel(sevI);
+                            var nivR = Riesgo.GetNivel(sevR);
+                            var colI = RiesgoService.GetColorNivel(nivI);
+                            var colR = RiesgoService.GetColorNivel(nivR);
+                            var plan1 = r.PlanesAccion.FirstOrDefault();
+                            var kri1  = r.Indicadores.FirstOrDefault();
+                            var esAE  = nivR == "Alto" || nivR == "Extremo";
+
+                            // ── MISMO PATRÓN QUE MATRIZ.RAZOR ──
+                            var controles = r.Controles.ToList();
+                            int totalFilas = controles.Count > 0 ? controles.Count : 1;
+
+                            for (int ci = 0; ci < totalFilas; ci++)
+                            {
+                                var ctrl = controles.Count > 0 ? controles[ci] : null;
+                                bool esPrimera = ci == 0;
+
+                                <tr style="font-size:0.72rem;vertical-align:middle;">
+
+                                    @* ── DATOS GENERALES + INHERENTE: solo primera fila con rowspan ── *@
+                                    @if (esPrimera)
+                                    {
+                                        <td rowspan="@totalFilas">@r.CodigoProceso</td>
+                                        <td rowspan="@totalFilas">Proceso</td>
+                                        <td rowspan="@totalFilas" style="white-space:normal;">@r.GerenciaResponsable</td>
+                                        <td rowspan="@totalFilas" style="white-space:normal;">@r.NombreProceso</td>
+                                        <td rowspan="@totalFilas" style="white-space:normal;">@r.Subproceso</td>
+                                        <td rowspan="@totalFilas"><strong>@r.CodigoRiesgo</strong></td>
+                                        <td rowspan="@totalFilas" style="white-space:normal;">@r.DescripcionRiesgo</td>
+                                        <td rowspan="@totalFilas">@r.OrigenRiesgo</td>
+                                        <td rowspan="@totalFilas">@r.FrecuenciaRiesgo</td>
+                                        <td rowspan="@totalFilas">@r.TipoRiesgo</td>
+                                        <td rowspan="@totalFilas" class="text-center">@r.ProbabilidadInherente</td>
+                                        <td rowspan="@totalFilas" class="text-center">@r.ImpactoInherente</td>
+                                        <td rowspan="@totalFilas" class="text-center">
+                                            <span class="badge" style="background:@colI;color:white;">@sevI - @nivI</span>
+                                        </td>
+                                    }
+
+                                    @* ── CONTROL: una celda por fila, cada control en su propia fila ── *@
+                                    @if (ctrl != null)
+                                    {
+                                        <td style="white-space:normal;min-width:80px;"><strong>@ctrl.CodigoControl</strong></td>
+                                        <td style="white-space:normal;min-width:200px;">@ctrl.DescripcionControl</td>
+                                        <td style="white-space:normal;min-width:120px;">@ctrl.AreaResponsable</td>
+                                        <td style="white-space:normal;min-width:120px;">@ctrl.ResponsablesControl</td>
+                                        <td style="min-width:80px;">@ctrl.FrecuenciaControl</td>
+                                        <td style="min-width:80px;">@ctrl.OportunidadControl</td>
+                                        <td style="min-width:80px;">@ctrl.AutomatizacionControl</td>
+                                        <td style="white-space:normal;min-width:180px;">@ctrl.EvidenciaControl</td>
+                                    }
+                                    else
+                                    {
+                                        <td><span class="text-muted">-</span></td>
+                                        <td><span class="text-muted">-</span></td>
+                                        <td><span class="text-muted">-</span></td>
+                                        <td><span class="text-muted">-</span></td>
+                                        <td><span class="text-muted">-</span></td>
+                                        <td><span class="text-muted">-</span></td>
+                                        <td><span class="text-muted">-</span></td>
+                                        <td><span class="text-muted">-</span></td>
+                                    }
+
+                                    @* ── RESIDUAL, PLAN, INDICADORES: solo primera fila con rowspan ── *@
+                                    @if (esPrimera)
+                                    {
+                                        <td rowspan="@totalFilas" class="text-center">@r.ProbabilidadResidual</td>
+                                        <td rowspan="@totalFilas" class="text-center">@r.ImpactoResidual</td>
+                                        <td rowspan="@totalFilas" class="text-center">
+                                            <span class="badge" style="background:@colR;color:white;">@sevR - @nivR</span>
+                                        </td>
+                                        <td rowspan="@totalFilas">@(string.IsNullOrEmpty(r.EstrategiaResidual) ? "-" : r.EstrategiaResidual)</td>
+                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.CodigoPlan ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas" style="white-space:normal;">@(esAE ? (plan1?.DescripcionPlan ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.AreaResponsable ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.ResponsablePlan ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.InicioPlan?.ToString("dd/MM/yyyy") ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.EstadoPlan ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.FinPlan?.ToString("dd/MM/yyyy") ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas" class="text-center">
+                                            <span class="badge" style="background:@colR;color:white;">@nivR</span>
+                                        </td>
+                                        <td rowspan="@totalFilas">@(esAE ? (kri1?.CodigoKRI ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas" style="white-space:normal;">@(esAE ? (kri1?.DefinicionKRI ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas">@(esAE ? (kri1?.Frecuencia ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas">@(esAE ? (kri1?.MetaKRI ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas">@(esAE ? (kri1?.KRIActual ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas">@(esAE ? (kri1?.ResponsableKRI ?? "-") : "-")</td>
+                                    }
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        @if (RiesgosFiltrados.Any())
+        {
+            <div class="card-footer d-flex flex-wrap justify-content-between align-items-center py-2 bg-light border-top">
+                <div class="text-muted small">
+                    Showing <strong>@IndiceInicio</strong> a <strong>@IndiceFin</strong> de <strong>@RiesgosFiltrados.Count</strong> registros (Página <strong>@PaginaActual</strong> de <strong>@TotalPaginas</strong>)
+                </div>
+                <ul class="pagination pagination-sm m-0">
+                    <li class="page-item @(PaginaActual == 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => CambiarPagina(1)" title="Primera Página">
+                            <i class="fas fa-angle-double-left"></i>
+                        </button>
+                    </li>
+                    <li class="page-item @(PaginaActual == 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => CambiarPagina(PaginaActual - 1)" title="Anterior">
+                            <i class="fas fa-angle-left"></i>
+                        </button>
+                    </li>
+                    @for (int p = PaginaInicioNum; p <= PaginaFinNum; p++)
+                    {
+                        var pageNumber = p;
+                        <li class="page-item @(PaginaActual == pageNumber ? "active" : "")">
+                            <button class="page-link font-weight-bold" @onclick="() => CambiarPagina(pageNumber)">@pageNumber</button>
+                        </li>
+                    }
+                    <li class="page-item @(PaginaActual == TotalPaginas ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => CambiarPagina(PaginaActual + 1)" title="Siguiente">
+                            <i class="fas fa-angle-right"></i>
+                        </button>
+                    </li>
+                    <li class="page-item @(PaginaActual == TotalPaginas ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => CambiarPagina(TotalPaginas)" title="Última Página">
+                            <i class="fas fa-angle-double-right"></i>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        }
+    </div>
+}
+
+</div>
+
+@code {
+    bool Cargando = true;
+    bool EditandoEnc = false;
+    bool EncOk = false;
+    string MsgEnc = string.Empty;
+    int MatricesConDatos = 0;
+
+    SabanaEncabezado Enc = new();
+
+    int PaginaActual = 1;
+    int TamanoPagina = 15;
+    string BusquedaTexto = "";
+
+    class FilaSabana
+    {
+        public Riesgo Riesgo { get; set; } = new();
+        public string CodigoProceso { get; set; } = "";
+        public string NombreProceso { get; set; } = "";
+    }
+
+    List<FilaSabana> TodosLosRiesgos = new();
+
+    List<FilaSabana> RiesgosFiltrados
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(BusquedaTexto)) return TodosLosRiesgos;
+            var q = BusquedaTexto.Trim().ToLower();
+            return TodosLosRiesgos.Where(f =>
+                (f.CodigoProceso != null && f.CodigoProceso.ToLower().Contains(q)) ||
+                (f.NombreProceso != null && f.NombreProceso.ToLower().Contains(q)) ||
+                (f.Riesgo.CodigoRiesgo != null && f.Riesgo.CodigoRiesgo.ToLower().Contains(q)) ||
+                (f.Riesgo.DescripcionRiesgo != null && f.Riesgo.DescripcionRiesgo.ToLower().Contains(q)) ||
+                (f.Riesgo.GerenciaResponsable != null && f.Riesgo.GerenciaResponsable.ToLower().Contains(q)) ||
+                (f.Riesgo.Subproceso != null && f.Riesgo.Subproceso.ToLower().Contains(q))
+            ).ToList();
+        }
+    }
+
+    int TotalPaginas => Math.Max(1, (int)Math.Ceiling((double)RiesgosFiltrados.Count / TamanoPagina));
+
+    List<FilaSabana> RiesgosPaginados => RiesgosFiltrados
+        .Skip((PaginaActual - 1) * TamanoPagina)
+        .Take(TamanoPagina)
+        .ToList();
+
+    int IndiceInicio => RiesgosFiltrados.Any() ? ((PaginaActual - 1) * TamanoPagina) + 1 : 0;
+    int IndiceFin => Math.Min(PaginaActual * TamanoPagina, RiesgosFiltrados.Count);
+
+    int PaginaInicioNum => Math.Max(1, PaginaActual - 2);
+    int PaginaFinNum => Math.Min(TotalPaginas, Math.Max(1, PaginaActual + 2));
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var db = DbFactory.CreateDbContext();
+        var enc = await db.SabanaEncabezados.FirstOrDefaultAsync();
+        Enc = enc ?? new SabanaEncabezado();
+
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var idClaim = state.User.FindFirst("UserId")?.Value;
+        var userId = int.TryParse(idClaim, out var id) ? id : 0;
+        var rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Personal";
+
+        var matrices = await RiesgoSvc.GetMatricesPorUsuarioAsync(userId, rol);
+
+        foreach (var m in matrices)
+        {
+            var riesgos = await RiesgoSvc.GetRiesgosPorMatrizAsync(m.Id);
+            if (riesgos.Any()) MatricesConDatos++;
+            foreach (var r in riesgos)
+            {
+                TodosLosRiesgos.Add(new FilaSabana
+                {
+                    Riesgo = r,
+                    CodigoProceso = m.CodigoProceso,
+                    NombreProceso = m.NombreProceso
+                });
+            }
+        }
+
+        Cargando = false;
+    }
+
+    void OnBusquedaChanged(ChangeEventArgs e)
+    {
+        BusquedaTexto = e.Value?.ToString() ?? string.Empty;
+        PaginaActual = 1;
+    }
+
+    void OnTamanoPaginaChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size) && size > 0)
+        {
+            TamanoPagina = size;
+            PaginaActual = 1;
+        }
+    }
+
+    void CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= TotalPaginas)
+        {
+            PaginaActual = nuevaPagina;
+            StateHasChanged();
+        }
+    }
+
+    async Task GuardarEncabezado()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var nombre = state.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "Sistema";
+
+        using var db = DbFactory.CreateDbContext();
+        var enc = await db.SabanaEncabezados.FirstOrDefaultAsync();
+
+        Enc.FechaModificacion = DateTime.Now;
+        Enc.ModificadoPor = nombre;
+
+        if (enc == null)
+        {
+            db.SabanaEncabezados.Add(Enc);
+        }
+        else
+        {
+            enc.Codigo = Enc.Codigo;
+            enc.Version = Enc.Version;
+            enc.Fecha = Enc.Fecha;
+            enc.ElaboradoPor = Enc.ElaboradoPor;
+            enc.RevisadoPor = Enc.RevisadoPor;
+            enc.AprobadoPor = Enc.AprobadoPor;
+            enc.ElaboradoPorFirma = Enc.ElaboradoPorFirma;
+            enc.RevisadoPorFirma = Enc.RevisadoPorFirma;
+            enc.AprobadoPorFirma = Enc.AprobadoPorFirma;
+            enc.FechaModificacion = Enc.FechaModificacion;
+            enc.ModificadoPor = Enc.ModificadoPor;
+            Enc = enc;
+        }
+
+        await db.SaveChangesAsync();
+        EditandoEnc = false;
+        MsgEnc = "Encabezado guardado correctamente.";
+        EncOk = true;
+    }
+
+    async Task DescargarExcel()
+    {
+        var filas = TodosLosRiesgos.Select(f => new FilaSabanaExcel
+        {
+            CodigoProceso = f.CodigoProceso,
+            NombreProceso = f.NombreProceso,
+            Riesgo = f.Riesgo
+        }).ToList();
+
+        var logoPath = Path.Combine(Env.WebRootPath, "logo.png");
+        var bytes = ExcelSvc.GenerarExcelSabana(filas, Enc, logoPath);
+        var b64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadFile", b64,
+            $"Sabana_MRC_{DateTime.Now:yyyyMMdd}.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+}

@@ -1,0 +1,401 @@
+@page "/login"
+@layout EmptyLayout
+@inject NavigationManager Nav
+@using System.Text
+
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    .login-page {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #002347 0%, #003B70 40%, #004F94 100%);
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    }
+
+    .login-container {
+        display: flex;
+        width: 840px;
+        min-height: 480px;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+        animation: fadeInUp 0.55s cubic-bezier(.22,.68,0,1.2);
+    }
+
+    @@keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(35px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @@keyframes modalIn {
+        from { opacity: 0; transform: scale(0.92) translateY(15px); }
+        to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* ── PANEL IZQUIERDO ── */
+    .login-left {
+        flex: 1;
+        background: linear-gradient(135deg, #003B70 0%, #004F94 50%, #0062B8 100%);
+        padding: 50px 40px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+        border-right: 4px solid #FFDD00;
+    }
+
+    .login-left::before {
+        content: '';
+        position: absolute;
+        top: -60px; left: -60px;
+        width: 240px; height: 240px;
+        background: rgba(255, 221, 0, 0.1);
+        border-radius: 50%;
+    }
+    .login-left::after {
+        content: '';
+        position: absolute;
+        bottom: -80px; right: -50px;
+        width: 300px; height: 300px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 50%;
+    }
+
+    .deco-blob {
+        position: absolute;
+        background: rgba(255, 221, 0, 0.08);
+        border-radius: 50% 40% 60% 30% / 50% 60% 40% 50%;
+    }
+    .deco-blob-1 { width:130px;height:100px;top:60px;right:30px;transform:rotate(20deg); }
+    .deco-blob-2 { width:90px;height:70px;bottom:100px;left:20px;transform:rotate(-15deg); }
+    .deco-blob-3 { width:60px;height:50px;top:200px;left:60px;transform:rotate(40deg); }
+
+    .deco-triangles {
+        display: flex; gap: 6px; margin-bottom: 8px;
+    }
+    .deco-tri {
+        width: 0; height: 0;
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-bottom: 14px solid #FFDD00;
+    }
+
+    .login-left-logo {
+        position: relative; z-index: 1; text-align: center;
+    }
+    .login-left-logo img {
+        max-width: 210px;
+        height: auto;
+        max-height: 80px;
+        object-fit: contain;
+        border-radius: 12px;
+        background: #ffffff;
+        padding: 12px 16px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+        border: 2px solid #FFDD00;
+    }
+
+    .login-left-body { position: relative; z-index: 1; }
+    .login-left-body h2 {
+        color: #fff;
+        font-size: 1.9rem;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 10px;
+    }
+    .login-left-body p {
+        color: rgba(255,255,255,0.88);
+        font-size: 0.92rem;
+        line-height: 1.55;
+    }
+
+    .login-left-footer { position: relative; z-index: 1; }
+    .login-left-footer .deco-triangles { justify-content: flex-start; }
+    .login-badge {
+        display: inline-block;
+        background: rgba(255, 221, 0, 0.15);
+        border: 1px solid #FFDD00;
+        border-radius: 20px;
+        padding: 5px 16px;
+        font-size: 0.8rem;
+        color: #FFDD00;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        backdrop-filter: blur(4px);
+    }
+
+    /* ── PANEL DERECHO ── */
+    .login-right {
+        width: 380px;
+        background: #fff;
+        padding: 48px 40px 36px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .login-right h3 {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #002D58;
+        margin-bottom: 6px;
+    }
+    .login-right .login-sub {
+        font-size: 0.83rem;
+        color: #666;
+        margin-bottom: 24px;
+    }
+
+    .alert-login {
+        border-left: 4px solid #dc3545;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 18px;
+        font-size: 0.84rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        line-height: 1.4;
+    }
+
+    .form-field { margin-bottom: 18px; }
+    .form-field label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #003B70;
+        margin-bottom: 6px;
+        letter-spacing: 0.3px;
+    }
+    .input-wrap { position: relative; }
+    .input-wrap i {
+        position: absolute;
+        left: 12px; top: 50%;
+        transform: translateY(-50%);
+        color: #0062B8;
+        font-size: 0.88rem;
+    }
+    .input-wrap input {
+        width: 100%;
+        padding: 11px 14px 11px 36px;
+        border: 1.5px solid #d0d7de;
+        border-radius: 9px;
+        font-size: 0.9rem;
+        color: #333;
+        background: #f8fafc;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        outline: none;
+    }
+    .input-wrap input:focus {
+        border-color: #0062B8;
+        box-shadow: 0 0 0 3px rgba(0, 98, 184, 0.2);
+        background: #fff;
+    }
+    .input-wrap input::placeholder { color: #aaa; }
+
+    .login-btn {
+        width: 100%;
+        padding: 13px;
+        background: linear-gradient(135deg, #0062B8 0%, #004F94 100%);
+        color: #fff;
+        border: none;
+        border-radius: 9px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        letter-spacing: 0.4px;
+        box-shadow: 0 5px 18px rgba(0, 98, 184, 0.35);
+        transition: opacity 0.2s, transform 0.15s;
+        margin-top: 4px;
+    }
+    .login-btn:hover  { opacity: 0.94; transform: translateY(-1px); background: linear-gradient(135deg, #004F94 0%, #003B70 100%); }
+    .login-btn:active { transform: translateY(0); }
+
+    .login-right-footer {
+        margin-top: 24px;
+        text-align: center;
+        font-size: 0.77rem;
+        color: #888;
+        border-top: 1px solid #f0f0f0;
+        padding-top: 16px;
+    }
+    .login-right-footer span { color: #0062B8; font-weight: 700; }
+</style>
+
+<div class="login-page">
+    <div class="login-container">
+
+        <!-- PANEL IZQUIERDO -->
+        <div class="login-left">
+            <div class="deco-blob deco-blob-1"></div>
+            <div class="deco-blob deco-blob-2"></div>
+            <div class="deco-blob deco-blob-3"></div>
+
+            <div class="login-left-logo">
+                <img src="/logo_electrooriente.png" alt="Electro Oriente"
+                     onerror="this.style.display='none'" />
+            </div>
+
+            <div class="login-left-body">
+                <div class="deco-triangles">
+                    <div class="deco-tri"></div>
+                    <div class="deco-tri"></div>
+                    <div class="deco-tri"></div>
+                </div>
+                <h2>¡Bienvenido de nuevo!</h2>
+                <p>
+                    Accede al Sistema de Gestión de Riesgos Operacionales de
+                    <strong style="color:#fff;">Electro Oriente S.A.</strong>
+                    con tu cuenta institucional.
+                </p>
+            </div>
+
+            <div class="login-left-footer">
+                <div class="deco-triangles">
+                    <div class="deco-tri"></div>
+                    <div class="deco-tri"></div>
+                    <div class="deco-tri"></div>
+                </div>
+                <span class="login-badge">
+                    <i class="fas fa-bolt mr-1"></i>Electro Oriente S.A.
+                </span>
+            </div>
+        </div>
+
+        <!-- PANEL DERECHO -->
+        <div class="login-right">
+            <h3>Iniciar Sesión</h3>
+            <p class="login-sub">Ingresa tus credenciales para continuar</p>
+
+            <form method="post" action="/do-login">
+                <AntiforgeryToken />
+
+                <div class="form-field">
+                    <label>Usuario o Correo electrónico</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-user"></i>
+                        <input name="correo"
+                               type="text"
+                               placeholder="usuario / correo@electrooriente.com.pe"
+                               required
+                               autocomplete="username" />
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label>Contraseña</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-lock"></i>
+                        <input name="password"
+                               type="password"
+                               placeholder="••••••••"
+                               required
+                               autocomplete="current-password" />
+                    </div>
+                </div>
+
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Ingresar al Sistema
+                </button>
+            </form>
+
+            @if (Nav.Uri.Contains("error=1"))
+            {
+                <div class="alert-login" style="border-left-color: #dc3545; background-color: #fef2f2; color: #991b1b; margin-top: 18px;">
+                    <i class="fas fa-user-slash text-danger mr-1" style="font-size: 1.1rem;"></i>
+                    <span><strong>Usuario inválido:</strong> El usuario no fue encontrado en la API de autenticación o las credenciales son incorrectas.</span>
+                </div>
+            }
+            else if (Nav.Uri.Contains("status=pending"))
+            {
+                <div class="alert-login" style="border-left-color: #d97706; background-color: #fef3c7; color: #92400e; margin-top: 18px;">
+                    <i class="fas fa-clock text-warning mr-1"></i>
+                    <span>Tu solicitud de acceso se encuentra en proceso de aprobación por el Administrador.</span>
+                </div>
+            }
+            else if (Nav.Uri.Contains("status=requested"))
+            {
+                <div class="alert-login" style="border-left-color: #059669; background-color: #d1fae5; color: #065f46; margin-top: 18px;">
+                    <i class="fas fa-check-circle text-success mr-1"></i>
+                    <span>Tu solicitud de acceso ha sido enviada correctamente. Se notificará a tu correo cuando sea aprobada.</span>
+                </div>
+            }
+
+            <div class="login-right-footer">
+                <i class="fas fa-shield-alt mr-1"></i>
+                Acceso restringido &mdash; Solo personal autorizado<br />
+                <span>RiesgosElor</span> &copy; @DateTime.Now.Year
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@if (Nav.Uri.Contains("first_time=1"))
+{
+    <!-- MODAL DE CONFIRMACIÓN PARA PRIMER INGRESO -->
+    <div style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,35,71,0.78); z-index:9999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px); padding:15px;">
+        <div style="background:#ffffff; border-radius:16px; width:100%; max-width:480px; box-shadow:0 25px 60px rgba(0,0,0,0.4); overflow:hidden; border:2px solid #FFDD00; animation: modalIn 0.3s ease-out;">
+            <div style="background:linear-gradient(135deg, #003B70 0%, #0062B8 100%); padding:22px; text-align:center; color:#ffffff;">
+                <div style="width:56px; height:56px; background:#FFDD00; color:#002D58; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:24px; box-shadow:0 4px 10px rgba(0,0,0,0.25);">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <h4 style="margin:0; font-weight:800; font-size:1.25rem;">Solicitud de Acceso Requerida</h4>
+                <span style="font-size:0.82rem; opacity:0.9;">Primera vez ingresando al Sistema GIR</span>
+            </div>
+            <div style="padding:24px 22px; color:#334155;">
+                <p style="font-size:0.95rem; line-height:1.5; margin-bottom:14px; text-align:center;">
+                    Hola, <strong style="color:#0062B8;">@(string.IsNullOrWhiteSpace(ParamNombre) ? "Usuario" : ParamNombre)</strong>.<br />
+                    ¿Estás seguro de solicitar acceso al Sistema de Gestión de Riesgos de <strong>Electro Oriente S.A.</strong>?
+                </p>
+                <div style="background-color:#FEF3C7; border:1px solid #FCD34D; color:#92400E; padding:12px 14px; border-radius:8px; font-size:0.82rem; line-height:1.4;">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Tu solicitud figurará en la lista de usuarios pendientes del Administrador y se notifica a tu correo electrónico al ser autorizada.
+                </div>
+            </div>
+            <div style="background:#f8fafc; padding:14px 22px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #e2e8f0;">
+                <a href="/login" class="btn btn-secondary btn-sm font-weight-bold" style="padding:8px 18px;">
+                    <i class="fas fa-times mr-1"></i>Cancelar
+                </a>
+                <form method="post" action="/do-solicitar-acceso" style="display:inline;">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="u" value="@ParamUsuarioEnc" />
+                    <input type="hidden" name="p" value="@ParamPassEnc" />
+                    <button type="submit" class="btn btn-primary btn-sm font-weight-bold" style="padding:8px 22px; background:#0062B8; border-color:#004F94;">
+                        <i class="fas fa-paper-plane mr-1"></i>Sí, Solicitar Acceso
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string ParamUsuarioEnc = "";
+    private string ParamPassEnc = "";
+    private string ParamNombre = "";
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Nav.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("u", out var uVal)) ParamUsuarioEnc = uVal.ToString();
+        if (query.TryGetValue("p", out var pVal)) ParamPassEnc = pVal.ToString();
+        if (query.TryGetValue("name", out var nVal))
+        {
+            try
+            {
+                ParamNombre = Encoding.UTF8.GetString(Convert.FromBase64String(nVal.ToString()));
+            }
+            catch
+            {
+                ParamNombre = nVal.ToString();
+            }
+        }
+    }
+}

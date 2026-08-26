@@ -1,0 +1,528 @@
+@page "/auditoria-grc"
+@layout MainLayout
+@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@inject GrcService GrcSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-7">
+                <h1 class="m-0"><i class="fas fa-clipboard-check mr-2"></i>Auditoria GIR</h1>
+            </div>
+            <div class="col-sm-5">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="/grc">GIR</a></li>
+                    <li class="breadcrumb-item active">Auditoria</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    @if (MostrarForm)
+    {
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">@(EditandoId == 0 ? "Nueva Auditoria" : $"Editar Auditoria {FCodigo}")</h3>
+            </div>
+            <div class="card-body">
+                @if (MsgForm != "")
+                {
+                    <div class="alert alert-@AlertClass">@MsgForm</div>
+                }
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input value="@FNombre" @oninput="e => FNombre = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select value="@FTipo" @onchange="e => FTipo = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Interna</option>
+                                <option>Externa</option>
+                                <option>Regulatoria</option>
+                                <option>Seguimiento</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select value="@FEstado" @onchange="e => FEstado = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                @foreach (var estado in GrcService.EstadosAuditoria)
+                                {
+                                    <option value="@estado">@estado</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Proceso</label>
+                            <select value="@FProceso" @onchange="e => FProceso = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option value="">Seleccione</option>
+                                @foreach (var p in RiesgoService.Procesos)
+                                {
+                                    <option value="@p.Key">@p.Key - @p.Value</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Fecha inicio</label>
+                            <input type="date" value="@FFechaInicio" @oninput="e => FFechaInicio = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Fecha fin</label>
+                            <input type="date" value="@FFechaFin" @oninput="e => FFechaFin = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Responsable</label>
+                            <input value="@FResponsable" @oninput="e => FResponsable = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="form-group">
+                            <label>Alcance</label>
+                            <textarea value="@FAlcance" @oninput="e => FAlcance = e.Value?.ToString() ?? string.Empty" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label>Observaciones</label>
+                            <textarea value="@FObservaciones" @oninput="e => FObservaciones = e.Value?.ToString() ?? string.Empty" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary mr-2" @onclick="GuardarAuditoria">
+                    <i class="fas fa-save mr-1"></i>Guardar
+                </button>
+                <button class="btn btn-secondary" @onclick="CerrarForm">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    @if (MostrarHallazgoForm)
+    {
+        <div class="card card-primary card-outline">
+            <div class="card-header">
+                <h3 class="card-title">@(HallazgoId == 0 ? "Nuevo Hallazgo" : $"Editar Hallazgo {HCodigo}")</h3>
+            </div>
+            <div class="card-body">
+                @if (MsgHallazgo != "")
+                {
+                    <div class="alert alert-@HallazgoAlertClass">@MsgHallazgo</div>
+                }
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Severidad</label>
+                            <select value="@HSeveridad" @onchange="e => HSeveridad = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Baja</option>
+                                <option>Media</option>
+                                <option>Alta</option>
+                                <option>Critica</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select value="@HEstado" @onchange="e => HEstado = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                @foreach (var estado in GrcService.EstadosHallazgo)
+                                {
+                                    <option value="@estado">@estado</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Fecha compromiso</label>
+                            <input type="date" value="@HFechaCompromiso" @oninput="e => HFechaCompromiso = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Responsable</label>
+                            <input value="@HResponsable" @oninput="e => HResponsable = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label>Descripcion del hallazgo</label>
+                            <textarea value="@HDescripcion" @oninput="e => HDescripcion = e.Value?.ToString() ?? string.Empty" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary mr-2" @onclick="GuardarHallazgo">
+                    <i class="fas fa-save mr-1"></i>Guardar hallazgo
+                </button>
+                <button class="btn btn-secondary" @onclick="CerrarHallazgoForm">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    <div class="card card-primary">
+        <div class="card-header">
+            <h3 class="card-title">Plan de auditorias y hallazgos</h3>
+            <div class="card-tools">
+                <button class="btn btn-success btn-sm" @onclick="AbrirForm">
+                    <i class="fas fa-plus mr-1"></i>Nueva auditoria
+                </button>
+            </div>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-hover table-striped table-sm">
+                <thead class="bg-primary">
+                    <tr class="text-white">
+                        <th>Codigo</th>
+                        <th>Auditoria</th>
+                        <th>Proceso</th>
+                        <th>Responsable</th>
+                        <th>Periodo</th>
+                        <th>Estado</th>
+                        <th class="text-center">Hallazgos</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Lista.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">No hay auditorias registradas.</td>
+                        </tr>
+                    }
+                    @foreach (var item in Lista)
+                    {
+                        <tr>
+                            <td><strong>@item.Codigo</strong></td>
+                            <td>
+                                <div>@item.Nombre</div>
+                                <div class="small text-muted">@item.Tipo</div>
+                            </td>
+                            <td><span class="badge badge-light border">@item.CodigoProceso</span></td>
+                            <td>@item.Responsable</td>
+                            <td>@Periodo(item)</td>
+                            <td><span class="badge badge-@EstadoAuditoriaColor(item.Estado)">@item.Estado</span></td>
+                            <td class="text-center">@item.Hallazgos.Count</td>
+                            <td>
+                                <button class="btn btn-xs btn-info mr-1" @onclick="() => AbrirHallazgoForm(item.Id)">
+                                    <i class="fas fa-search-plus"></i>
+                                </button>
+                                <button class="btn btn-xs btn-primary mr-1" @onclick="() => EditarAuditoria(item)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-xs btn-danger" @onclick="() => EliminarAuditoria(item.Id)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        @if (item.Hallazgos.Any())
+                        {
+                            <tr>
+                                <td></td>
+                                <td colspan="7" class="bg-light">
+                                    <table class="table table-sm mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Hallazgo</th>
+                                                <th>Descripcion</th>
+                                                <th>Severidad</th>
+                                                <th>Responsable</th>
+                                                <th>Compromiso</th>
+                                                <th>Estado</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var h in item.Hallazgos.OrderBy(h => h.FechaCompromiso ?? DateTime.MaxValue))
+                                            {
+                                                <tr>
+                                                    <td><strong>@h.Codigo</strong></td>
+                                                    <td style="white-space:normal;min-width:260px;">@Cortar(h.Descripcion, 140)</td>
+                                                    <td><span class="badge badge-@SeveridadColor(h.Severidad)">@h.Severidad</span></td>
+                                                    <td>@h.Responsable</td>
+                                                    <td>@(h.FechaCompromiso?.ToString("dd/MM/yyyy") ?? "-")</td>
+                                                    <td><span class="badge badge-@EstadoHallazgoColor(h.Estado)">@h.Estado</span></td>
+                                                    <td>
+                                                        <button class="btn btn-xs btn-primary mr-1" @onclick="() => EditarHallazgo(item.Id, h)">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button class="btn btn-xs btn-danger" @onclick="() => EliminarHallazgo(h.Id)">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<AuditoriaGrc> Lista = new();
+    int UserId;
+    string Rol = "Admin";
+    bool MostrarForm;
+    bool MostrarHallazgoForm;
+    bool FormOk;
+    bool HallazgoOk;
+    string MsgForm = "";
+    string MsgHallazgo = "";
+
+    int EditandoId;
+    string FCodigo = "";
+    string FNombre = "";
+    string FTipo = "Interna";
+    string FEstado = "Planificada";
+    string FProceso = "";
+    string FResponsable = "";
+    string FFechaInicio = "";
+    string FFechaFin = "";
+    string FAlcance = "";
+    string FObservaciones = "";
+
+    int HallazgoId;
+    int HallazgoAuditoriaId;
+    string HCodigo = "";
+    string HDescripcion = "";
+    string HSeveridad = "Media";
+    string HResponsable = "";
+    string HFechaCompromiso = "";
+    string HEstado = "Abierto";
+
+    string AlertClass => FormOk ? "success" : "danger";
+    string HallazgoAlertClass => HallazgoOk ? "success" : "danger";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        UserId = int.TryParse(state.User.FindFirst("UserId")?.Value, out var id) ? id : 0;
+        Rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Admin";
+        await Cargar();
+    }
+
+    async Task Cargar()
+    {
+        Lista = await GrcSvc.GetAuditoriasAsync(UserId, Rol);
+    }
+
+    void AbrirForm()
+    {
+        LimpiarAuditoria();
+        MostrarForm = true;
+    }
+
+    void CerrarForm()
+    {
+        MostrarForm = false;
+        MsgForm = "";
+    }
+
+    void EditarAuditoria(AuditoriaGrc item)
+    {
+        EditandoId = item.Id;
+        FCodigo = item.Codigo;
+        FNombre = item.Nombre;
+        FTipo = item.Tipo;
+        FEstado = item.Estado;
+        FProceso = item.CodigoProceso;
+        FResponsable = item.Responsable;
+        FFechaInicio = item.FechaInicio?.ToString("yyyy-MM-dd") ?? "";
+        FFechaFin = item.FechaFin?.ToString("yyyy-MM-dd") ?? "";
+        FAlcance = item.Alcance;
+        FObservaciones = item.Observaciones;
+        MsgForm = "";
+        MostrarForm = true;
+    }
+
+    async Task GuardarAuditoria()
+    {
+        if (string.IsNullOrWhiteSpace(FNombre))
+        {
+            FormOk = false;
+            MsgForm = "Registra el nombre de la auditoria.";
+            return;
+        }
+
+        var auditoria = new AuditoriaGrc
+        {
+            Id = EditandoId,
+            Codigo = FCodigo,
+            Nombre = FNombre,
+            Tipo = FTipo,
+            Estado = FEstado,
+            CodigoProceso = FProceso,
+            Responsable = FResponsable,
+            FechaInicio = DateTime.TryParse(FFechaInicio, out var inicio) ? inicio : null,
+            FechaFin = DateTime.TryParse(FFechaFin, out var fin) ? fin : null,
+            Alcance = FAlcance,
+            Observaciones = FObservaciones
+        };
+
+        await GrcSvc.GuardarAuditoriaAsync(auditoria);
+        FormOk = true;
+        MsgForm = "Auditoria guardada correctamente.";
+        LimpiarAuditoria();
+        MostrarForm = false;
+        await Cargar();
+    }
+
+    async Task EliminarAuditoria(int id)
+    {
+        await GrcSvc.EliminarAuditoriaAsync(id);
+        await Cargar();
+    }
+
+    void AbrirHallazgoForm(int auditoriaId)
+    {
+        LimpiarHallazgo();
+        HallazgoAuditoriaId = auditoriaId;
+        MostrarHallazgoForm = true;
+    }
+
+    void CerrarHallazgoForm()
+    {
+        MostrarHallazgoForm = false;
+        MsgHallazgo = "";
+    }
+
+    void EditarHallazgo(int auditoriaId, HallazgoAuditoria item)
+    {
+        HallazgoAuditoriaId = auditoriaId;
+        HallazgoId = item.Id;
+        HCodigo = item.Codigo;
+        HDescripcion = item.Descripcion;
+        HSeveridad = item.Severidad;
+        HResponsable = item.Responsable;
+        HFechaCompromiso = item.FechaCompromiso?.ToString("yyyy-MM-dd") ?? "";
+        HEstado = item.Estado;
+        MsgHallazgo = "";
+        MostrarHallazgoForm = true;
+    }
+
+    async Task GuardarHallazgo()
+    {
+        if (HallazgoAuditoriaId == 0 || string.IsNullOrWhiteSpace(HDescripcion))
+        {
+            HallazgoOk = false;
+            MsgHallazgo = "Selecciona una auditoria y registra la descripcion del hallazgo.";
+            return;
+        }
+
+        var hallazgo = new HallazgoAuditoria
+        {
+            Id = HallazgoId,
+            AuditoriaGrcId = HallazgoAuditoriaId,
+            Codigo = HCodigo,
+            Descripcion = HDescripcion,
+            Severidad = HSeveridad,
+            Responsable = HResponsable,
+            FechaCompromiso = DateTime.TryParse(HFechaCompromiso, out var compromiso) ? compromiso : null,
+            Estado = HEstado
+        };
+
+        await GrcSvc.GuardarHallazgoAsync(hallazgo);
+        HallazgoOk = true;
+        MsgHallazgo = "Hallazgo guardado correctamente.";
+        LimpiarHallazgo();
+        MostrarHallazgoForm = false;
+        await Cargar();
+    }
+
+    async Task EliminarHallazgo(int id)
+    {
+        await GrcSvc.EliminarHallazgoAsync(id);
+        await Cargar();
+    }
+
+    void LimpiarAuditoria()
+    {
+        EditandoId = 0;
+        FCodigo = "";
+        FNombre = "";
+        FTipo = "Interna";
+        FEstado = "Planificada";
+        FProceso = "";
+        FResponsable = "";
+        FFechaInicio = "";
+        FFechaFin = "";
+        FAlcance = "";
+        FObservaciones = "";
+        MsgForm = "";
+    }
+
+    void LimpiarHallazgo()
+    {
+        HallazgoId = 0;
+        HallazgoAuditoriaId = 0;
+        HCodigo = "";
+        HDescripcion = "";
+        HSeveridad = "Media";
+        HResponsable = "";
+        HFechaCompromiso = "";
+        HEstado = "Abierto";
+        MsgHallazgo = "";
+    }
+
+    static string Periodo(AuditoriaGrc item)
+    {
+        var inicio = item.FechaInicio?.ToString("dd/MM/yyyy") ?? "-";
+        var fin = item.FechaFin?.ToString("dd/MM/yyyy") ?? "-";
+        return $"{inicio} a {fin}";
+    }
+
+    static string EstadoAuditoriaColor(string estado) => estado switch
+    {
+        "Cerrada" => "success",
+        "Cancelada" => "secondary",
+        "En ejecucion" => "warning",
+        "Informe emitido" => "info",
+        _ => "primary"
+    };
+
+    static string EstadoHallazgoColor(string estado) => estado switch
+    {
+        "Cerrado" => "success",
+        "Implementado" => "info",
+        "En remediacion" => "warning",
+        _ => "danger"
+    };
+
+    static string SeveridadColor(string severidad) => severidad switch
+    {
+        "Critica" => "danger",
+        "Alta" => "warning",
+        "Media" => "info",
+        _ => "secondary"
+    };
+
+    static string Cortar(string texto, int max)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Length <= max) return texto;
+        return texto[..max] + "...";
+    }
+}

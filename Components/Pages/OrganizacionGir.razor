@@ -1,0 +1,650 @@
+@page "/organizacion-gir"
+@layout MainLayout
+@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@inject RiesgoService RiesgoSvc
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-8">
+                <h1 class="m-0"><i class="fas fa-sitemap mr-2"></i>Organizacion GIR</h1>
+            </div>
+            <div class="col-sm-4">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="/grc">GIR</a></li>
+                    <li class="breadcrumb-item active">Organizacion</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="alert alert-info py-2">
+        <strong>Jerarquia organizacional GIR:</strong> Directorio &gt; Gerencias &gt; Departamentos. Registra cada nivel antes de asignar personas responsables.
+    </div>
+
+    @if (!string.IsNullOrEmpty(Msg))
+    {
+        <div class="alert alert-@MsgCss py-2">
+            <i class="fas fa-@(MsgCss == "success" ? "check-circle" : "exclamation-circle") mr-2"></i>@Msg
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-metric-blue">
+                <div class="inner">
+                    <h3>@Areas.Count(a => a.Categoria == "DIRECTORIO")</h3>
+                    <p>Directorio</p>
+                </div>
+                <div class="icon"><i class="fas fa-chess-king"></i></div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-metric-green">
+                <div class="inner">
+                    <h3>@Areas.Count(a => a.Categoria == "GERENCIAS")</h3>
+                    <p>Gerencias</p>
+                </div>
+                <div class="icon"><i class="fas fa-building"></i></div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-metric-yellow">
+                <div class="inner">
+                    <h3>@Areas.Count(a => a.Categoria == "DEPARTAMENTOS")</h3>
+                    <p>Departamentos</p>
+                </div>
+                <div class="icon"><i class="fas fa-sitemap"></i></div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-metric-purple">
+                <div class="inner">
+                    <h3>@Responsables.Count(r => r.Activo)</h3>
+                    <p>Responsables</p>
+                </div>
+                <div class="icon"><i class="fas fa-user-tie"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-primary card-outline">
+        <div class="card-header p-2">
+            <ul class="nav nav-pills">
+                <li class="nav-item">
+                    <button class="nav-link @(Tab == "procesos" ? "active" : "")" @onclick='() => Tab = "procesos"'>
+                        <i class="fas fa-layer-group mr-1"></i>Procesos
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(Tab == "areas" ? "active" : "")" @onclick='() => Tab = "areas"'>
+                        <i class="fas fa-building mr-1"></i>Directorio y areas
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(Tab == "responsables" ? "active" : "")" @onclick='() => Tab = "responsables"'>
+                        <i class="fas fa-user-check mr-1"></i>Responsables
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body p-3">
+            @if (Tab == "procesos")
+            {
+                <div class="row">
+                    <div class="col-xl-4">
+                        <div class="border rounded p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong>@(ProcesoForm.Id == 0 ? "Nuevo proceso" : $"Editando {ProcesoForm.Codigo}")</strong>
+                                @if (ProcesoForm.Id > 0)
+                                {
+                                    <button class="btn btn-xs btn-secondary" @onclick="ResetProceso">Cancelar</button>
+                                }
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group col-md-4">
+                                    <label>Codigo</label>
+                                    <input class="form-control form-control-sm" @bind="ProcesoForm.Codigo" />
+                                </div>
+                                <div class="form-group col-md-4">
+                                    <label>Nivel</label>
+                                    <select class="form-control form-control-sm" @bind="ProcesoForm.Nivel">
+                                        <option>Macroproceso</option>
+                                        <option>Proceso</option>
+                                        <option>Subproceso</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-4">
+                                    <label>Orden</label>
+                                    <input type="number" class="form-control form-control-sm" @bind="ProcesoForm.Orden" />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre</label>
+                                <input class="form-control form-control-sm" @bind="ProcesoForm.Nombre" />
+                            </div>
+                            <div class="form-group">
+                                <label>Macroproceso</label>
+                                <select class="form-control form-control-sm" @bind="ProcesoForm.Macroproceso">
+                                    <option>ESTRATEGICO</option>
+                                    <option>OPERATIVO</option>
+                                    <option>SOPORTE</option>
+                                    <option>EVALUACION Y MEJORA CONTINUA</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Proceso padre</label>
+                                <select class="form-control form-control-sm" value="@ProcesoForm.PadreId" @onchange="e => ProcesoForm.PadreId = ToInt(e.Value)">
+                                    <option value="">Sin padre</option>
+                                    @foreach (var p in ProcesosPadre)
+                                    {
+                                        <option value="@p.Id">@p.Codigo - @p.Nombre</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Gerencia / area responsable</label>
+                                <select class="form-control form-control-sm" value="@ProcesoForm.AreaResponsableId" @onchange="e => ProcesoForm.AreaResponsableId = ToInt(e.Value)">
+                                    <option value="">Seleccione</option>
+                                    @foreach (var area in AreasOperativas)
+                                    {
+                                        <option value="@area.Id">@EtiquetaArea(area)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Responsable</label>
+                                <select class="form-control form-control-sm" value="@ProcesoForm.ResponsableId" @onchange="e => ProcesoForm.ResponsableId = ToInt(e.Value)">
+                                    <option value="">Seleccione</option>
+                                    @foreach (var resp in ResponsablesParaProceso)
+                                    {
+                                        <option value="@resp.Id">@resp.Nombre</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Objetivo</label>
+                                <textarea class="form-control form-control-sm" rows="2" @bind="ProcesoForm.Objetivo"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Descripcion</label>
+                                <textarea class="form-control form-control-sm" rows="2" @bind="ProcesoForm.Descripcion"></textarea>
+                            </div>
+                            <div class="custom-control custom-switch mb-3">
+                                <input type="checkbox" class="custom-control-input" id="procActivo" @bind="ProcesoForm.Activo" />
+                                <label class="custom-control-label" for="procActivo">Activo</label>
+                            </div>
+                            <button class="btn btn-primary btn-sm" @onclick="GuardarProceso">
+                                <i class="fas fa-save mr-1"></i>Guardar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-xl-8">
+                        <div class="d-flex flex-wrap align-items-center mb-2">
+                            <div class="btn-group btn-group-sm mr-2">
+                                @foreach (var nivel in NivelesProceso)
+                                {
+                                    <button class="btn @(FiltroNivel == nivel ? "btn-primary" : "btn-outline-primary")" @onclick="() => FiltroNivel = nivel">@nivel</button>
+                                }
+                            </div>
+                            <input class="form-control form-control-sm" style="max-width:320px;" placeholder="Buscar" @bind="BusquedaProceso" @bind:event="oninput" />
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover border">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th style="width:85px;">Codigo</th>
+                                        <th>Proceso / subproceso</th>
+                                        <th>Padre</th>
+                                        <th>Area</th>
+                                        <th>Responsable</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center" style="width:90px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var p in ProcesosFiltrados)
+                                    {
+                                        <tr>
+                                            <td><strong>@p.Codigo</strong></td>
+                                            <td>
+                                                <span class="badge badge-info mr-1">@p.Nivel</span>
+                                                @p.Nombre
+                                            </td>
+                                            <td>@(p.Padre == null ? "-" : $"{p.Padre.Codigo} {p.Padre.Nombre}")</td>
+                                            <td>@(p.AreaResponsable?.Nombre ?? p.AreaResponsableDefault)</td>
+                                            <td>@(p.Responsable?.Nombre ?? "-")</td>
+                                            <td class="text-center">
+                                                <span class="badge badge-@(p.Activo ? "success" : "secondary")">@(p.Activo ? "Activo" : "Inactivo")</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-xs btn-warning mr-1" @onclick="() => EditarProceso(p)"><i class="fas fa-edit"></i></button>
+                                                <button class="btn btn-xs btn-outline-secondary" @onclick="() => ToggleProceso(p)"><i class="fas fa-power-off"></i></button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (Tab == "areas")
+            {
+                <div class="row">
+                    <div class="col-lg-4">
+                        <div class="border rounded p-3 mb-3">
+                            <strong>@(AreaForm.Id == 0 ? "Nueva unidad organizacional" : $"Editando {AreaForm.Nombre}")</strong>
+                            <div class="form-group mt-2">
+                                <label>Nivel jerarquico</label>
+                                <select class="form-control form-control-sm" @bind="AreaForm.Categoria">
+                                    <option>DIRECTORIO</option>
+                                    <option>GERENCIAS</option>
+                                    <option>DEPARTAMENTOS</option>
+                                </select>
+                            </div>
+                            @if (AreaForm.Categoria != "DIRECTORIO")
+                            {
+                                <div class="form-group">
+                                    <label>Unidad superior</label>
+                                    <select class="form-control form-control-sm" value="@AreaForm.PadreId" @onchange="e => AreaForm.PadreId = ToInt(e.Value)">
+                                        <option value="">Seleccione</option>
+                                        @foreach (var area in AreasSuperioresDisponibles)
+                                        {
+                                            <option value="@area.Id">@EtiquetaArea(area)</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+                            <div class="form-row">
+                                <div class="form-group col-md-4">
+                                    <label>Codigo</label>
+                                    <input class="form-control form-control-sm" @bind="AreaForm.Codigo" />
+                                </div>
+                                <div class="form-group col-md-8">
+                                    <label>Nombre</label>
+                                    <input class="form-control form-control-sm" @bind="AreaForm.Nombre" />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    <label>Orden</label>
+                                    <input type="number" class="form-control form-control-sm" @bind="AreaForm.Orden" />
+                                </div>
+                                <div class="form-group col-md-6 d-flex align-items-end">
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" id="areaActiva" @bind="AreaForm.Activo" />
+                                        <label class="custom-control-label" for="areaActiva">Activa</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary btn-sm mr-1" @onclick="GuardarArea"><i class="fas fa-save mr-1"></i>Guardar</button>
+                            <button class="btn btn-secondary btn-sm" @onclick="ResetArea">Limpiar</button>
+                        </div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover border">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Nivel</th>
+                                        <th>Codigo</th>
+                                        <th>Nombre</th>
+                                        <th>Unidad superior</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var a in AreasOrdenadas)
+                                    {
+                                        <tr>
+                                            <td><span class="badge badge-warning">@a.Categoria</span></td>
+                                            <td>@a.Codigo</td>
+                                            <td><strong>@a.Nombre</strong></td>
+                                            <td>@(a.Padre == null ? "-" : EtiquetaArea(a.Padre))</td>
+                                            <td class="text-center">
+                                                <span class="badge badge-@(a.Activo ? "success" : "secondary")">@(a.Activo ? "Activa" : "Inactiva")</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-xs btn-warning mr-1" @onclick="() => EditarArea(a)"><i class="fas fa-edit"></i></button>
+                                                <button class="btn btn-xs btn-outline-secondary" @onclick="() => ToggleArea(a)"><i class="fas fa-power-off"></i></button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (Tab == "responsables")
+            {
+                <div class="row">
+                    <div class="col-lg-4">
+                        <div class="border rounded p-3 mb-3">
+                            <strong>@(ResponsableForm.Id == 0 ? "Nuevo responsable" : $"Editando {ResponsableForm.Nombre}")</strong>
+                            <div class="form-group mt-2">
+                                <label>Nombre</label>
+                                <input class="form-control form-control-sm" @bind="ResponsableForm.Nombre" />
+                            </div>
+                            <div class="form-group">
+                                <label>Cargo</label>
+                                <input class="form-control form-control-sm" @bind="ResponsableForm.Cargo" />
+                            </div>
+                            <div class="form-group">
+                                <label>Correo</label>
+                                <input class="form-control form-control-sm" @bind="ResponsableForm.Correo" />
+                            </div>
+                            <div class="form-group">
+                                <label>Departamento</label>
+                                <select class="form-control form-control-sm" value="@ResponsableForm.AreaId" @onchange="e => ResponsableForm.AreaId = ToInt(e.Value)">
+                                    <option value="">Seleccione</option>
+                                    @foreach (var area in DepartamentosActivos)
+                                    {
+                                        <option value="@area.Id">@EtiquetaArea(area)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    <label>Orden</label>
+                                    <input type="number" class="form-control form-control-sm" @bind="ResponsableForm.Orden" />
+                                </div>
+                                <div class="form-group col-md-6 d-flex align-items-end">
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" id="respActivo" @bind="ResponsableForm.Activo" />
+                                        <label class="custom-control-label" for="respActivo">Activo</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary btn-sm mr-1" @onclick="GuardarResponsable"><i class="fas fa-save mr-1"></i>Guardar</button>
+                            <button class="btn btn-secondary btn-sm" @onclick="ResetResponsable">Limpiar</button>
+                        </div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover border">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Responsable</th>
+                                        <th>Cargo</th>
+                                        <th>Departamento</th>
+                                        <th>Correo</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var r in Responsables.OrderBy(r => r.Area?.Padre?.Nombre).ThenBy(r => r.Area?.Nombre).ThenBy(r => r.Nombre))
+                                    {
+                                        <tr>
+                                            <td><strong>@r.Nombre</strong></td>
+                                            <td>@r.Cargo</td>
+                                            <td>@(r.Area?.Nombre ?? "-")</td>
+                                            <td>@r.Correo</td>
+                                            <td class="text-center">
+                                                <span class="badge badge-@(r.Activo ? "success" : "secondary")">@(r.Activo ? "Activo" : "Inactivo")</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-xs btn-warning mr-1" @onclick="() => EditarResponsable(r)"><i class="fas fa-edit"></i></button>
+                                                <button class="btn btn-xs btn-outline-secondary" @onclick="() => ToggleResponsable(r)"><i class="fas fa-power-off"></i></button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    string Tab = "procesos";
+    string FiltroNivel = "Todos";
+    string BusquedaProceso = "";
+    string Msg = "";
+    string MsgCss = "success";
+
+    List<MaestroProceso> Procesos = new();
+    List<MaestroArea> Areas = new();
+    List<MaestroResponsable> Responsables = new();
+
+    MaestroProceso ProcesoForm = new() { Nivel = "Proceso", Macroproceso = "OPERATIVO", Activo = true };
+    MaestroArea AreaForm = new() { Categoria = "GERENCIAS", Activo = true };
+    MaestroResponsable ResponsableForm = new() { Activo = true };
+
+    string[] NivelesProceso = new[] { "Todos", "Macroproceso", "Proceso", "Subproceso" };
+
+    IEnumerable<MaestroArea> AreasOrdenadas => Areas
+        .OrderBy(a => OrdenCategoria(a.Categoria))
+        .ThenBy(a => a.Padre?.Nombre)
+        .ThenBy(a => a.Orden)
+        .ThenBy(a => a.Nombre);
+
+    IEnumerable<MaestroArea> AreasOperativas => Areas
+        .Where(a => a.Activo && a.Categoria != "DIRECTORIO")
+        .OrderBy(a => OrdenCategoria(a.Categoria))
+        .ThenBy(a => a.Padre?.Nombre)
+        .ThenBy(a => a.Nombre);
+
+    IEnumerable<MaestroArea> DepartamentosActivos => Areas
+        .Where(a => a.Activo && a.Categoria == "DEPARTAMENTOS")
+        .OrderBy(a => a.Padre?.Nombre)
+        .ThenBy(a => a.Nombre);
+
+    IEnumerable<MaestroArea> AreasSuperioresDisponibles => Areas
+        .Where(a => a.Activo && a.Id != AreaForm.Id)
+        .Where(a => AreaForm.Categoria == "GERENCIAS"
+            ? a.Categoria == "DIRECTORIO"
+            : a.Categoria == "GERENCIAS")
+        .OrderBy(a => a.Orden)
+        .ThenBy(a => a.Nombre);
+
+    IEnumerable<MaestroResponsable> ResponsablesParaProceso => Responsables
+        .Where(r => r.Activo)
+        .Where(r => !ProcesoForm.AreaResponsableId.HasValue || r.AreaId == ProcesoForm.AreaResponsableId)
+        .OrderBy(r => r.Nombre);
+
+    IEnumerable<MaestroProceso> ProcesosPadre => Procesos
+        .Where(p => p.Id != ProcesoForm.Id && p.Nivel != "Subproceso")
+        .OrderBy(p => p.Nivel)
+        .ThenBy(p => p.Codigo);
+
+    IEnumerable<MaestroProceso> ProcesosFiltrados => Procesos
+        .Where(p => FiltroNivel == "Todos" || p.Nivel == FiltroNivel)
+        .Where(p => string.IsNullOrWhiteSpace(BusquedaProceso) ||
+            p.Codigo.Contains(BusquedaProceso, StringComparison.OrdinalIgnoreCase) ||
+            p.Nombre.Contains(BusquedaProceso, StringComparison.OrdinalIgnoreCase) ||
+            (p.AreaResponsable?.Nombre ?? "").Contains(BusquedaProceso, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(p => p.Orden)
+        .ThenBy(p => p.Codigo);
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    async Task Cargar()
+    {
+        Procesos = await RiesgoSvc.GetMaestroProcesosAsync();
+        Areas = await RiesgoSvc.GetMaestroAreasAsync();
+        Responsables = await RiesgoSvc.GetMaestroResponsablesAsync();
+    }
+
+    int? ToInt(object? value)
+    {
+        return int.TryParse(value?.ToString(), out var id) ? id : null;
+    }
+
+    void ResetProceso() => ProcesoForm = new() { Nivel = "Proceso", Macroproceso = "OPERATIVO", Activo = true };
+    void ResetArea() => AreaForm = new() { Categoria = "GERENCIAS", Activo = true };
+    void ResetResponsable() => ResponsableForm = new() { Activo = true };
+
+    string EtiquetaArea(MaestroArea area)
+    {
+        var prefijo = area.Padre == null ? area.Categoria : $"{area.Padre.Nombre} / {area.Categoria}";
+        return $"{prefijo} - {area.Nombre}";
+    }
+
+    int OrdenCategoria(string categoria) => categoria switch
+    {
+        "DIRECTORIO" => 1,
+        "GERENCIAS" => 2,
+        "DEPARTAMENTOS" => 3,
+        _ => 9
+    };
+
+    void EditarProceso(MaestroProceso p)
+    {
+        ProcesoForm = new MaestroProceso
+        {
+            Id = p.Id,
+            Codigo = p.Codigo,
+            Nombre = p.Nombre,
+            Nivel = p.Nivel,
+            Macroproceso = p.Macroproceso,
+            AreaResponsableDefault = p.AreaResponsableDefault,
+            PadreId = p.PadreId,
+            AreaResponsableId = p.AreaResponsableId,
+            ResponsableId = p.ResponsableId,
+            Objetivo = p.Objetivo,
+            Descripcion = p.Descripcion,
+            Activo = p.Activo,
+            Orden = p.Orden
+        };
+    }
+
+    async Task GuardarProceso()
+    {
+        if (string.IsNullOrWhiteSpace(ProcesoForm.Codigo) || string.IsNullOrWhiteSpace(ProcesoForm.Nombre))
+        {
+            Msg = "Codigo y nombre son obligatorios.";
+            MsgCss = "danger";
+            return;
+        }
+
+        await RiesgoSvc.SaveMaestroProcesoAsync(ProcesoForm);
+        ResetProceso();
+        Msg = "Proceso actualizado.";
+        MsgCss = "success";
+        await Cargar();
+    }
+
+    async Task ToggleProceso(MaestroProceso p)
+    {
+        p.Activo = !p.Activo;
+        await RiesgoSvc.SaveMaestroProcesoAsync(p);
+        await Cargar();
+    }
+
+    void EditarArea(MaestroArea a)
+    {
+        AreaForm = new MaestroArea
+        {
+            Id = a.Id,
+            Categoria = a.Categoria,
+            Codigo = a.Codigo,
+            Nombre = a.Nombre,
+            PadreId = a.PadreId,
+            Activo = a.Activo,
+            Orden = a.Orden
+        };
+    }
+
+    async Task GuardarArea()
+    {
+        if (string.IsNullOrWhiteSpace(AreaForm.Nombre))
+        {
+            Msg = "El nombre del area es obligatorio.";
+            MsgCss = "danger";
+            return;
+        }
+
+        if (AreaForm.Categoria != "DIRECTORIO" && !AreaForm.PadreId.HasValue)
+        {
+            Msg = AreaForm.Categoria == "GERENCIAS"
+                ? "Registra o selecciona el Directorio antes de guardar una gerencia."
+                : "Registra o selecciona una gerencia antes de guardar un departamento.";
+            MsgCss = "danger";
+            return;
+        }
+
+        var superior = Areas.FirstOrDefault(a => a.Id == AreaForm.PadreId);
+        if (AreaForm.Categoria == "GERENCIAS" && superior?.Categoria != "DIRECTORIO")
+        {
+            Msg = "Una gerencia debe depender del Directorio.";
+            MsgCss = "danger";
+            return;
+        }
+
+        if (AreaForm.Categoria == "DEPARTAMENTOS" && superior?.Categoria != "GERENCIAS")
+        {
+            Msg = "Un departamento debe depender de una gerencia.";
+            MsgCss = "danger";
+            return;
+        }
+
+        await RiesgoSvc.SaveMaestroAreaAsync(AreaForm);
+        ResetArea();
+        Msg = "Area actualizada.";
+        MsgCss = "success";
+        await Cargar();
+    }
+
+    async Task ToggleArea(MaestroArea a)
+    {
+        a.Activo = !a.Activo;
+        await RiesgoSvc.SaveMaestroAreaAsync(a);
+        await Cargar();
+    }
+
+    void EditarResponsable(MaestroResponsable r)
+    {
+        ResponsableForm = new MaestroResponsable
+        {
+            Id = r.Id,
+            Nombre = r.Nombre,
+            Cargo = r.Cargo,
+            Correo = r.Correo,
+            AreaId = r.AreaId,
+            Activo = r.Activo,
+            Orden = r.Orden
+        };
+    }
+
+    async Task GuardarResponsable()
+    {
+        if (string.IsNullOrWhiteSpace(ResponsableForm.Nombre))
+        {
+            Msg = "El nombre del responsable es obligatorio.";
+            MsgCss = "danger";
+            return;
+        }
+
+        if (!ResponsableForm.AreaId.HasValue)
+        {
+            Msg = "Selecciona un departamento registrado antes de asignar una persona responsable.";
+            MsgCss = "danger";
+            return;
+        }
+
+        await RiesgoSvc.SaveMaestroResponsableAsync(ResponsableForm);
+        ResetResponsable();
+        Msg = "Responsable actualizado.";
+        MsgCss = "success";
+        await Cargar();
+    }
+
+    async Task ToggleResponsable(MaestroResponsable r)
+    {
+        r.Activo = !r.Activo;
+        await RiesgoSvc.SaveMaestroResponsableAsync(r);
+        await Cargar();
+    }
+}

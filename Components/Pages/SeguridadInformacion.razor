@@ -1,0 +1,362 @@
+@page "/seguridad-informacion"
+@layout MainLayout
+@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@inject GrcService GrcSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-7">
+                <h1 class="m-0"><i class="fas fa-server mr-2"></i>Seguridad de Informacion</h1>
+            </div>
+            <div class="col-sm-5">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="/grc">GIR</a></li>
+                    <li class="breadcrumb-item active">Seguridad</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    @if (MostrarForm)
+    {
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">@(EditandoId == 0 ? "Nuevo Activo" : $"Editar Activo {FCodigo}")</h3>
+            </div>
+            <div class="card-body">
+                @if (MsgForm != "")
+                {
+                    <div class="alert alert-@AlertClass">@MsgForm</div>
+                }
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label>Nombre del activo</label>
+                            <input value="@FNombre" @oninput="e => FNombre = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Tipo de activo</label>
+                            <select value="@FTipoActivo" @onchange="e => FTipoActivo = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Aplicacion</option>
+                                <option>Base de datos</option>
+                                <option>Servidor</option>
+                                <option>Equipo usuario</option>
+                                <option>Documento</option>
+                                <option>Servicio tercero</option>
+                                <option>Infraestructura</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Criticidad</label>
+                            <select value="@FCriticidad" @onchange="e => FCriticidad = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                @foreach (var nivel in GrcService.NivelesCriticidad)
+                                {
+                                    <option value="@nivel">@nivel</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select value="@FEstado" @onchange="e => FEstado = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Activo</option>
+                                <option>En revision</option>
+                                <option>Retirado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Proceso</label>
+                            <select value="@FProceso" @onchange="e => FProceso = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option value="">Seleccione</option>
+                                @foreach (var p in RiesgoService.Procesos)
+                                {
+                                    <option value="@p.Key">@p.Key - @p.Value</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Responsable</label>
+                            <input value="@FResponsable" @oninput="e => FResponsable = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Riesgo asociado</label>
+                            <select value="@FRiesgoId" @onchange="e => FRiesgoId = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option value="">Sin vincular</option>
+                                @foreach (var r in Riesgos)
+                                {
+                                    <option value="@r.Id">@r.CodigoRiesgo - @Cortar(r.DescripcionRiesgo, 80)</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Confidencialidad</label>
+                            <select value="@FConfidencialidad" @onchange="e => FConfidencialidad = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                @foreach (var nivel in GrcService.NivelesCriticidad)
+                                {
+                                    <option value="@nivel">@nivel</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Integridad</label>
+                            <select value="@FIntegridad" @onchange="e => FIntegridad = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                @foreach (var nivel in GrcService.NivelesCriticidad)
+                                {
+                                    <option value="@nivel">@nivel</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Disponibilidad</label>
+                            <select value="@FDisponibilidad" @onchange="e => FDisponibilidad = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                @foreach (var nivel in GrcService.NivelesCriticidad)
+                                {
+                                    <option value="@nivel">@nivel</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary mr-2" @onclick="Guardar">
+                    <i class="fas fa-save mr-1"></i>Guardar
+                </button>
+                <button class="btn btn-secondary" @onclick="CerrarForm">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    <div class="card card-primary">
+        <div class="card-header">
+            <h3 class="card-title">Inventario de activos de informacion</h3>
+            <div class="card-tools">
+                <button class="btn btn-success btn-sm" @onclick="AbrirForm">
+                    <i class="fas fa-plus mr-1"></i>Nuevo activo
+                </button>
+            </div>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-hover table-striped table-sm">
+                <thead class="bg-primary">
+                    <tr class="text-white">
+                        <th>Codigo</th>
+                        <th>Activo</th>
+                        <th>Proceso</th>
+                        <th>Responsable</th>
+                        <th>Criticidad</th>
+                        <th>C/I/D</th>
+                        <th>Riesgo</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Lista.Any())
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">No hay activos registrados.</td>
+                        </tr>
+                    }
+                    @foreach (var item in Lista)
+                    {
+                        <tr>
+                            <td><strong>@item.Codigo</strong></td>
+                            <td>
+                                <div>@item.Nombre</div>
+                                <div class="small text-muted">@item.TipoActivo</div>
+                            </td>
+                            <td><span class="badge badge-light border">@item.CodigoProceso</span></td>
+                            <td>@item.Responsable</td>
+                            <td><span class="badge badge-@NivelColor(item.Criticidad)">@item.Criticidad</span></td>
+                            <td>
+                                <span class="badge badge-@NivelColor(item.Confidencialidad)">C @item.Confidencialidad</span>
+                                <span class="badge badge-@NivelColor(item.Integridad)">I @item.Integridad</span>
+                                <span class="badge badge-@NivelColor(item.Disponibilidad)">D @item.Disponibilidad</span>
+                            </td>
+                            <td>@(item.Riesgo?.CodigoRiesgo ?? "-")</td>
+                            <td><span class="badge badge-@EstadoColor(item.Estado)">@item.Estado</span></td>
+                            <td>
+                                <button class="btn btn-xs btn-primary mr-1" @onclick="() => Editar(item)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-xs btn-danger" @onclick="() => Eliminar(item.Id)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<ActivoInformacion> Lista = new();
+    List<Riesgo> Riesgos = new();
+    int UserId;
+    string Rol = "Admin";
+    bool MostrarForm;
+    bool FormOk;
+    string MsgForm = "";
+
+    int EditandoId;
+    string FCodigo = "";
+    string FNombre = "";
+    string FTipoActivo = "Aplicacion";
+    string FProceso = "";
+    string FResponsable = "";
+    string FCriticidad = "Media";
+    string FConfidencialidad = "Media";
+    string FIntegridad = "Media";
+    string FDisponibilidad = "Media";
+    string FEstado = "Activo";
+    string FRiesgoId = "";
+
+    string AlertClass => FormOk ? "success" : "danger";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        UserId = int.TryParse(state.User.FindFirst("UserId")?.Value, out var id) ? id : 0;
+        Rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Admin";
+        await Cargar();
+    }
+
+    async Task Cargar()
+    {
+        Riesgos = await GrcSvc.GetRiesgosParaSelectorAsync(UserId, Rol);
+        Lista = await GrcSvc.GetActivosAsync(UserId, Rol);
+    }
+
+    void AbrirForm()
+    {
+        LimpiarForm();
+        MostrarForm = true;
+    }
+
+    void CerrarForm()
+    {
+        MostrarForm = false;
+        MsgForm = "";
+    }
+
+    void Editar(ActivoInformacion item)
+    {
+        EditandoId = item.Id;
+        FCodigo = item.Codigo;
+        FNombre = item.Nombre;
+        FTipoActivo = item.TipoActivo;
+        FProceso = item.CodigoProceso;
+        FResponsable = item.Responsable;
+        FCriticidad = item.Criticidad;
+        FConfidencialidad = item.Confidencialidad;
+        FIntegridad = item.Integridad;
+        FDisponibilidad = item.Disponibilidad;
+        FEstado = item.Estado;
+        FRiesgoId = item.RiesgoId?.ToString() ?? "";
+        MsgForm = "";
+        MostrarForm = true;
+    }
+
+    async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(FNombre))
+        {
+            FormOk = false;
+            MsgForm = "Registra el nombre del activo.";
+            return;
+        }
+
+        int? riesgoId = int.TryParse(FRiesgoId, out var rid) ? rid : null;
+        var activo = new ActivoInformacion
+        {
+            Id = EditandoId,
+            Codigo = FCodigo,
+            Nombre = FNombre,
+            TipoActivo = FTipoActivo,
+            CodigoProceso = FProceso,
+            Responsable = FResponsable,
+            Criticidad = FCriticidad,
+            Confidencialidad = FConfidencialidad,
+            Integridad = FIntegridad,
+            Disponibilidad = FDisponibilidad,
+            Estado = FEstado,
+            RiesgoId = riesgoId
+        };
+
+        await GrcSvc.GuardarActivoAsync(activo);
+        FormOk = true;
+        MsgForm = "Activo guardado correctamente.";
+        LimpiarForm();
+        MostrarForm = false;
+        await Cargar();
+    }
+
+    async Task Eliminar(int id)
+    {
+        await GrcSvc.EliminarActivoAsync(id);
+        await Cargar();
+    }
+
+    void LimpiarForm()
+    {
+        EditandoId = 0;
+        FCodigo = "";
+        FNombre = "";
+        FTipoActivo = "Aplicacion";
+        FProceso = "";
+        FResponsable = "";
+        FCriticidad = "Media";
+        FConfidencialidad = "Media";
+        FIntegridad = "Media";
+        FDisponibilidad = "Media";
+        FEstado = "Activo";
+        FRiesgoId = "";
+        MsgForm = "";
+    }
+
+    static string NivelColor(string nivel) => nivel switch
+    {
+        "Critica" => "danger",
+        "Alta" => "warning",
+        "Media" => "info",
+        _ => "secondary"
+    };
+
+    static string EstadoColor(string estado) => estado switch
+    {
+        "Activo" => "success",
+        "En revision" => "warning",
+        _ => "secondary"
+    };
+
+    static string Cortar(string texto, int max)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Length <= max) return texto;
+        return texto[..max] + "...";
+    }
+}

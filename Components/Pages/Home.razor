@@ -1,0 +1,252 @@
+@page "/dashboard"
+@layout MainLayout
+@attribute [Authorize]
+@inject RiesgoService RiesgoSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Dashboard</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item active">Inicio</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+
+    @if (Cargando)
+    {
+        <div class="text-center p-5">
+            <i class="fas fa-spinner fa-spin fa-3x text-danger"></i>
+            <p class="mt-2">Cargando datos...</p>
+        </div>
+    }
+    else
+    {
+        <!-- SMALL BOXES -->
+        <div class="row mb-3">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-metric-blue">
+                    <div class="inner">
+                        <h3>@TotalRiesgos</h3>
+                        <p>Total Riesgos</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-list"></i></div>
+                    <a href="/resumen-riesgos?nivel=Todos" class="small-box-footer">
+                        Ver más <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-metric-green">
+                    <div class="inner">
+                        <h3>@TotalBajo</h3>
+                        <p>Riesgo Bajo</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-check-circle"></i></div>
+                    <a href="/resumen-riesgos?nivel=Bajo" class="small-box-footer">
+                        Ver más <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-metric-yellow">
+                    <div class="inner">
+                        <h3>@TotalModerado</h3>
+                        <p>Riesgo Moderado</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-exclamation-circle"></i></div>
+                    <a href="/resumen-riesgos?nivel=Moderado" class="small-box-footer">
+                        Ver más <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-metric-orange">
+                    <div class="inner text-white">
+                        <h3>@TotalAlto</h3>
+                        <p>Riesgo Alto</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-radiation"></i></div>
+                    <a href="/resumen-riesgos?nivel=Alto" class="small-box-footer">
+                        Ver más <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-metric-red">
+                    <div class="inner">
+                        <h3>@TotalExtremo</h3>
+                        <p>Riesgo Extremo</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-skull-crossbones"></i></div>
+                    <a href="/resumen-riesgos?nivel=Extremo" class="small-box-footer">
+                        Ver más <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-metric-blue">
+                    <div class="inner">
+                        <h3>@TotalIndicadores</h3>
+                        <p>Total Indicadores KRI</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-tachometer-alt"></i></div>
+                    <a href="/resumen-riesgos" class="small-box-footer">
+                        Ver más <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-metric-slate">
+                    <div class="inner">
+                        <h3>@TotalMatricesConDatos</h3>
+                        <p>Matrices con Datos</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-layer-group"></i></div>
+                    <a href="/matriz" class="small-box-footer">
+                        Ver más <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-metric-purple">
+                    <div class="inner text-white">
+                        <h3>@TotalPlanesAccion</h3>
+                        <p>Planes de Acción</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-tasks"></i></div>
+                    <a href="/planes-accion" class="small-box-footer">
+                        Ver más <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAPA DE CALOR RÁPIDO -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
+                        <h3 class="card-title text-white">
+                            <i class="fas fa-chart-bar mr-2"></i>
+                            Distribución por Nivel Residual
+                        </h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nivel</th>
+                                    <th class="text-center">Cantidad</th>
+                                    <th>Proporción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (TotalRiesgos > 0)
+                                {
+                                    <tr>
+                                        <td><span class="badge" style="background:#dc3545;color:white;">Extremo</span></td>
+                                        <td class="text-center font-weight-bold">@TotalExtremo</td>
+                                        <td>
+                                            <div class="progress progress-sm">
+                                                <div class="progress-bar bg-danger"
+                                                     style="width:@(TotalRiesgos>0?(TotalExtremo*100/TotalRiesgos):0)%">
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="badge" style="background:#fd7e14;color:white;">Alto</span></td>
+                                        <td class="text-center font-weight-bold">@TotalAlto</td>
+                                        <td>
+                                            <div class="progress progress-sm">
+                                                <div class="progress-bar" style="background:#fd7e14;width:@(TotalRiesgos>0?(TotalAlto*100/TotalRiesgos):0)%"></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="badge bg-warning">Moderado</span></td>
+                                        <td class="text-center font-weight-bold">@TotalModerado</td>
+                                        <td>
+                                            <div class="progress progress-sm">
+                                                <div class="progress-bar bg-warning"
+                                                     style="width:@(TotalRiesgos>0?(TotalModerado*100/TotalRiesgos):0)%">
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="badge bg-success">Bajo</span></td>
+                                        <td class="text-center font-weight-bold">@TotalBajo</td>
+                                        <td>
+                                            <div class="progress progress-sm">
+                                                <div class="progress-bar bg-success"
+                                                     style="width:@(TotalRiesgos>0?(TotalBajo*100/TotalRiesgos):0)%">
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    bool Cargando = true;
+    int TotalRiesgos = 0;
+    int TotalBajo = 0;
+    int TotalModerado = 0;
+    int TotalAlto = 0;
+    int TotalExtremo = 0;
+    int TotalIndicadores = 0;
+    int TotalMatricesConDatos = 0;
+    int TotalPlanesAccion = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var idClaim = state.User.FindFirst("UserId")?.Value;
+        var userId = int.TryParse(idClaim, out var id) ? id : 0;
+        var rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Personal";
+
+        var matrices = await RiesgoSvc.GetMatricesPorUsuarioAsync(userId, rol);
+        TotalMatricesConDatos = matrices.Count;
+
+        foreach (var m in matrices)
+        {
+            var riesgos = await RiesgoSvc.GetRiesgosPorMatrizAsync(m.Id);
+            TotalRiesgos += riesgos.Count;
+
+            foreach (var r in riesgos)
+            {
+                var sev = r.ProbabilidadResidual * r.ImpactoResidual;
+                var niv = Riesgo.GetNivel(sev);
+                if (niv == "Extremo") TotalExtremo++;
+                else if (niv == "Alto") TotalAlto++;
+                else if (niv == "Moderado") TotalModerado++;
+                else TotalBajo++;
+
+                TotalIndicadores += r.Indicadores.Count;
+                TotalPlanesAccion += r.PlanesAccion.Count;
+            }
+        }
+
+        Cargando = false;
+    }
+}

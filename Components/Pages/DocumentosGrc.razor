@@ -1,0 +1,330 @@
+@page "/documentos-grc"
+@layout MainLayout
+@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@inject GrcService GrcSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-7">
+                <h1 class="m-0"><i class="fas fa-folder-open mr-2"></i>Documentos GIR</h1>
+            </div>
+            <div class="col-sm-5">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="/grc">GIR</a></li>
+                    <li class="breadcrumb-item active">Documentos</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    @if (MostrarForm)
+    {
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">@(EditandoId == 0 ? "Nuevo Documento" : $"Editar Documento {FCodigo}")</h3>
+            </div>
+            <div class="card-body">
+                @if (MsgForm != "")
+                {
+                    <div class="alert alert-@AlertClass">@MsgForm</div>
+                }
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input value="@FNombre" @oninput="e => FNombre = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select value="@FTipo" @onchange="e => FTipo = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Politica</option>
+                                <option>Procedimiento</option>
+                                <option>Formato</option>
+                                <option>Manual</option>
+                                <option>Reporte</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Version</label>
+                            <input value="@FVersion" @oninput="e => FVersion = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select value="@FEstado" @onchange="e => FEstado = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                @foreach (var estado in GrcService.EstadosDocumento)
+                                {
+                                    <option value="@estado">@estado</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Proceso</label>
+                            <select value="@FProceso" @onchange="e => FProceso = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option value="">Seleccione</option>
+                                @foreach (var p in RiesgoService.Procesos)
+                                {
+                                    <option value="@p.Key">@p.Key - @p.Value</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Responsable</label>
+                            <input value="@FResponsable" @oninput="e => FResponsable = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Aprobacion</label>
+                            <input type="date" value="@FFechaAprobacion" @oninput="e => FFechaAprobacion = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Revision</label>
+                            <input type="date" value="@FFechaRevision" @oninput="e => FFechaRevision = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label>Ubicacion o enlace</label>
+                            <input value="@FUbicacion" @oninput="e => FUbicacion = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="form-group">
+                            <label>Observaciones</label>
+                            <textarea value="@FObservaciones" @oninput="e => FObservaciones = e.Value?.ToString() ?? string.Empty" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary mr-2" @onclick="Guardar">
+                    <i class="fas fa-save mr-1"></i>Guardar
+                </button>
+                <button class="btn btn-secondary" @onclick="CerrarForm">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    <div class="card card-primary">
+        <div class="card-header">
+            <h3 class="card-title">Biblioteca controlada</h3>
+            <div class="card-tools">
+                <button class="btn btn-success btn-sm" @onclick="AbrirForm">
+                    <i class="fas fa-plus mr-1"></i>Nuevo documento
+                </button>
+            </div>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-hover table-striped table-sm">
+                <thead class="bg-primary">
+                    <tr class="text-white">
+                        <th>Codigo</th>
+                        <th>Documento</th>
+                        <th>Proceso</th>
+                        <th>Version</th>
+                        <th>Responsable</th>
+                        <th>Revision</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Lista.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">No hay documentos registrados.</td>
+                        </tr>
+                    }
+                    @foreach (var item in Lista)
+                    {
+                        <tr>
+                            <td><strong>@item.Codigo</strong></td>
+                            <td>
+                                <div>@item.Nombre</div>
+                                <div class="small text-muted">@item.Tipo</div>
+                            </td>
+                            <td><span class="badge badge-light border">@item.CodigoProceso</span></td>
+                            <td>@item.Version</td>
+                            <td>@item.Responsable</td>
+                            <td>
+                                @if (item.FechaRevision.HasValue)
+                                {
+                                    <span class="@RevisionClass(item)">@item.FechaRevision.Value.ToString("dd/MM/yyyy")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Sin fecha</span>
+                                }
+                            </td>
+                            <td><span class="badge badge-@EstadoColor(item.Estado)">@item.Estado</span></td>
+                            <td>
+                                <button class="btn btn-xs btn-primary mr-1" @onclick="() => Editar(item)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-xs btn-danger" @onclick="() => Eliminar(item.Id)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<DocumentoGrc> Lista = new();
+    int UserId;
+    string Rol = "Admin";
+    bool MostrarForm;
+    bool FormOk;
+    string MsgForm = "";
+
+    int EditandoId;
+    string FCodigo = "";
+    string FNombre = "";
+    string FTipo = "Politica";
+    string FProceso = "";
+    string FVersion = "1.0";
+    string FResponsable = "";
+    string FFechaAprobacion = "";
+    string FFechaRevision = "";
+    string FEstado = "Vigente";
+    string FUbicacion = "";
+    string FObservaciones = "";
+
+    string AlertClass => FormOk ? "success" : "danger";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        UserId = int.TryParse(state.User.FindFirst("UserId")?.Value, out var id) ? id : 0;
+        Rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Admin";
+        await Cargar();
+    }
+
+    async Task Cargar()
+    {
+        Lista = await GrcSvc.GetDocumentosAsync(UserId, Rol);
+    }
+
+    void AbrirForm()
+    {
+        LimpiarForm();
+        MostrarForm = true;
+    }
+
+    void CerrarForm()
+    {
+        MostrarForm = false;
+        MsgForm = "";
+    }
+
+    void Editar(DocumentoGrc item)
+    {
+        EditandoId = item.Id;
+        FCodigo = item.Codigo;
+        FNombre = item.Nombre;
+        FTipo = item.Tipo;
+        FProceso = item.CodigoProceso;
+        FVersion = item.Version;
+        FResponsable = item.Responsable;
+        FFechaAprobacion = item.FechaAprobacion?.ToString("yyyy-MM-dd") ?? "";
+        FFechaRevision = item.FechaRevision?.ToString("yyyy-MM-dd") ?? "";
+        FEstado = item.Estado;
+        FUbicacion = item.Ubicacion;
+        FObservaciones = item.Observaciones;
+        MsgForm = "";
+        MostrarForm = true;
+    }
+
+    async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(FNombre))
+        {
+            FormOk = false;
+            MsgForm = "Registra el nombre del documento.";
+            return;
+        }
+
+        var documento = new DocumentoGrc
+        {
+            Id = EditandoId,
+            Codigo = FCodigo,
+            Nombre = FNombre,
+            Tipo = FTipo,
+            CodigoProceso = FProceso,
+            Version = FVersion,
+            Responsable = FResponsable,
+            FechaAprobacion = DateTime.TryParse(FFechaAprobacion, out var aprobacion) ? aprobacion : null,
+            FechaRevision = DateTime.TryParse(FFechaRevision, out var revision) ? revision : null,
+            Estado = FEstado,
+            Ubicacion = FUbicacion,
+            Observaciones = FObservaciones
+        };
+
+        await GrcSvc.GuardarDocumentoAsync(documento);
+        FormOk = true;
+        MsgForm = "Documento guardado correctamente.";
+        LimpiarForm();
+        MostrarForm = false;
+        await Cargar();
+    }
+
+    async Task Eliminar(int id)
+    {
+        await GrcSvc.EliminarDocumentoAsync(id);
+        await Cargar();
+    }
+
+    void LimpiarForm()
+    {
+        EditandoId = 0;
+        FCodigo = "";
+        FNombre = "";
+        FTipo = "Politica";
+        FProceso = "";
+        FVersion = "1.0";
+        FResponsable = "";
+        FFechaAprobacion = "";
+        FFechaRevision = "";
+        FEstado = "Vigente";
+        FUbicacion = "";
+        FObservaciones = "";
+        MsgForm = "";
+    }
+
+    string EstadoColor(string estado) => estado switch
+    {
+        "Vigente" => "success",
+        "En revision" => "warning",
+        "Obsoleto" => "secondary",
+        _ => "info"
+    };
+
+    string RevisionClass(DocumentoGrc item)
+    {
+        if (!item.FechaRevision.HasValue || item.Estado == "Obsoleto") return "";
+        if (item.FechaRevision.Value < DateTime.Today) return "text-danger font-weight-bold";
+        if (item.FechaRevision.Value <= DateTime.Today.AddDays(30)) return "text-warning font-weight-bold";
+        return "";
+    }
+}

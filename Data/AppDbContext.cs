@@ -1,0 +1,129 @@
+using Microsoft.EntityFrameworkCore;
+using RiesgosElor.Models;
+
+namespace RiesgosElor.Data;
+
+public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    public DbSet<Usuario> Usuarios { get; set; }
+    public DbSet<CambioPassword> CambiosPassword { get; set; }
+    public DbSet<Riesgo> Riesgos { get; set; }
+    public DbSet<RiesgoControl> RiesgosControl { get; set; }
+    public DbSet<PlanAccion> PlanesAccion { get; set; }
+    public DbSet<Indicador> Indicadores { get; set; }
+    public DbSet<MatrizEncabezado> MatrizEncabezados { get; set; }
+    public DbSet<MatrizGrupo> MatrizGrupos { get; set; }
+    public DbSet<UsuarioMatriz> UsuarioMatrices { get; set; }
+    public DbSet<SabanaEncabezado> SabanaEncabezados { get; set; }
+    public DbSet<EventoRiesgo> EventosRiesgo { get; set; }
+    public DbSet<ObligacionNormativa> ObligacionesNormativas { get; set; }
+    public DbSet<AuditoriaGrc> AuditoriasGrc { get; set; }
+    public DbSet<HallazgoAuditoria> HallazgosAuditoria { get; set; }
+    public DbSet<DocumentoGrc> DocumentosGrc { get; set; }
+    public DbSet<ActivoInformacion> ActivosInformacion { get; set; }
+    public DbSet<EvaluacionControl> EvaluacionesControl { get; set; }
+    public DbSet<MaestroProceso> MaestroProcesos { get; set; }
+    public DbSet<MaestroArea> MaestroAreas { get; set; }
+    public DbSet<MaestroTipoRiesgo> MaestroTiposRiesgo { get; set; }
+    public DbSet<MaestroParametro> MaestroParametros { get; set; }
+    public DbSet<MaestroResponsable> MaestroResponsables { get; set; }
+    public DbSet<BitacoraDepartamentoGerencia> BitacoraDepartamentoGerencias { get; set; }
+    public DbSet<BitacoraUsuario> BitacorasUsuario { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<MaestroArea>()
+            .HasOne(m => m.Padre)
+            .WithMany(m => m.UnidadesHijas)
+            .HasForeignKey(m => m.PadreId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Usuario>()
+            .HasIndex(u => u.Correo).IsUnique();
+
+        modelBuilder.Entity<Riesgo>()
+            .Ignore(r => r.SeveridadInherente)
+            .Ignore(r => r.NivelInherente)
+            .Ignore(r => r.SeveridadResidual)
+            .Ignore(r => r.NivelResidual)
+            .Ignore(r => r.RequierePlanAccion);
+
+        modelBuilder.Entity<Riesgo>()
+            .HasMany(r => r.Controles)
+            .WithOne(c => c.Riesgo)
+            .HasForeignKey(c => c.RiesgoId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Riesgo>()
+            .HasMany(r => r.PlanesAccion)
+            .WithOne(p => p.Riesgo)
+            .HasForeignKey(p => p.RiesgoId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Riesgo>()
+            .HasMany(r => r.Indicadores)
+            .WithOne(i => i.Riesgo)
+            .HasForeignKey(i => i.RiesgoId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<MatrizGrupo>()
+            .HasMany(m => m.Riesgos)
+            .WithOne(r => r.MatrizGrupo)
+            .HasForeignKey(r => r.MatrizGrupoId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<UsuarioMatriz>()
+            .HasOne(um => um.Usuario)
+            .WithMany()
+            .HasForeignKey(um => um.UsuarioId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UsuarioMatriz>()
+            .HasOne(um => um.MatrizGrupo)
+            .WithMany()
+            .HasForeignKey(um => um.MatrizGrupoId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<EventoRiesgo>()
+            .Property(e => e.MontoPerdidaEstimado)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<EventoRiesgo>()
+            .HasOne(e => e.Riesgo)
+            .WithMany()
+            .HasForeignKey(e => e.RiesgoId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ObligacionNormativa>()
+            .HasOne(o => o.Riesgo)
+            .WithMany()
+            .HasForeignKey(o => o.RiesgoId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<AuditoriaGrc>()
+            .HasMany(a => a.Hallazgos)
+            .WithOne(h => h.AuditoriaGrc)
+            .HasForeignKey(h => h.AuditoriaGrcId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<HallazgoAuditoria>()
+            .HasOne(h => h.PlanAccion)
+            .WithMany()
+            .HasForeignKey(h => h.PlanAccionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ActivoInformacion>()
+            .HasOne(a => a.Riesgo)
+            .WithMany()
+            .HasForeignKey(a => a.RiesgoId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<EvaluacionControl>()
+            .HasOne(e => e.RiesgoControl)
+            .WithMany()
+            .HasForeignKey(e => e.RiesgoControlId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

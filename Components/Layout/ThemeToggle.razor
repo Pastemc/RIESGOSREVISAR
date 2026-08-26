@@ -1,0 +1,61 @@
+@inject IJSRuntime JS
+
+<button class="btn btn-sm theme-toggle-btn mr-3"
+        @onclick="Toggle"
+        title="@(EsOscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro")">
+    @if (EsOscuro)
+    {
+        <i class="fas fa-sun mr-1"></i><span>Claro</span>
+    }
+    else
+    {
+        <i class="fas fa-moon mr-1"></i><span>Oscuro</span>
+    }
+</button>
+
+<style>
+    .theme-toggle-btn {
+        border: 1px solid rgba(255,255,255,0.3);
+        background: rgba(255,255,255,0.1);
+        color: inherit;
+        border-radius: 20px;
+        padding: 4px 14px;
+        font-size: 0.82rem;
+        transition: background 0.2s;
+    }
+    .theme-toggle-btn:hover {
+        background: rgba(255,255,255,0.22);
+        color: inherit;
+    }
+</style>
+
+@code {
+    bool EsOscuro = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                // Leer directamente del localStorage sin función externa
+                var tema = await JS.InvokeAsync<string>("eval",
+                    "localStorage.getItem('riesgoselor-theme') || 'light'");
+                EsOscuro = tema == "dark";
+                StateHasChanged();
+            }
+            catch { EsOscuro = false; }
+        }
+    }
+
+    async Task Toggle()
+    {
+        EsOscuro = !EsOscuro;
+        var nuevoTema = EsOscuro ? "dark" : "light";
+        // Aplicar directamente sin depender de site.js
+        await JS.InvokeVoidAsync("eval",
+            $"document.documentElement.setAttribute('data-theme','{nuevoTema}');" +
+            $"localStorage.setItem('riesgoselor-theme','{nuevoTema}');");
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,336 @@
+@page "/planes-accion"
+@layout MainLayout
+@attribute [Authorize]
+@inject GrcService GrcSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-7">
+                <h1 class="m-0"><i class="fas fa-tasks mr-2"></i>Planes de Acción</h1>
+            </div>
+            <div class="col-sm-5">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="/grc">GIR</a></li>
+                    <li class="breadcrumb-item active">Planes de Acción</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    @if (MostrarForm)
+    {
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">@(EditandoId == 0 ? "Nuevo Plan de Acción" : $"Editar Plan {FCodigoPlan}")</h3>
+            </div>
+            <div class="card-body">
+                @if (MsgForm != "")
+                {
+                    <div class="alert alert-@AlertClass py-2">@MsgForm</div>
+                }
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Riesgo Asociado</label>
+                            <select value="@FRiesgoId" @onchange="e => FRiesgoId = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option value="">Seleccione un riesgo...</option>
+                                @foreach (var r in Riesgos)
+                                {
+                                    <option value="@r.Id">@r.CodigoRiesgo - @Cortar(r.DescripcionRiesgo, 90)</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Estrategia</label>
+                            <select value="@FEstrategia" @onchange="e => FEstrategia = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Evitar</option>
+                                <option>Reducir</option>
+                                <option>Transferir</option>
+                                <option>Aceptar</option>
+                                <option>Compartir</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Código Plan</label>
+                            <input value="@FCodigoPlan" @oninput="e => FCodigoPlan = e.Value?.ToString() ?? string.Empty" class="form-control" placeholder="Ej: PA-01" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Estado</label>
+                            <select value="@FEstado" @onchange="e => FEstado = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Pendiente</option>
+                                <option>En proceso</option>
+                                <option>Implementado</option>
+                                <option>Cerrado</option>
+                                <option>Completado</option>
+                                <option>Vencido</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Área Responsable</label>
+                            <input value="@FArea" @oninput="e => FArea = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Responsable</label>
+                            <input value="@FResponsable" @oninput="e => FResponsable = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Fecha Inicio</label>
+                            <input type="date" value="@FInicio" @oninput="e => FInicio = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Fecha Fin</label>
+                            <input type="date" value="@FFin" @oninput="e => FFin = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Descripción del Plan de Acción</label>
+                            <textarea value="@FDescripcion" @oninput="e => FDescripcion = e.Value?.ToString() ?? string.Empty" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary font-weight-bold mr-2" @onclick="Guardar">
+                    <i class="fas fa-save mr-1"></i>Guardar Plan
+                </button>
+                <button class="btn btn-secondary" @onclick="CerrarForm">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    <div class="card card-primary">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title font-weight-bold mb-0"><i class="fas fa-list-check mr-2"></i>Seguimiento de Tratamientos</h3>
+            <div class="card-tools">
+                <button class="btn btn-warning font-weight-bold btn-sm" @onclick="AbrirForm">
+                    <i class="fas fa-plus mr-1"></i>Nuevo Plan de Acción
+                </button>
+            </div>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-hover table-striped table-sm">
+                <thead class="bg-primary">
+                    <tr class="text-white">
+                        <th>Código</th>
+                        <th>Riesgo</th>
+                        <th>Estrategia</th>
+                        <th>Plan</th>
+                        <th>Responsable</th>
+                        <th>Fecha Fin</th>
+                        <th>Estado</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Lista.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">No hay planes registrados.</td>
+                        </tr>
+                    }
+                    @foreach (var item in Lista)
+                    {
+                        <tr>
+                            <td><strong>@item.CodigoPlan</strong></td>
+                            <td>
+                                <div>@(item.Riesgo?.CodigoRiesgo ?? "-")</div>
+                                <div class="small text-muted">@Cortar(item.Riesgo?.DescripcionRiesgo ?? "", 90)</div>
+                            </td>
+                            <td>@item.EstrategiaRespuesta</td>
+                            <td style="white-space:normal;min-width:260px;">@Cortar(item.DescripcionPlan, 140)</td>
+                            <td>
+                                <div>@item.ResponsablePlan</div>
+                                <div class="small text-muted">@item.AreaResponsable</div>
+                            </td>
+                            <td>
+                                @if (item.FinPlan.HasValue)
+                                {
+                                    <span class="@FinClass(item)">@item.FinPlan.Value.ToString("dd/MM/yyyy")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Sin fecha</span>
+                                }
+                            </td>
+                            <td><span class="badge badge-@EstadoColor(item.EstadoPlan)">@item.EstadoPlan</span></td>
+                            <td>
+                                <button class="btn btn-xs btn-primary mr-1" @onclick="() => Editar(item)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                @if (EsAdmin)
+                                {
+                                    <button class="btn btn-xs btn-danger" @onclick="() => Eliminar(item.Id)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<PlanAccion> Lista = new();
+    List<Riesgo> Riesgos = new();
+    int UserId;
+    string Rol = "Personal";
+    bool EsAdmin;
+    bool MostrarForm;
+    bool FormOk;
+    string MsgForm = "";
+
+    int EditandoId;
+    string FRiesgoId = "";
+    string FEstrategia = "Reducir";
+    string FCodigoPlan = "";
+    string FDescripcion = "";
+    string FArea = "";
+    string FResponsable = "";
+    string FInicio = "";
+    string FFin = "";
+    string FEstado = "Pendiente";
+
+    string AlertClass => FormOk ? "success" : "danger";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        UserId = int.TryParse(state.User.FindFirst("UserId")?.Value, out var id) ? id : 0;
+        Rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Personal";
+        EsAdmin = state.User.IsInRole("SuperAdmin") || state.User.IsInRole("Admin");
+        await Cargar();
+    }
+
+    async Task Cargar()
+    {
+        Riesgos = await GrcSvc.GetRiesgosParaSelectorAsync(UserId, Rol);
+        Lista = await GrcSvc.GetPlanesAccionAsync(UserId, Rol);
+    }
+
+    void AbrirForm()
+    {
+        LimpiarForm();
+        MostrarForm = true;
+    }
+
+    void CerrarForm()
+    {
+        MostrarForm = false;
+        MsgForm = "";
+    }
+
+    void Editar(PlanAccion item)
+    {
+        EditandoId = item.Id;
+        FRiesgoId = item.RiesgoId.ToString();
+        FEstrategia = item.EstrategiaRespuesta;
+        FCodigoPlan = item.CodigoPlan;
+        FDescripcion = item.DescripcionPlan;
+        FArea = item.AreaResponsable;
+        FResponsable = item.ResponsablePlan;
+        FInicio = item.InicioPlan?.ToString("yyyy-MM-dd") ?? "";
+        FFin = item.FinPlan?.ToString("yyyy-MM-dd") ?? "";
+        FEstado = item.EstadoPlan;
+        MsgForm = "";
+        MostrarForm = true;
+    }
+
+    async Task Guardar()
+    {
+        if (!int.TryParse(FRiesgoId, out var riesgoId) || string.IsNullOrWhiteSpace(FDescripcion))
+        {
+            FormOk = false;
+            MsgForm = "Selecciona un riesgo y registra la descripcion del plan.";
+            return;
+        }
+
+        var plan = new PlanAccion
+        {
+            Id = EditandoId,
+            RiesgoId = riesgoId,
+            EstrategiaRespuesta = FEstrategia,
+            CodigoPlan = FCodigoPlan,
+            DescripcionPlan = FDescripcion,
+            AreaResponsable = FArea,
+            ResponsablePlan = FResponsable,
+            InicioPlan = DateTime.TryParse(FInicio, out var inicio) ? inicio : null,
+            FinPlan = DateTime.TryParse(FFin, out var fin) ? fin : null,
+            EstadoPlan = FEstado
+        };
+
+        await GrcSvc.GuardarPlanAccionAsync(plan);
+        FormOk = true;
+        MsgForm = "Plan guardado correctamente.";
+        LimpiarForm();
+        MostrarForm = false;
+        await Cargar();
+    }
+
+    async Task Eliminar(int id)
+    {
+        await GrcSvc.EliminarPlanAccionAsync(id);
+        await Cargar();
+    }
+
+    void LimpiarForm()
+    {
+        EditandoId = 0;
+        FRiesgoId = "";
+        FEstrategia = "Reducir";
+        FCodigoPlan = "";
+        FDescripcion = "";
+        FArea = "";
+        FResponsable = "";
+        FInicio = "";
+        FFin = "";
+        FEstado = "Pendiente";
+        MsgForm = "";
+    }
+
+    static string EstadoColor(string estado) => estado switch
+    {
+        "Cerrado" => "success",
+        "Completado" => "success",
+        "Implementado" => "info",
+        "En proceso" => "warning",
+        "Vencido" => "danger",
+        _ => "secondary"
+    };
+
+    static string FinClass(PlanAccion item)
+    {
+        if (!item.FinPlan.HasValue || item.EstadoPlan == "Cerrado" || item.EstadoPlan == "Completado") return "";
+        if (item.FinPlan.Value < DateTime.Today) return "text-danger font-weight-bold";
+        if (item.FinPlan.Value <= DateTime.Today.AddDays(30)) return "text-warning font-weight-bold";
+        return "";
+    }
+
+    static string Cortar(string texto, int max)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Length <= max) return texto;
+        return texto[..max] + "...";
+    }
+}

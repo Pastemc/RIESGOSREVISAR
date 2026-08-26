@@ -1,0 +1,246 @@
+@page "/grc"
+@page "/"
+@layout MainLayout
+@attribute [Authorize]
+@inject GrcService GrcSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-7">
+                <h1 class="m-0"><i class="fas fa-shield-alt mr-2"></i>Gestión Integral de Riesgos</h1>
+            </div>
+            <div class="col-sm-5">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item active">GIR</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    @if (Cargando)
+    {
+        <div class="text-center p-5">
+            <i class="fas fa-spinner fa-spin fa-3x text-danger"></i>
+            <p class="mt-2">Cargando datos...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="small-box text-white shadow-sm" style="background: linear-gradient(135deg, #0062B8 0%, #003B70 100%); border-radius:12px; border-left: 5px solid #FFDD00;">
+                    <div class="inner p-3">
+                        <h3 class="font-weight-bold" style="font-size:2.2rem; color:#ffffff; text-shadow:0 2px 4px rgba(0,0,0,0.2);">@Resumen.TotalRiesgos</h3>
+                        <p class="font-weight-bold mb-0 text-uppercase" style="letter-spacing:0.5px; opacity:0.95;">Total de riesgos</p>
+                    </div>
+                    <div class="icon" style="opacity:0.25; color:#ffffff;"><i class="fas fa-layer-group"></i></div>
+                    <a href="/matriz" class="small-box-footer font-weight-bold py-2" style="background:rgba(0,0,0,0.2); color:#FFDD00 !important;">
+                        Ver matriz <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="small-box text-white shadow-sm" style="background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%); border-radius:12px; border-left: 5px solid #FCA5A5;">
+                    <div class="inner p-3">
+                        <h3 class="font-weight-bold" style="font-size:2.2rem; color:#ffffff; text-shadow:0 2px 4px rgba(0,0,0,0.2);">@Resumen.RiesgosExtremos</h3>
+                        <p class="font-weight-bold mb-0 text-uppercase" style="letter-spacing:0.5px; opacity:0.95;">Riesgos Extremos</p>
+                    </div>
+                    <div class="icon" style="opacity:0.25; color:#ffffff;"><i class="fas fa-fire-alt"></i></div>
+                    <a href="/resumen-riesgos?nivel=Extremo" class="small-box-footer font-weight-bold py-2" style="background:rgba(0,0,0,0.2); color:#ffffff !important;">
+                        Ver resumen <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="small-box text-white shadow-sm" style="background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%); border-radius:12px; border-left: 5px solid #FDBA74;">
+                    <div class="inner p-3">
+                        <h3 class="font-weight-bold" style="font-size:2.2rem; color:#ffffff; text-shadow:0 2px 4px rgba(0,0,0,0.2);">@Resumen.RiesgosAltos</h3>
+                        <p class="font-weight-bold mb-0 text-uppercase" style="letter-spacing:0.5px; opacity:0.95;">Riesgos Altos</p>
+                    </div>
+                    <div class="icon" style="opacity:0.25; color:#ffffff;"><i class="fas fa-exclamation-triangle"></i></div>
+                    <a href="/resumen-riesgos?nivel=Alto" class="small-box-footer font-weight-bold py-2" style="background:rgba(0,0,0,0.2); color:#ffffff !important;">
+                        Ver resumen <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="small-box text-white shadow-sm" style="background: linear-gradient(135deg, #7C3AED 0%, #4C1D95 100%); border-radius:12px; border-left: 5px solid #C4B5FD;">
+                    <div class="inner p-3">
+                        <h3 class="font-weight-bold" style="font-size:2.2rem; color:#ffffff; text-shadow:0 2px 4px rgba(0,0,0,0.2);">@Resumen.EventosAbiertos</h3>
+                        <p class="font-weight-bold mb-0 text-uppercase" style="letter-spacing:0.5px; opacity:0.95;">Eventos Abiertos</p>
+                    </div>
+                    <div class="icon" style="opacity:0.25; color:#ffffff;"><i class="fas fa-bell"></i></div>
+                    <a href="/eventos-riesgo" class="small-box-footer font-weight-bold py-2" style="background:rgba(0,0,0,0.2); color:#ffffff !important;">
+                        Gestionar <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="small-box text-white shadow-sm" style="background: linear-gradient(135deg, #D97706 0%, #78350F 100%); border-radius:12px; border-left: 5px solid #FDE68A;">
+                    <div class="inner p-3">
+                        <h3 class="font-weight-bold" style="font-size:2.2rem; color:#ffffff; text-shadow:0 2px 4px rgba(0,0,0,0.2);">@Resumen.ObligacionesPendientes</h3>
+                        <p class="font-weight-bold mb-0 text-uppercase" style="letter-spacing:0.5px; opacity:0.95;">Obligaciones Pendientes</p>
+                    </div>
+                    <div class="icon" style="opacity:0.25; color:#ffffff;"><i class="fas fa-scale-balanced"></i></div>
+                    <a href="/cumplimiento" class="small-box-footer font-weight-bold py-2" style="background:rgba(0,0,0,0.2); color:#ffffff !important;">
+                        Seguimiento <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="small-box text-white shadow-sm" style="background: linear-gradient(135deg, #E11D48 0%, #881337 100%); border-radius:12px; border-left: 5px solid #FECDD3;">
+                    <div class="inner p-3">
+                        <h3 class="font-weight-bold" style="font-size:2.2rem; color:#ffffff; text-shadow:0 2px 4px rgba(0,0,0,0.2);">@Resumen.ObligacionesVencidas</h3>
+                        <p class="font-weight-bold mb-0 text-uppercase" style="letter-spacing:0.5px; opacity:0.95;">Obligaciones Vencidas</p>
+                    </div>
+                    <div class="icon" style="opacity:0.25; color:#ffffff;"><i class="fas fa-calendar-times"></i></div>
+                    <a href="/cumplimiento" class="small-box-footer font-weight-bold py-2" style="background:rgba(0,0,0,0.2); color:#ffffff !important;">
+                        Regularizar <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="small-box text-white shadow-sm" style="background: linear-gradient(135deg, #0284C7 0%, #075985 100%); border-radius:12px; border-left: 5px solid #BAE6FD;">
+                    <div class="inner p-3">
+                        <h3 class="font-weight-bold" style="font-size:2.2rem; color:#ffffff; text-shadow:0 2px 4px rgba(0,0,0,0.2);">@Resumen.DocumentosPorRevisar</h3>
+                        <p class="font-weight-bold mb-0 text-uppercase" style="letter-spacing:0.5px; opacity:0.95;">Docs. por Revisar</p>
+                    </div>
+                    <div class="icon" style="opacity:0.25; color:#ffffff;"><i class="fas fa-folder-open"></i></div>
+                    <a href="/documentos-grc" class="small-box-footer font-weight-bold py-2" style="background:rgba(0,0,0,0.2); color:#ffffff !important;">
+                        Ver documentos <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="small-box text-white shadow-sm" style="background: linear-gradient(135deg, #059669 0%, #064E3B 100%); border-radius:12px; border-left: 5px solid #A7F3D0;">
+                    <div class="inner p-3">
+                        <h3 class="font-weight-bold" style="font-size:2.2rem; color:#ffffff; text-shadow:0 2px 4px rgba(0,0,0,0.2);">@Resumen.ActivosCriticos</h3>
+                        <p class="font-weight-bold mb-0 text-uppercase" style="letter-spacing:0.5px; opacity:0.95;">Activos Críticos</p>
+                    </div>
+                    <div class="icon" style="opacity:0.25; color:#ffffff;"><i class="fas fa-server"></i></div>
+                    <a href="/seguridad-informacion" class="small-box-footer font-weight-bold py-2" style="background:rgba(0,0,0,0.2); color:#ffffff !important;">
+                        Inventario <i class="fas fa-arrow-circle-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-layer-group mr-2"></i>Mapa Funcional GIR</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Módulo</th>
+                                    <th>Propósito</th>
+                                    <th class="text-center">Acceso</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><a href="/planes-accion"><i class="fas fa-tasks mr-2"></i>Planes de Acción</a></td>
+                                    <td>Consolidar tratamientos, responsables, vencimientos y estados.</td>
+                                    <td class="text-center"><span class="badge badge-info">Todos</span></td>
+                                </tr>
+                                <tr>
+                                    <td><a href="/eventos-riesgo"><i class="fas fa-bell mr-2"></i>Eventos de Riesgo</a></td>
+                                    <td>Registrar incidentes, pérdidas, causas y aprendizaje operativo.</td>
+                                    <td class="text-center"><span class="badge badge-info">Todos</span></td>
+                                </tr>
+                                <tr>
+                                    <td><a href="/cumplimiento"><i class="fas fa-scale-balanced mr-2"></i>Cumplimiento</a></td>
+                                    <td>Controlar obligaciones, vencimientos, evidencias y riesgos asociados.</td>
+                                    <td class="text-center"><span class="badge badge-warning">Admin</span></td>
+                                </tr>
+                                <tr>
+                                    <td><a href="/auditoria-grc"><i class="fas fa-clipboard-check mr-2"></i>Auditoría</a></td>
+                                    <td>Planificar auditorías y dar trazabilidad a hallazgos.</td>
+                                    <td class="text-center"><span class="badge badge-warning">Admin</span></td>
+                                </tr>
+                                <tr>
+                                    <td><a href="/documentos-grc"><i class="fas fa-folder-open mr-2"></i>Documentos GIR</a></td>
+                                    <td>Gestionar versión, vigencia y revisión de documentos del sistema.</td>
+                                    <td class="text-center"><span class="badge badge-warning">Admin</span></td>
+                                </tr>
+                                <tr>
+                                    <td><a href="/seguridad-informacion"><i class="fas fa-server mr-2"></i>Seguridad de Información</a></td>
+                                    <td>Inventariar activos críticos y vincularlos con riesgos registrados.</td>
+                                    <td class="text-center"><span class="badge badge-warning">Admin</span></td>
+                                </tr>
+                                <tr>
+                                    <td><a href="/evaluacion-controles"><i class="fas fa-check-double mr-2"></i>Evaluación de Controles</a></td>
+                                    <td>Registrar pruebas de diseño, ejecución y efectividad de controles.</td>
+                                    <td class="text-center"><span class="badge badge-info">Todos</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-chart-line mr-2"></i>Señales de Seguimiento</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-box mb-3">
+                            <span class="info-box-icon bg-info"><i class="fas fa-coins"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Perdida estimada en eventos</span>
+                                <span class="info-box-number">@Resumen.PerdidaEstimada.ToString("C")</span>
+                            </div>
+                        </div>
+                        <div class="info-box mb-3">
+                            <span class="info-box-icon bg-danger"><i class="fas fa-tasks"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Planes abiertos</span>
+                                <span class="info-box-number">@Resumen.PlanesAccionAbiertos</span>
+                            </div>
+                        </div>
+                        <div class="info-box mb-3">
+                            <span class="info-box-icon bg-primary"><i class="fas fa-clipboard-list"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Auditorias activas</span>
+                                <span class="info-box-number">@Resumen.AuditoriasActivas</span>
+                            </div>
+                        </div>
+                        <div class="info-box mb-0">
+                            <span class="info-box-icon bg-warning"><i class="fas fa-check-double"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Evaluaciones pendientes</span>
+                                <span class="info-box-number">@Resumen.EvaluacionesPendientes</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    bool Cargando = true;
+    GrcResumen Resumen = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var userId = int.TryParse(state.User.FindFirst("UserId")?.Value, out var id) ? id : 0;
+        var rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Personal";
+
+        Resumen = await GrcSvc.GetResumenAsync(userId, rol);
+        Cargando = false;
+    }
+}

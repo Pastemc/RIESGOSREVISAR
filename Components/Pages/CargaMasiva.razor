@@ -1,0 +1,424 @@
+@page "/carga-masiva"
+@layout MainLayout
+@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@inject ExcelService ExcelSvc
+@inject RiesgoService RiesgoSvc
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-7">
+                <h1 class="m-0 text-dark">
+                    <i class="fas fa-file-excel text-success mr-2"></i>Carga Masiva de Matrices de Riesgos (GRC)
+                </h1>
+                <small class="text-muted">Importación, actualización y exportación en lote en formato institucional de Electro Oriente S.A.</small>
+            </div>
+            <div class="col-sm-5">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item active">Carga Masiva</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+
+    <!-- SECCIÓN 1: PLANTILLA Y EXPORTACIÓN -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="card card-outline card-primary h-100">
+                <div class="card-header" style="background:#0062B8; color:#ffffff;">
+                    <h5 class="card-title mb-0"><i class="fas fa-download mr-2"></i>1. Plantilla Oficial Carga Masiva</h5>
+                </div>
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <p class="card-text text-muted mb-3">
+                        Descargue el formato oficial <code>Carga_Masiva_V1.xlsm</code> de Electro Oriente para registrar o actualizar múltiples procesos, riesgos, controles y planes de acción simultáneamente.
+                    </p>
+                    <div>
+                        <button class="btn btn-outline-primary btn-block font-weight-bold" @onclick="DescargarPlantillaOficial">
+                            <i class="fas fa-file-excel text-success mr-2"></i>📥 Descargar Plantilla Oficial (XLSM)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card card-outline card-info h-100">
+                <div class="card-header" style="background:#004F94; color:#ffffff;">
+                    <h5 class="card-title mb-0"><i class="fas fa-file-export mr-2"></i>2. Exportar Consolidado Completo</h5>
+                </div>
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <p class="card-text text-muted mb-3">
+                        Genere y descargue un archivo Excel con <strong>todas las matrices registradas actualmente</strong> en el sistema, estructurado en las 40 columnas institucionales del GIR.
+                    </p>
+                    <div>
+                        <button class="btn btn-info btn-block font-weight-bold" @onclick="ExportarConsolidadoActual">
+                            <i class="fas fa-file-download mr-2"></i>📊 Exportar Matriz Consolidada Vigente (XLSM / XLSX)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 2: CARGA E INSPECCIÓN DE EXCEL -->
+    <div class="card card-outline card-success mb-4">
+        <div class="card-header" style="border-bottom: 2px solid #FFDD00;">
+            <h3 class="card-title text-success font-weight-bold">
+                <i class="fas fa-upload mr-2"></i>3. Seleccionar e Importar Archivo Excel
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6 mb-3">
+                    <label class="font-weight-bold">Seleccionar Archivo Excel (.xlsx / .xlsm / .xls):</label>
+                    <div class="custom-file">
+                        <InputFile OnChange="OnInputFileChange" class="form-control form-control-file" accept=".xlsx,.xlsm,.xls" />
+                    </div>
+                    @if (ArchivoSeleccionado != null)
+                    {
+                        <div class="mt-2 text-success small font-weight-bold">
+                            <i class="fas fa-check-circle mr-1"></i>Archivo listo: @ArchivoSeleccionado.Name (@((ArchivoSeleccionado.Size / 1024.0).ToString("N0")) KB)
+                        </div>
+                    }
+                </div>
+
+                <div class="col-md-3 mb-3">
+                    <div class="custom-control custom-checkbox mt-4">
+                        <input type="checkbox" class="custom-control-input" id="chkActualizar" @bind="ActualizarExistentes" />
+                        <label class="custom-control-label font-weight-bold text-dark" for="chkActualizar">
+                            Actualizar datos si el Código de Riesgo ya existe
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3 mb-3 text-right">
+                    <button class="btn btn-primary btn-block py-2 font-weight-bold" @onclick="InspeccionarArchivo" disabled="@(ArchivoSeleccionado == null || Procesando)">
+                        @if (Procesando)
+                        {
+                            <span class="spinner-border spinner-border-sm mr-2" role="status"></span>
+                            <span>Procesando...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-search mr-2"></i><span>Inspeccionar y Validar</span>
+                        }
+                    </button>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(MensajeEstado))
+            {
+                <div class="alert alert-@TipoMensajeAlert py-2 mt-3 mb-0">
+                    <i class="fas fa-info-circle mr-2"></i>@MensajeEstado
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- SECCIÓN 3: RESUMEN Y VISTA PREVIA -->
+    @if (FilasInspeccionadas.Any())
+    {
+        <div class="card card-outline card-warning mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                <h4 class="card-title text-dark font-weight-bold mb-0">
+                    <i class="fas fa-table mr-2 text-warning"></i>Vista Previa de Inspección (@FilasInspeccionadas.Count filas detectadas)
+                </h4>
+                <div>
+                    <button class="btn btn-success font-weight-bold px-4" @onclick="EjecutarImportacionMasiva" disabled="@Importando">
+                        @if (Importando)
+                        {
+                            <span class="spinner-border spinner-border-sm mr-2" role="status"></span>
+                            <span>Importando BD...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-cloud-upload-alt mr-2"></i><span>🚀 Confirmar e Importar a Base de Datos</span>
+                        }
+                    </button>
+                </div>
+            </div>
+
+            <div class="card-body p-3">
+                <!-- Badges Estadísticos -->
+                <div class="row mb-3">
+                    <div class="col-md-2 col-6 mb-2">
+                        <div class="info-box bg-light border p-2 mb-0">
+                            <span class="info-box-icon bg-info text-white"><i class="fas fa-list"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Filas Totales</span>
+                                <span class="info-box-number">@FilasInspeccionadas.Count</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-6 mb-2">
+                        <div class="info-box bg-light border p-2 mb-0">
+                            <span class="info-box-icon bg-warning text-white"><i class="fas fa-exclamation-triangle"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Riesgos Únicos</span>
+                                <span class="info-box-number">@FilasInspeccionadas.Select(f => f.CodigoRiesgo).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().Count()</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-6 mb-2">
+                        <div class="info-box bg-light border p-2 mb-0">
+                            <span class="info-box-icon bg-danger text-white"><i class="fas fa-copy"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Dup. en Archivo</span>
+                                <span class="info-box-number">@FilasInspeccionadas.Count(f => f.EsDuplicadoEnArchivo)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-6 mb-2">
+                        <div class="info-box bg-light border p-2 mb-0">
+                            <span class="info-box-icon bg-secondary text-white"><i class="fas fa-database"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Existe en BD</span>
+                                <span class="info-box-number">@FilasInspeccionadas.Count(f => f.ExisteEnBaseDatos)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-6 mb-2">
+                        <div class="info-box bg-light border p-2 mb-0">
+                            <span class="info-box-icon bg-dark text-white"><i class="fas fa-shield-alt"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Controles</span>
+                                <span class="info-box-number">@FilasInspeccionadas.Count(f => !string.IsNullOrWhiteSpace(f.CodigoControl) || !string.IsNullOrWhiteSpace(f.DescripcionControl))</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-6 mb-2">
+                        <div class="info-box bg-light border p-2 mb-0">
+                            <span class="info-box-icon bg-success text-white"><i class="fas fa-tasks"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Planes Acción</span>
+                                <span class="info-box-number">@FilasInspeccionadas.Count(f => !string.IsNullOrWhiteSpace(f.CodigoPlanAccion) || !string.IsNullOrWhiteSpace(f.DescripcionPlanAccion))</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Inspección -->
+                <div class="table-responsive" style="max-height: 450px;">
+                    <table class="table table-sm table-striped table-hover border">
+                        <thead class="bg-primary text-white" style="position:sticky; top:0; z-index:5;">
+                            <tr>
+                                <th># Fila</th>
+                                <th>Cód. Proceso</th>
+                                <th>Gerencia</th>
+                                <th>Cód. Riesgo</th>
+                                <th>Descripción Riesgo</th>
+                                <th>Sev. Inh.</th>
+                                <th>Control</th>
+                                <th>Sev. Res.</th>
+                                <th>Plan de Acción</th>
+                                <th>Validación Duplicados</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var f in FilasInspeccionadas.Take(100))
+                            {
+                                <tr>
+                                    <td><strong>@f.FilaNumero</strong></td>
+                                    <td><span class="badge badge-info">@f.CodigoProceso</span></td>
+                                    <td><small>@f.GerenciaResponsable</small></td>
+                                    <td><strong>@f.CodigoRiesgo</strong></td>
+                                    <td><small class="text-truncate d-inline-block" style="max-width: 250px;" title="@f.DescripcionRiesgo">@f.DescripcionRiesgo</small></td>
+                                    <td>
+                                        <span class="badge badge-@(f.NivelInherente=="Bajo"?"success":f.NivelInherente=="Moderado"?"warning":"danger")">
+                                            @f.SeveridadInherente (@f.NivelInherente)
+                                        </span>
+                                    </td>
+                                    <td><small class="text-truncate d-inline-block" style="max-width: 180px;" title="@f.DescripcionControl">@(string.IsNullOrWhiteSpace(f.CodigoControl) ? "—" : f.CodigoControl)</small></td>
+                                    <td>
+                                        <span class="badge badge-@(f.NivelResidual=="Bajo"?"success":f.NivelResidual=="Moderado"?"warning":"danger")">
+                                            @f.SeveridadResidual (@f.NivelResidual)
+                                        </span>
+                                    </td>
+                                    <td><small class="text-truncate d-inline-block" style="max-width: 180px;" title="@f.DescripcionPlanAccion">@(string.IsNullOrWhiteSpace(f.CodigoPlanAccion) ? "—" : f.CodigoPlanAccion)</small></td>
+                                    <td>
+                                        @if (f.EsDuplicadoEnArchivo)
+                                        {
+                                            <span class="badge badge-warning" title="El código de riesgo se repite en más de una fila del archivo Excel"><i class="fas fa-copy mr-1"></i>Dup. en Archivo</span>
+                                        }
+                                        else if (f.ExisteEnBaseDatos)
+                                        {
+                                            <span class="badge badge-info" title="El código de riesgo ya existe en la base de datos"><i class="fas fa-database mr-1"></i>Existe en BD</span>
+                                        }
+                                        else if (f.EsValido)
+                                        {
+                                            <span class="badge badge-success"><i class="fas fa-plus-circle mr-1"></i>Nuevo Riesgo</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-danger" title="@f.MensajeValidacion"><i class="fas fa-exclamation-circle mr-1"></i>Error</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (FilasInspeccionadas.Count > 100)
+                {
+                    <div class="text-center text-muted small mt-2">
+                        <em>Mostrando las primeras 100 filas de @FilasInspeccionadas.Count en la vista previa. Al confirmar se procesarán todas.</em>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- RESULTADO FINAL DE IMPORTACIÓN -->
+    @if (ResultadoImportacion != null)
+    {
+        <div class="card card-outline card-success mb-4">
+            <div class="card-header bg-success text-white">
+                <h4 class="card-title mb-0"><i class="fas fa-check-circle mr-2"></i>Resultado de Carga Masiva</h4>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-3">
+                    <div class="col-md-3">
+                        <div class="p-3 bg-light border rounded">
+                            <h3 class="text-success font-weight-bold mb-0">@ResultadoImportacion.TotalRiesgosNuevos</h3>
+                            <span class="text-muted">Riesgos Creados</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-light border rounded">
+                            <h3 class="text-info font-weight-bold mb-0">@ResultadoImportacion.TotalRiesgosActualizados</h3>
+                            <span class="text-muted">Riesgos Actualizados</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-light border rounded">
+                            <h3 class="text-dark font-weight-bold mb-0">@ResultadoImportacion.TotalControlesCreados</h3>
+                            <span class="text-muted">Controles Registrados</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-light border rounded">
+                            <h3 class="text-warning font-weight-bold mb-0">@ResultadoImportacion.TotalPlanesCreados</h3>
+                            <span class="text-muted">Planes de Acción Registrados</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="font-weight-bold text-dark mt-3"><i class="fas fa-list-alt mr-1"></i>Bitácora de Procesamiento:</h6>
+                <ul class="list-group list-group-flush border rounded small">
+                    @foreach (var log in ResultadoImportacion.MensajesLog)
+                    {
+                        <li class="list-group-item py-1">@log</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    IBrowserFile? ArchivoSeleccionado;
+    bool ActualizarExistentes = true;
+    bool Procesando = false;
+    bool Importando = false;
+    string MensajeEstado = "";
+    string TipoMensajeAlert = "info";
+
+    List<FilaCargaMasiva> FilasInspeccionadas = new();
+    ResultadoCargaMasiva? ResultadoImportacion;
+
+    void OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        ArchivoSeleccionado = e.File;
+        FilasInspeccionadas.Clear();
+        ResultadoImportacion = null;
+        MensajeEstado = "";
+    }
+
+    async Task DescargarPlantillaOficial()
+    {
+        var bytes = ExcelSvc.ObtenerPlantillaCargaMasiva();
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("saveAsFile", "Carga_Masiva_V1.xlsm", "application/vnd.ms-excel.sheet.macroEnabled.12", base64);
+    }
+
+    async Task ExportarConsolidadoActual()
+    {
+        var riesgos = await RiesgoSvc.GetTodosAsync();
+        var bytes = ExcelSvc.GenerarConsolidadoCargaMasivaExcel(riesgos);
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("saveAsFile", $"Matriz_Consolidada_GIR_{DateTime.Now:yyyyMMdd}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
+    }
+
+    async Task InspeccionarArchivo()
+    {
+        if (ArchivoSeleccionado == null) return;
+        Procesando = true;
+        MensajeEstado = "";
+        StateHasChanged();
+
+        try
+        {
+            using var stream = ArchivoSeleccionado.OpenReadStream(maxAllowedSize: 15 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+
+            FilasInspeccionadas = ExcelSvc.LeerCargaMasivaExcel(ms);
+            await RiesgoSvc.ValidarDuplicadosAsync(FilasInspeccionadas);
+
+            if (!FilasInspeccionadas.Any())
+            {
+                TipoMensajeAlert = "warning";
+                MensajeEstado = "No se encontraron filas con datos de proceso/riesgo en la hoja del archivo Excel.";
+            }
+            else
+            {
+                TipoMensajeAlert = "success";
+                MensajeEstado = $"Inspección completada con éxito. Se identificaron {FilasInspeccionadas.Count} registros válidos listos para importar.";
+            }
+        }
+        catch (Exception ex)
+        {
+            TipoMensajeAlert = "danger";
+            MensajeEstado = $"Error al leer el archivo Excel: {ex.Message}";
+        }
+        finally
+        {
+            Procesando = false;
+        }
+    }
+
+    async Task EjecutarImportacionMasiva()
+    {
+        if (!FilasInspeccionadas.Any()) return;
+        Importando = true;
+        StateHasChanged();
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var usuario = authState.User.Identity?.Name ?? "SuperAdmin";
+
+            ResultadoImportacion = await RiesgoSvc.ProcesarCargaMasivaAsync(FilasInspeccionadas, ActualizarExistentes, usuario);
+            FilasInspeccionadas.Clear();
+            TipoMensajeAlert = "success";
+            MensajeEstado = "¡Importación masiva completada con éxito en la base de datos!";
+        }
+        catch (Exception ex)
+        {
+            TipoMensajeAlert = "danger";
+            MensajeEstado = $"Error durante la importación a base de datos: {ex.Message}";
+        }
+        finally
+        {
+            Importando = false;
+        }
+    }
+}

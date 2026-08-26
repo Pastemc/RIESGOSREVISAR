@@ -1,0 +1,374 @@
+@page "/resumen-riesgos"
+@layout MainLayout
+@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@inject RiesgoService RiesgoSvc
+@inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
+@inject ExcelService ExcelSvc
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-chart-bar mr-2"></i>Resumen de Riesgos</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item active">Resumen de Riesgos</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+
+@if (Cargando)
+{
+    <div class="text-center p-5">
+        <i class="fas fa-spinner fa-spin fa-3x text-danger"></i>
+        <p class="mt-2">Cargando datos...</p>
+    </div>
+}
+else
+{
+    <!-- TOTALES SMALL BOXES (INTERACTIVAS PARA FILTRAR) -->
+    <div class="row mb-3">
+        <div class="col-md-2">
+            <div class="small-box bg-danger shadow-sm cursor-pointer @(NivelFiltro == "Extremo" ? "border border-white ring-2" : "")"
+                 style="cursor:pointer; transition: transform 0.2s;"
+                 @onclick='() => SeleccionarFiltroNivel("Extremo")'
+                 title="Haga clic para filtrar solo procesos con Riesgos Extremos">
+                <div class="inner">
+                    <h3>@TotalExtremo</h3>
+                    <p class="font-weight-bold mb-0">Extremo @(NivelFiltro == "Extremo" ? "✓" : "")</p>
+                </div>
+                <div class="icon"><i class="fas fa-exclamation-circle"></i></div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="small-box shadow-sm cursor-pointer @(NivelFiltro == "Alto" ? "border border-white ring-2" : "")"
+                 style="background:#fd7e14; cursor:pointer; transition: transform 0.2s;"
+                 @onclick='() => SeleccionarFiltroNivel("Alto")'
+                 title="Haga clic para filtrar solo procesos con Riesgos Altos">
+                <div class="inner text-white">
+                    <h3>@TotalAlto</h3>
+                    <p class="font-weight-bold mb-0">Alto @(NivelFiltro == "Alto" ? "✓" : "")</p>
+                </div>
+                <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="small-box bg-warning shadow-sm cursor-pointer @(NivelFiltro == "Moderado" ? "border border-white ring-2" : "")"
+                 style="cursor:pointer; transition: transform 0.2s;"
+                 @onclick='() => SeleccionarFiltroNivel("Moderado")'
+                 title="Haga clic para filtrar solo procesos con Riesgos Moderados">
+                <div class="inner">
+                    <h3>@TotalModerado</h3>
+                    <p class="font-weight-bold mb-0">Moderado @(NivelFiltro == "Moderado" ? "✓" : "")</p>
+                </div>
+                <div class="icon"><i class="fas fa-minus-circle"></i></div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="small-box bg-success shadow-sm cursor-pointer @(NivelFiltro == "Bajo" ? "border border-white ring-2" : "")"
+                 style="cursor:pointer; transition: transform 0.2s;"
+                 @onclick='() => SeleccionarFiltroNivel("Bajo")'
+                 title="Haga clic para filtrar solo procesos con Riesgos Bajos">
+                <div class="inner">
+                    <h3>@TotalBajo</h3>
+                    <p class="font-weight-bold mb-0">Bajo @(NivelFiltro == "Bajo" ? "✓" : "")</p>
+                </div>
+                <div class="icon"><i class="fas fa-check-circle"></i></div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="small-box bg-primary shadow-sm cursor-pointer @(NivelFiltro == "Todos" ? "border border-white ring-2" : "")"
+                 style="cursor:pointer; transition: transform 0.2s;"
+                 @onclick='() => SeleccionarFiltroNivel("Todos")'
+                 title="Haga clic para mostrar todos los procesos">
+                <div class="inner">
+                    <h3>@TotalRiesgos</h3>
+                    <p class="font-weight-bold mb-0">Total Riesgos @(NivelFiltro == "Todos" ? "✓" : "")</p>
+                </div>
+                <div class="icon"><i class="fas fa-list"></i></div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="small-box bg-info shadow-sm">
+                <div class="inner">
+                    <h3>@TotalIndicadores</h3>
+                    <p class="font-weight-bold mb-0">Total Indicadores</p>
+                </div>
+                <div class="icon"><i class="fas fa-tachometer-alt"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA RESUMEN -->
+    <div class="card card-outline card-primary">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
+            <h3 class="card-title text-white font-weight-bold mb-0">
+                <i class="fas fa-table mr-2"></i>
+                Nivel de Criticidad de Riesgo Residual — @FechaCorte
+                @if (NivelFiltro != "Todos")
+                {
+                    <span class="badge badge-warning ml-2 font-size-100">
+                        <i class="fas fa-filter mr-1"></i>Filtrando solo: Riesgo @NivelFiltro (@FilasVisibles.Count procesos)
+                    </span>
+                }
+            </h3>
+            <div>
+                @if (NivelFiltro != "Todos")
+                {
+                    <button class="btn btn-sm btn-outline-light mr-2 font-weight-bold" @onclick='() => SeleccionarFiltroNivel("Todos")'>
+                        <i class="fas fa-undo mr-1"></i>Mostrar Todos los Procesos
+                    </button>
+                }
+                <button class="btn btn-warning btn-sm font-weight-bold" @onclick="DescargarExcelResumen">
+                    <i class="fas fa-file-excel mr-1"></i> Descargar Excel
+                </button>
+            </div>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-bordered table-hover table-sm" style="font-size:0.85rem;">
+                <thead>
+                    <tr>
+                        <th rowspan="2" style="background:#FFDD00;color:#002D58;vertical-align:middle;text-align:center;min-width:180px;">Macro Proceso</th>
+                        <th rowspan="2" style="background:#FFDD00;color:#002D58;vertical-align:middle;text-align:center;min-width:250px;">Proceso</th>
+                        <th colspan="4" style="background:#FFDD00;color:#002D58;text-align:center;">
+                            Nivel de Criticidad de riesgo residual al @FechaCorte
+                        </th>
+                        <th rowspan="2" style="background:#FFDD00;color:#002D58;vertical-align:middle;text-align:center;">Total</th>
+                        <th rowspan="2" style="background:#FFDD00;color:#002D58;vertical-align:middle;text-align:center;">Total de Indicadores</th>
+                    </tr>
+                    <tr>
+                        <th style="background:#dc3545;color:white;text-align:center; @(NivelFiltro == "Extremo" ? "outline: 3px solid #000; font-size:0.95rem;" : "")">Extremo @(NivelFiltro=="Extremo"?"(Filtro)":"")</th>
+                        <th style="background:#fd7e14;color:white;text-align:center; @(NivelFiltro == "Alto" ? "outline: 3px solid #000; font-size:0.95rem;" : "")">Alto @(NivelFiltro=="Alto"?"(Filtro)":"")</th>
+                        <th style="background:#ffc107;color:#000;text-align:center; @(NivelFiltro == "Moderado" ? "outline: 3px solid #000; font-size:0.95rem;" : "")">Moderado @(NivelFiltro=="Moderado"?"(Filtro)":"")</th>
+                        <th style="background:#28a745;color:white;text-align:center; @(NivelFiltro == "Bajo" ? "outline: 3px solid #000; font-size:0.95rem;" : "")">Bajo @(NivelFiltro=="Bajo"?"(Filtro)":"")</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!MacroProcesosFiltrados.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <em>No se encontraron procesos con riesgos de nivel <strong>@NivelFiltro</strong>.</em>
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var macro in MacroProcesosFiltrados)
+                    {
+                        var filas = FilasPorMacroFiltradas[macro];
+                        bool primero = true;
+                        @foreach (var fila in filas)
+                        {
+                            <tr>
+                                @if (primero)
+                                {
+                                    <td rowspan="@filas.Count"
+                                        style="vertical-align:middle;font-weight:bold;background:#fffde7;border-right:2px solid #FFDD00;">
+                                        @macro
+                                    </td>
+                                    primero = false;
+                                }
+                                <td>@fila.NombreProceso</td>
+                                <td class="text-center font-weight-bold"
+                                    style="@(fila.Extremo>0?"background:#ffcdd2;":"") @(NivelFiltro=="Extremo"?"font-size:1.05rem;border:2px solid #dc3545;":"")">@fila.Extremo</td>
+                                <td class="text-center font-weight-bold"
+                                    style="@(fila.Alto>0?"background:#ffe0b2;":"") @(NivelFiltro=="Alto"?"font-size:1.05rem;border:2px solid #fd7e14;":"")">@fila.Alto</td>
+                                <td class="text-center"
+                                    style="@(fila.Moderado>0?"background:#fff9c4;":"") @(NivelFiltro=="Moderado"?"font-size:1.05rem;border:2px solid #ffc107;":"")">@fila.Moderado</td>
+                                <td class="text-center"
+                                    style="@(fila.Bajo>0?"background:#c8e6c9;":"") @(NivelFiltro=="Bajo"?"font-size:1.05rem;border:2px solid #28a745;":"")">@fila.Bajo</td>
+                                <td class="text-center font-weight-bold">@(fila.Extremo+fila.Alto+fila.Moderado+fila.Bajo)</td>
+                                <td class="text-center"
+                                    style="@(fila.Indicadores>0?"background:#e3f2fd;":"")">@fila.Indicadores</td>
+                            </tr>
+                        }
+                    }
+                    <tr style="background:#343a40;color:white;font-weight:bold;">
+                        <td colspan="2" class="text-center">Total Riesgos @(NivelFiltro != "Todos" ? $"({NivelFiltro})" : "")</td>
+                        <td class="text-center" style="@(NivelFiltro=="Extremo"?"background:#dc3545;":"")">@TotalExtremo</td>
+                        <td class="text-center" style="@(NivelFiltro=="Alto"?"background:#fd7e14;":"")">@TotalAlto</td>
+                        <td class="text-center" style="@(NivelFiltro=="Moderado"?"background:#ffc107;color:#000;":"")">@TotalModerado</td>
+                        <td class="text-center" style="@(NivelFiltro=="Bajo"?"background:#28a745;":"")">@TotalBajo</td>
+                        <td class="text-center">@TotalRiesgos</td>
+                        <td class="text-center">@TotalIndicadores</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Nivel { get; set; }
+
+    bool Cargando = true;
+    string FechaCorte = DateTime.Now.ToString("dd/MM/yyyy");
+    string NivelFiltro = "Todos";
+
+    int TotalExtremo => FilasTodas.Sum(f => f.Extremo);
+    int TotalAlto => FilasTodas.Sum(f => f.Alto);
+    int TotalModerado => FilasTodas.Sum(f => f.Moderado);
+    int TotalBajo => FilasTodas.Sum(f => f.Bajo);
+    int TotalRiesgos => TotalExtremo + TotalAlto + TotalModerado + TotalBajo;
+    int TotalIndicadores => FilasTodas.Sum(f => f.Indicadores);
+
+    List<FilaResumen> FilasTodas = new();
+
+    List<FilaResumen> FilasVisibles => NivelFiltro switch
+    {
+        "Extremo" => FilasTodas.Where(f => f.Extremo > 0).ToList(),
+        "Alto" => FilasTodas.Where(f => f.Alto > 0).ToList(),
+        "Moderado" => FilasTodas.Where(f => f.Moderado > 0).ToList(),
+        "Bajo" => FilasTodas.Where(f => f.Bajo > 0).ToList(),
+        _ => FilasTodas
+    };
+
+    List<string> MacroProcesosFiltrados
+    {
+        get
+        {
+            var list = new List<string>();
+            foreach (var f in FilasVisibles)
+            {
+                if (!list.Contains(f.MacroProceso))
+                {
+                    list.Add(f.MacroProceso);
+                }
+            }
+            return list;
+        }
+    }
+
+    Dictionary<string, List<FilaResumen>> FilasPorMacroFiltradas
+    {
+        get
+        {
+            var dict = new Dictionary<string, List<FilaResumen>>();
+            foreach (var f in FilasVisibles)
+            {
+                if (!dict.ContainsKey(f.MacroProceso))
+                {
+                    dict[f.MacroProceso] = new List<FilaResumen>();
+                }
+                dict[f.MacroProceso].Add(f);
+            }
+            return dict;
+        }
+    }
+
+    static readonly Dictionary<string, string> MapaMacro = new()
+    {
+        {"E1.1","E1. Gestión de la Excelencia Operacional"},
+        {"E1.2","E1. Gestión de la Excelencia Operacional"},
+        {"E2.1","E2. Gobernanza"},
+        {"E2.2","E2. Gobernanza"},
+        {"E2.3","E2. Gobernanza"},
+        {"E2.4","E2. Gobernanza"},
+        {"E3.1","E3. Planeamiento"},
+        {"E3.2","E3. Planeamiento"},
+        {"E3.3","E3. Planeamiento"},
+        {"E4.1","E4. Regulación"},
+        {"E4.2","E4. Regulación"},
+        {"E5.1","E5. Imagen Institucional"},
+        {"E5.2","E5. Imagen Institucional"},
+        {"O1.1","O1. Comercialización de Energía Eléctrica"},
+        {"O1.2","O1. Comercialización de Energía Eléctrica"},
+        {"O1.3","O1. Comercialización de Energía Eléctrica"},
+        {"O2.1","O2. Gestión de Operación y Mantenimiento del Sistema Eléctrico"},
+        {"O2.2","O2. Gestión de Operación y Mantenimiento del Sistema Eléctrico"},
+        {"O3.1","O3. Gestión de la Calidad"},
+        {"O3.2","O3. Gestión de la Calidad"},
+        {"O4.1","O4. Gestión de Proyectos"},
+        {"O4.2","O4. Gestión de Proyectos"},
+        {"S1.1","S1. Soporte Legal"},
+        {"S1.2","S1. Soporte Legal"},
+        {"S1.3","S1. Soporte Legal"},
+        {"S2.1","S2. Gestión Financiera y Contable"},
+        {"S2.2","S2. Gestión Financiera y Contable"},
+        {"S2.3","S2. Gestión Financiera y Contable"},
+        {"S3.1","S3. TIC"},
+        {"S3.2","S3. TIC"},
+        {"S4.1","S4. Gestión de Logística"},
+        {"S4.2","S4. Gestión de Logística"},
+        {"S5.1","S5. Gestión Humana"},
+        {"S5.2","S5. Gestión Humana"},
+        {"S5.3","S5. Gestión Humana"},
+        {"S5.4","S5. Gestión Humana"},
+        {"S6.1","S6. Gestión Documental"},
+        {"S6.2","S6. Gestión Documental"}
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(Nivel))
+        {
+            NivelFiltro = Nivel;
+        }
+
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var idClaim = state.User.FindFirst("UserId")?.Value;
+        var userId = int.TryParse(idClaim, out var id) ? id : 0;
+        var rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Personal";
+
+        var matrices = await RiesgoSvc.GetMatricesPorUsuarioAsync(userId, rol);
+
+        foreach (var m in matrices)
+        {
+            var riesgos = await RiesgoSvc.GetRiesgosPorMatrizAsync(m.Id);
+            var macro = MapaMacro.TryGetValue(m.CodigoProceso, out var mp) ? mp : m.CodigoProceso;
+
+            int ext = 0, alt = 0, mod = 0, baj = 0, ind = 0;
+            foreach (var r in riesgos)
+            {
+                var sev = r.ProbabilidadResidual * r.ImpactoResidual;
+                var niv = Riesgo.GetNivel(sev);
+                if (niv == "Extremo") ext++;
+                else if (niv == "Alto") alt++;
+                else if (niv == "Moderado") mod++;
+                else baj++;
+                ind += r.Indicadores.Count;
+            }
+
+            FilasTodas.Add(new FilaResumen
+            {
+                MacroProceso = macro,
+                CodigoProceso = m.CodigoProceso,
+                NombreProceso = $"{m.CodigoProceso} {m.NombreProceso}",
+                Extremo = ext, Alto = alt, Moderado = mod, Bajo = baj, Indicadores = ind
+            });
+        }
+
+        Cargando = false;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(Nivel))
+        {
+            NivelFiltro = Nivel;
+        }
+    }
+
+    void SeleccionarFiltroNivel(string nivel)
+    {
+        NivelFiltro = nivel;
+        StateHasChanged();
+    }
+
+    async Task DescargarExcelResumen()
+    {
+        var bytes = ExcelSvc.GenerarExcelResumen(FilasVisibles, FechaCorte);
+        var b64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadFile", b64,
+            $"Resumen_Riesgos_{NivelFiltro}_{DateTime.Now:yyyyMMdd}.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+}

@@ -1,0 +1,302 @@
+@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthStateProvider
+@inject AppDbContext DbContext
+
+<div class="wrapper">
+
+    <!-- NAVBAR -->
+    <nav class="main-header navbar navbar-expand navbar-dark"
+         style="background:#003B70;border-bottom:2px solid #FFDD00;height:57px;padding:0 1rem;">
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" data-widget="pushmenu" href="#" role="button">
+                    <i class="fas fa-bars"></i>
+                </a>
+            </li>
+        </ul>
+        <ul class="navbar-nav ml-auto align-items-center">
+            <li class="nav-item d-flex align-items-center">
+                <ThemeToggle />
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle d-flex align-items-center"
+                   href="#" role="button" data-toggle="dropdown">
+                    @if (!string.IsNullOrWhiteSpace(FotoDisplay))
+                    {
+                        <img src="@FotoDisplay" class="img-circle mr-2" alt="Avatar"
+                             style="width:28px;height:28px;object-fit:cover;border:1.5px solid #FFDD00;" />
+                    }
+                    else
+                    {
+                        <div class="mr-2" style="width:28px;height:28px;border-radius:50%;background:#FFDD00;color:#002D58;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.75rem;flex-shrink:0;">
+                            @InicialesDisplay
+                        </div>
+                    }
+                    <span class="text-white font-weight-bold" style="font-size:0.88rem;">
+                        @(string.IsNullOrWhiteSpace(NombreDisplay) ? "Usuario" : NombreDisplay)
+                    </span>
+                </a>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a class="dropdown-item" href="/perfil">
+                        <i class="fas fa-user mr-2 text-primary"></i>Mi Perfil
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item text-danger" href="/do-logout">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Cerrar Sesión
+                    </a>
+                </div>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- SIDEBAR -->
+    <aside class="main-sidebar sidebar-dark-primary elevation-4"
+           style="background:#002D58;">
+        <a href="/" class="brand-link d-flex align-items-center"
+           style="background:#00203E;border-bottom:2px solid #FFDD00;padding:0.6rem 0.8rem;height:57px;overflow:hidden;">
+            <img src="/logo_icon.png" alt="Electro Oriente"
+                 class="brand-image elevation-2"
+                 style="height:34px;width:34px;object-fit:contain;background:#ffffff;padding:2px;border-radius:50%;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.25);"
+                 onerror="this.src='/logo_electrooriente.png'" />
+            <div class="d-flex flex-column ml-2" style="overflow:hidden;line-height:1.15;">
+                <span class="brand-text font-weight-bold text-white"
+                      style="font-size:0.92rem;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    Riesgos<span style="color:#FFDD00;">Elor</span>
+                </span>
+                <small style="color:rgba(255,255,255,0.7);font-size:0.68rem;letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    Electro Oriente S.A.
+                </small>
+            </div>
+        </a>
+
+        <div class="sidebar">
+            <!-- INFO USUARIO EN SIDEBAR -->
+            <div class="user-panel mt-2 pb-2 mb-2 d-flex align-items-center" style="border-bottom:1px solid rgba(255,255,255,0.12);padding-left:0.4rem;">
+                <div class="image d-flex align-items-center justify-content-center">
+                    @if (!string.IsNullOrWhiteSpace(FotoDisplay))
+                    {
+                        <img src="@FotoDisplay" class="img-circle elevation-2" alt="Avatar"
+                             style="width:40px;height:40px;object-fit:cover;border:2px solid #FFDD00;" />
+                    }
+                    else
+                    {
+                        <div style="width:40px;height:40px;border-radius:50%;background:#FFDD00;color:#002D58;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.95rem;box-shadow:0 2px 6px rgba(0,0,0,0.3);flex-shrink:0;">
+                            @InicialesDisplay
+                        </div>
+                    }
+                </div>
+                <div class="info ml-2" style="overflow:hidden;line-height:1.2;">
+                    <span class="d-block text-white font-weight-bold text-truncate" style="font-size:0.86rem;max-width:170px;" title="@NombreDisplay">
+                        @(string.IsNullOrWhiteSpace(NombreDisplay) ? "Usuario" : NombreDisplay)
+                    </span>
+                    <div class="mt-1">
+                        @if (!string.IsNullOrWhiteSpace(UsuarioActual?.Cargo))
+                        {
+                            <span class="d-block text-truncate" style="font-size:0.72rem;color:#FFDD00;font-weight:600;max-width:170px;" title="@UsuarioActual.Cargo">
+                                <i class="fas fa-user-tag mr-1" style="font-size:0.65rem;"></i>@UsuarioActual.Cargo
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge" style="font-size:0.68rem;background:rgba(255,221,0,0.18);color:#FFDD00;border:1px solid rgba(255,221,0,0.4);padding:2px 8px;border-radius:10px;">
+                                @(UsuarioActual?.Rol ?? RolDisplay)
+                            </span>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(UsuarioActual?.Departamento) || !string.IsNullOrWhiteSpace(UsuarioActual?.Gerencia))
+                        {
+                            <span class="d-block text-truncate mt-1" style="font-size:0.66rem;color:rgba(255,255,255,0.7);max-width:170px;" title="@(UsuarioActual?.Departamento ?? UsuarioActual?.Gerencia)">
+                                <i class="fas fa-building mr-1"></i>@(UsuarioActual?.Departamento ?? UsuarioActual?.Gerencia)
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- MENU -->
+            <nav class="mt-2">
+                <ul class="nav nav-pills nav-sidebar flex-column"
+                    data-widget="treeview" role="menu">
+
+                    <li class="nav-header" style="color:rgba(255,255,255,0.6);">GIR</li>
+
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                            <i class="nav-icon fas fa-shield-alt"></i>
+                            <p>Panel GIR</p>
+                        </NavLink>
+                    </li>
+
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/matriz">
+                            <i class="nav-icon fas fa-table"></i>
+                            <p>Matriz de Riesgos</p>
+                        </NavLink>
+                    </li>
+
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/planes-accion">
+                            <i class="nav-icon fas fa-tasks"></i>
+                            <p>Planes de Acción</p>
+                        </NavLink>
+                    </li>
+
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/eventos-riesgo">
+                            <i class="nav-icon fas fa-bell"></i>
+                            <p>Eventos de Riesgo</p>
+                        </NavLink>
+                    </li>
+
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/evaluacion-controles">
+                            <i class="nav-icon fas fa-check-double"></i>
+                            <p>Evaluación Controles</p>
+                        </NavLink>
+                    </li>
+
+                    <AuthorizeView Roles="SuperAdmin,Admin">
+                        <Authorized>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/cumplimiento">
+                                    <i class="nav-icon fas fa-scale-balanced"></i>
+                                    <p>Cumplimiento</p>
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/organizacion-gir">
+                                    <i class="nav-icon fas fa-sitemap"></i>
+                                    <p>Organización GIR</p>
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/usuarios">
+                                    <i class="nav-icon fas fa-users"></i>
+                                    <p>Usuarios GIR</p>
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/auditoria-grc">
+                                    <i class="nav-icon fas fa-clipboard-check"></i>
+                                    <p>Auditoría GIR</p>
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/documentos-grc">
+                                    <i class="nav-icon fas fa-folder-open"></i>
+                                    <p>Documentos GIR</p>
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/carga-masiva">
+                                    <i class="nav-icon fas fa-file-excel text-success"></i>
+                                    <p>Carga Masiva</p>
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/seguridad-informacion">
+                                    <i class="nav-icon fas fa-server"></i>
+                                    <p>Seguridad Info.</p>
+                                </NavLink>
+                            </li>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="SuperAdmin">
+                        <Authorized>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/configuracion">
+                                    <i class="nav-icon fas fa-cogs"></i>
+                                    <p>Configuración GIR</p>
+                                </NavLink>
+                            </li>
+                        </Authorized>
+                    </AuthorizeView>
+
+                </ul>
+            </nav>
+        </div>
+    </aside>
+
+    <!-- CONTENT WRAPPER -->
+    <div class="content-wrapper">
+        @Body
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="main-footer"
+            style="background:#00203E;
+                   border-top:2px solid #FFDD00;
+                   color:rgba(255,255,255,0.75);">
+        <strong>RiesgosElor &copy; @DateTime.Now.Year</strong> &mdash;
+        <span style="color:#FFDD00;font-weight:600;">Electro Oriente S.A.</span>
+    </footer>
+
+</div>
+
+@code {
+    private Usuario? UsuarioActual;
+    private string NombreDisplay = "";
+    private string RolDisplay = "Personal";
+    private string InicialesDisplay = "";
+    private string FotoDisplay = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosUsuarioAsync();
+    }
+
+    private async Task CargarDatosUsuarioAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userClaims = authState.User;
+
+            if (userClaims.Identity?.IsAuthenticated == true)
+            {
+                var email = userClaims.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                            ?? userClaims.Identity.Name ?? "";
+                var userIdStr = userClaims.FindFirst("UserId")?.Value;
+                RolDisplay = userClaims.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Personal";
+
+                if (!string.IsNullOrEmpty(userIdStr) && int.TryParse(userIdStr, out int userId))
+                {
+                    UsuarioActual = await DbContext.Usuarios.FirstOrDefaultAsync(u => u.Id == userId);
+                }
+
+                if (UsuarioActual == null && !string.IsNullOrEmpty(email))
+                {
+                    UsuarioActual = await DbContext.Usuarios.FirstOrDefaultAsync(u => u.Correo == email || u.Username == email);
+                }
+
+                if (UsuarioActual != null)
+                {
+                    NombreDisplay = !string.IsNullOrWhiteSpace(UsuarioActual.Nombre) && UsuarioActual.Nombre != UsuarioActual.Correo
+                        ? UsuarioActual.Nombre
+                        : (!string.IsNullOrWhiteSpace(UsuarioActual.Correo) ? UsuarioActual.Correo : userClaims.Identity.Name ?? "");
+
+                    FotoDisplay = UsuarioActual.FotoUrl ?? "";
+                }
+                else
+                {
+                    NombreDisplay = !string.IsNullOrWhiteSpace(userClaims.Identity.Name) ? userClaims.Identity.Name : email;
+                }
+
+                InicialesDisplay = ObtenesIniciales(NombreDisplay);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainLayout CargarDatosUsuario Error]: {ex.Message}");
+        }
+    }
+
+    private static string ObtenesIniciales(string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre)) return "U";
+        var partes = nombre.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (partes.Length == 1) return partes[0].Substring(0, Math.Min(2, partes[0].Length)).ToUpper();
+        return $"{char.ToUpper(partes[0][0])}{char.ToUpper(partes[1][0])}";
+    }
+}

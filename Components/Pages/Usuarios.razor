@@ -1,0 +1,693 @@
+@page "/usuarios"
+@layout MainLayout
+@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@inject UsuarioService UsuarioSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Gestión de Usuarios</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item active">Usuarios</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+
+@if (Lista.Any(u => !u.Activo))
+{
+    <div class="card card-warning card-outline mb-4">
+        <div class="card-header">
+            <h3 class="card-title text-warning font-weight-bold">
+                <i class="fas fa-user-clock mr-2"></i>Solicitudes de Registro Pendientes (@Lista.Count(u => !u.Activo))
+            </h3>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-hover table-striped">
+                <thead class="bg-warning">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Correo</th>
+                        <th>Rol</th>
+                        <th>Fecha Registro</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Lista.Where(u => !u.Activo))
+                    {
+                        <tr>
+                            <td><strong>@u.Nombre</strong></td>
+                            <td>@u.Correo</td>
+                            <td><span class="badge badge-info">@u.Rol</span></td>
+                            <td>@u.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                <button class="btn btn-sm btn-success mr-1 font-weight-bold" @onclick="() => AbrirModalAprobar(u)">
+                                    <i class="fas fa-user-check mr-1"></i>Aprobar...
+                                </button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => Eliminar(u.Id)">
+                                    <i class="fas fa-times mr-1"></i>Rechazar
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (MostrarForm)
+{
+    <div class="card card-primary mb-4">
+        <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-user-plus mr-2"></i>Nuevo Usuario</h3>
+        </div>
+        <div class="card-body">
+            @if (MsgForm != "")
+            {
+                <div class="alert alert-@AlertClass">@MsgForm</div>
+            }
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Nombre Completo</label>
+                        <input @bind="FNombre" class="form-control" placeholder="Ej: Emanuel Tuesta" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Correo Electrónico</label>
+                        <input @bind="FCorreo" class="form-control" placeholder="usuario@elor.com.pe" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" @bind="FPassword" class="form-control" placeholder="Mínimo 8 caracteres" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Rol de Acceso</label>
+                        <select @bind="FRol" class="form-control">
+                            @if (EsSuperAdmin)
+                            {
+                                <option value="SuperAdmin">SuperAdmin</option>
+                                <option value="Admin">Admin</option>
+                            }
+                            <option value="Personal">Personal</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button class="btn btn-primary mr-2" @onclick="Crear"><i class="fas fa-save mr-1"></i>Guardar</button>
+            <button class="btn btn-secondary" @onclick="CerrarForm">Cancelar</button>
+        </div>
+    </div>
+}
+
+<div class="card card-primary card-outline">
+    <div class="card-header">
+        <h3 class="card-title font-weight-bold"><i class="fas fa-users mr-2"></i>Lista de Usuarios Registrados</h3>
+        <div class="card-tools">
+            <button class="btn btn-success btn-sm" @onclick="AbrirForm">
+                <i class="fas fa-plus mr-1"></i>Nuevo Usuario
+            </button>
+        </div>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-hover table-striped align-middle">
+            <thead class="bg-primary text-white">
+                <tr>
+                    <th style="width: 60px;">Id</th>
+                    <th>Nombre / Usuario</th>
+                    <th>Correo</th>
+                    <th>Rol</th>
+                    <th>Cargo / Área</th>
+                    <th>Estado</th>
+                    <th>Última Sincro</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Lista)
+                {
+                    var bc = GetBtnClass(item.Activo);
+                    var bi = GetBtnIcon(item.Activo);
+                    var rc = RolColor(item.Rol);
+                    <tr>
+                        <td><strong>@item.Id</strong></td>
+                        <td>
+                            <div class="font-weight-bold text-dark">@(string.IsNullOrWhiteSpace(item.Nombre) ? item.Username : item.Nombre)</div>
+                            @if (!string.IsNullOrWhiteSpace(item.Username) && item.Username != item.Nombre)
+                            {
+                                <small class="text-muted"><i class="fas fa-user-tag mr-1"></i>@item.Username</small>
+                            }
+                        </td>
+                        <td>@item.Correo</td>
+                        <td><span class="badge badge-@rc" style="font-size: 0.85rem; padding: 4px 10px;">@item.Rol</span></td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.Cargo))
+                            {
+                                <div><strong style="color: #003B70;">@item.Cargo</strong></div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.Departamento) || !string.IsNullOrWhiteSpace(item.Gerencia))
+                            {
+                                <small class="text-muted"><i class="fas fa-building mr-1"></i>@(item.Departamento != "" ? item.Departamento : item.Gerencia)</small>
+                            }
+                        </td>
+                        <td>
+                            @if (item.Activo)
+                            {
+                                <span class="badge badge-success">Activo</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-secondary">Inactivo</span>
+                            }
+                        </td>
+                        <td>
+                            @if (item.UltimaSincronizacionApi.HasValue)
+                            {
+                                <small class="text-muted"><i class="fas fa-sync-alt mr-1 text-info"></i>@item.UltimaSincronizacionApi.Value.ToString("dd/MM/yyyy HH:mm")</small>
+                            }
+                            else
+                            {
+                                <small class="text-muted">&mdash;</small>
+                            }
+                        </td>
+                        <td>
+                            <button class="btn btn-xs btn-info mr-1" title="Editar Perfil y Rol" @onclick="() => AbrirEditar(item)">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-xs btn-secondary mr-1" title="Ver Bitácora de Cambios" @onclick="() => AbrirBitacora(item)">
+                                <i class="fas fa-history"></i>
+                            </button>
+
+                            @if (item.Rol != "SuperAdmin" || EsSuperAdmin)
+                            {
+                                <button class="btn btn-xs btn-@bc mr-1" title="Cambiar Estado" @onclick="() => Toggle(item.Id)">
+                                    <i class="fas fa-@bi"></i>
+                                </button>
+                            }
+
+                            @if (item.Rol != "SuperAdmin")
+                            {
+                                <button class="btn btn-xs btn-danger" title="Eliminar Usuario" @onclick="() => Eliminar(item.Id)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="text-muted small ml-1">Protegido</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+
+@* ===== MODAL DE EDICIÓN DE USUARIO Y ROL ===== *@
+@if (MostrarModalEditar && UsuarioEdicion != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-header bg-primary text-white" style="background: linear-gradient(135deg, #003B70 0%, #0062B8 100%);">
+                    <h5 class="modal-title font-weight-bold">
+                        <i class="fas fa-user-edit mr-2 text-warning"></i>Editar Usuario: @UsuarioEdicion.Nombre
+                    </h5>
+                    <button type="button" class="close text-white" @onclick="CerrarEditar">&times;</button>
+                </div>
+                <div class="modal-body p-4">
+                    @if (MsgEditar != "")
+                    {
+                        <div class="alert alert-@AlertEditarClass">@MsgEditar</div>
+                    }
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">Nombre Completo</label>
+                            <input @bind="EditNombre" class="form-control" />
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">Correo Electrónico</label>
+                            <input @bind="EditCorreo" class="form-control" />
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">Usuario (Username)</label>
+                            <input @bind="EditUsername" class="form-control" />
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-primary"><i class="fas fa-user-shield mr-1"></i>Rol de Usuario</label>
+                            <select @bind="EditRol" class="form-control font-weight-bold" style="border: 2px solid #0062B8;">
+                                <option value="SuperAdmin">SuperAdmin (Acceso Total)</option>
+                                <option value="Admin">Admin (Gestor de Procesos y Riesgos)</option>
+                                <option value="Personal">Personal (Operativo / Consultante)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">Cargo</label>
+                            <input @bind="EditCargo" class="form-control" placeholder="Ej: Especialista de Sistemas" />
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">Gerencia</label>
+                            <input @bind="EditGerencia" class="form-control" placeholder="Ej: Gerencia de Administración y Finanzas" />
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">Departamento</label>
+                            <input @bind="EditDepartamento" class="form-control" placeholder="Ej: Departamento de Informática" />
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold">Estado de Cuenta</label>
+                            <select @bind="EditActivo" class="form-control">
+                                <option value="true">✔ Activo</option>
+                                <option value="false">✖ Inactivo</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12 form-group">
+                            <label class="font-weight-bold text-muted">Motivo / Nota de Modificación (Auditoría)</label>
+                            <input @bind="EditMotivo" class="form-control" placeholder="Ej: Actualización de cargo por promoción o cambio de rol autorizado por Gerencia" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button class="btn btn-secondary" @onclick="CerrarEditar">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="GuardarEdicion"><i class="fas fa-save mr-1"></i>Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* ===== MODAL DE BITÁCORA DE CAMBIOS ===== *@
+@if (MostrarModalBitacora && UsuarioBitacora != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-header bg-dark text-white" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 3px solid #FFDD00;">
+                    <h5 class="modal-title font-weight-bold">
+                        <i class="fas fa-history mr-2 text-warning"></i>Bitácora de Cambios de Usuario: @UsuarioBitacora.Nombre (@UsuarioBitacora.Correo)
+                    </h5>
+                    <button type="button" class="close text-white" @onclick="CerrarBitacora">&times;</button>
+                </div>
+                <div class="modal-body p-4" style="max-height: 70vh; overflow-y: auto;">
+                    @if (BitacoraList.Any())
+                    {
+                        <table class="table table-hover table-striped">
+                            <thead class="bg-dark text-white">
+                                <tr>
+                                    <th>Fecha / Hora</th>
+                                    <th>Modificado Por</th>
+                                    <th>Campo</th>
+                                    <th>Valor Anterior</th>
+                                    <th>Valor Nuevo</th>
+                                    <th>Motivo / Nota</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var b in BitacoraList)
+                                {
+                                    <tr>
+                                        <td><small class="font-weight-bold text-primary"><i class="fas fa-clock mr-1"></i>@b.FechaCambio.ToString("dd/MM/yyyy HH:mm:ss")</small></td>
+                                        <td><strong>@b.ModificadoPor</strong></td>
+                                        <td><span class="badge badge-info" style="font-size: 0.85rem;">@b.Campo</span></td>
+                                        <td><span class="text-danger">@(string.IsNullOrWhiteSpace(b.ValorAnterior) ? "(vacío)" : b.ValorAnterior)</span></td>
+                                        <td><span class="text-success font-weight-bold">@(string.IsNullOrWhiteSpace(b.ValorNuevo) ? "(vacío)" : b.ValorNuevo)</span></td>
+                                        <td><small class="text-muted">@(string.IsNullOrWhiteSpace(b.Motivo) ? "Sin nota específica" : b.Motivo)</small></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-clipboard-list fa-3x mb-3 text-secondary"></i>
+                            <p class="h5">No existen registros de cambios en la bitácora para este usuario.</p>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer bg-light">
+                    <button class="btn btn-secondary" @onclick="CerrarBitacora">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* ===== MODAL DE APROBACIÓN DE ACCESO CON ASIGNACIÓN DE ROL Y PROCESOS ===== *@
+@if (MostrarModalAprobar && UsuarioAprobar != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-header bg-success text-white" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+                    <h5 class="modal-title font-weight-bold text-white">
+                        <i class="fas fa-user-check mr-2"></i>Aprobar Solicitud de Acceso: @UsuarioAprobar.Nombre
+                    </h5>
+                    <button type="button" class="close text-white" @onclick="CerrarModalAprobar">&times;</button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info border-0 shadow-sm mb-4" style="background-color: #e0f2fe; color: #0369a1;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle fa-2x mr-3 text-info"></i>
+                            <div>
+                                <strong>Colaborador:</strong> @(string.IsNullOrWhiteSpace(UsuarioAprobar.Nombre) ? UsuarioAprobar.Username : UsuarioAprobar.Nombre) (@UsuarioAprobar.Correo)<br/>
+                                <small>
+                                    <i class="fas fa-user-tag mr-1"></i>Cargo: @(string.IsNullOrWhiteSpace(UsuarioAprobar.Cargo) ? "No especificado" : UsuarioAprobar.Cargo) &nbsp;|&nbsp;
+                                    <i class="fas fa-building mr-1"></i>Área: @(string.IsNullOrWhiteSpace(UsuarioAprobar.Departamento) ? (string.IsNullOrWhiteSpace(UsuarioAprobar.Gerencia) ? "No especificada" : UsuarioAprobar.Gerencia) : UsuarioAprobar.Departamento)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label class="font-weight-bold text-dark h6"><i class="fas fa-shield-alt mr-2 text-primary"></i>Asignar Rol de Acceso en el Sistema</label>
+                        <select @bind="RolAprobar" class="form-control form-control-lg font-weight-bold" style="border: 2px solid #047857;">
+                            <option value="Personal">Personal (Operativo / Consultante de Procedimientos y Matrices)</option>
+                            <option value="Admin">Admin (Gestor de Procesos y Riesgos)</option>
+                            <option value="SuperAdmin">SuperAdmin (Acceso Total de Configuración)</option>
+                        </select>
+                        <small class="form-text text-muted mt-1">
+                            El rol determina el nivel de permisos que tendrá el usuario una vez autorizada su cuenta.
+                        </small>
+                    </div>
+
+                    <div class="card border-primary mb-3">
+                        <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between py-2">
+                            <span class="font-weight-bold"><i class="fas fa-sitemap mr-2"></i>Asignación Inicial de Procedimientos / Matrices de Riesgo</span>
+                            <div>
+                                <button class="btn btn-xs btn-light mr-1 font-weight-bold" @onclick="SeleccionarTodasMatricesAprobar">Marcar Todas</button>
+                                <button class="btn btn-xs btn-outline-light font-weight-bold" @onclick="DesmarcarTodasMatricesAprobar">Desmarcar</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-3" style="max-height: 230px; overflow-y: auto;">
+                            @if (MatricesProcesosAprobar.Any())
+                            {
+                                <div class="row">
+                                    @foreach (var m in MatricesProcesosAprobar)
+                                    {
+                                        bool checkedState = MatricesSeleccionadasAprobar.Contains(m.Id);
+                                        <div class="col-md-6 mb-2">
+                                            <div class="custom-control custom-checkbox p-2 border rounded bg-light">
+                                                <input type="checkbox" class="custom-control-input" id="mat_usr_@m.Id"
+                                                       checked="@checkedState"
+                                                       @onchange="e => ToggleMatrizAprobar(m.Id, (bool)(e.Value ?? false))" />
+                                                <label class="custom-control-label font-weight-bold text-dark cursor-pointer" for="mat_usr_@m.Id">
+                                                    @m.Nombre
+                                                    <br/><small class="text-muted font-weight-normal">@(string.IsNullOrWhiteSpace(m.NombreProceso) ? m.Codigo : m.NombreProceso)</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-muted text-center my-2">No hay matrices de procesos registradas en el sistema aún.</p>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold text-muted">Motivo / Nota de Aprobación (Opcional)</label>
+                        <input @bind="MotivoAprobar" class="form-control" placeholder="Ej: Alta autorizada por Jefatura de Informática / RRHH" />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button class="btn btn-secondary" @onclick="CerrarModalAprobar">Cancelar</button>
+                    <button class="btn btn-success font-weight-bold px-4" @onclick="ConfirmarAprobacionUsuario">
+                        <i class="fas fa-check-circle mr-2"></i>Aprobar y Notificar por Correo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    List<Usuario> Lista = new();
+    bool MostrarForm = false;
+    bool EsSuperAdmin = false;
+    string UsuarioActualEmail = "";
+    bool FormOk = false;
+    string FNombre = "";
+    string FCorreo = "";
+    string FPassword = "";
+    string FRol = "Personal";
+    string MsgForm = "";
+
+    // MODAL DE APROBACIÓN CON ROL Y PROCESOS
+    bool MostrarModalAprobar = false;
+    Usuario? UsuarioAprobar;
+    string RolAprobar = "Personal";
+    string MotivoAprobar = "";
+    List<MatrizGrupo> MatricesProcesosAprobar = new();
+    List<int> MatricesSeleccionadasAprobar = new();
+
+    // MODAL EDICIÓN
+    bool MostrarModalEditar = false;
+    Usuario? UsuarioEdicion;
+    string EditNombre = "";
+    string EditCorreo = "";
+    string EditUsername = "";
+    string EditRol = "Personal";
+    string EditCargo = "";
+    string EditGerencia = "";
+    string EditDepartamento = "";
+    bool EditActivo = true;
+    string EditMotivo = "";
+    string MsgEditar = "";
+    bool EditOk = false;
+
+    // MODAL BITÁCORA
+    bool MostrarModalBitacora = false;
+    Usuario? UsuarioBitacora;
+    List<BitacoraUsuario> BitacoraList = new();
+
+    string AlertClass => FormOk ? "success" : "danger";
+    string AlertEditarClass => EditOk ? "success" : "danger";
+
+    string GetBtnClass(bool activo) => activo ? "warning" : "success";
+    string GetBtnIcon(bool activo) => activo ? "ban" : "check";
+
+    string RolColor(string rol)
+    {
+        if (rol == "SuperAdmin") return "danger";
+        if (rol == "Admin") return "warning";
+        return "info";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        EsSuperAdmin = state.User.IsInRole("SuperAdmin");
+        UsuarioActualEmail = state.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                             ?? state.User.Identity?.Name ?? "SuperAdmin";
+        await Cargar();
+    }
+
+    void AbrirForm()
+    {
+        MostrarForm = true;
+        MsgForm = "";
+    }
+
+    void CerrarForm()
+    {
+        MostrarForm = false;
+        MsgForm = "";
+    }
+
+    async Task Cargar()
+    {
+        Lista = await UsuarioSvc.GetTodosAsync();
+    }
+
+    async Task Crear()
+    {
+        if (string.IsNullOrWhiteSpace(FNombre) || string.IsNullOrWhiteSpace(FCorreo) || FPassword.Length < 8)
+        {
+            MsgForm = "Completa todos los campos. Contraseña mínimo 8 caracteres.";
+            FormOk = false;
+            return;
+        }
+        bool ok = await UsuarioSvc.CrearAsync(FNombre, FCorreo, FPassword, FRol);
+        FormOk = ok;
+        if (ok)
+        {
+            MsgForm = "Usuario creado. SuperAdmin debe activarlo.";
+            FNombre = "";
+            FCorreo = "";
+            FPassword = "";
+            await Cargar();
+        }
+        else
+        {
+            MsgForm = "El correo ya está registrado.";
+        }
+    }
+
+    void AbrirEditar(Usuario u)
+    {
+        UsuarioEdicion = u;
+        EditNombre = u.Nombre;
+        EditCorreo = u.Correo;
+        EditUsername = u.Username;
+        EditRol = u.Rol;
+        EditCargo = u.Cargo;
+        EditGerencia = u.Gerencia;
+        EditDepartamento = u.Departamento;
+        EditActivo = u.Activo;
+        EditMotivo = "";
+        MsgEditar = "";
+        MostrarModalEditar = true;
+    }
+
+    void CerrarEditar()
+    {
+        MostrarModalEditar = false;
+        UsuarioEdicion = null;
+    }
+
+    async Task GuardarEdicion()
+    {
+        if (UsuarioEdicion == null) return;
+
+        if (string.IsNullOrWhiteSpace(EditNombre) || string.IsNullOrWhiteSpace(EditCorreo))
+        {
+            MsgEditar = "El nombre y correo no pueden estar vacíos.";
+            EditOk = false;
+            return;
+        }
+
+        bool ok = await UsuarioSvc.ActualizarUsuarioPerfilYRolAsync(
+            UsuarioEdicion.Id,
+            EditNombre,
+            EditCorreo,
+            EditUsername,
+            EditRol,
+            EditCargo,
+            EditGerencia,
+            EditDepartamento,
+            EditActivo,
+            UsuarioActualEmail,
+            EditMotivo
+        );
+
+        if (ok)
+        {
+            MsgEditar = "Usuario y rol actualizados correctamente.";
+            EditOk = true;
+            await Cargar();
+            await Task.Delay(800);
+            CerrarEditar();
+        }
+        else
+        {
+            MsgEditar = "No se pudo actualizar el usuario.";
+            EditOk = false;
+        }
+    }
+
+    async Task AbrirBitacora(Usuario u)
+    {
+        UsuarioBitacora = u;
+        BitacoraList = await UsuarioSvc.GetBitacorasAsync(u.Id);
+        MostrarModalBitacora = true;
+    }
+
+    void CerrarBitacora()
+    {
+        MostrarModalBitacora = false;
+        UsuarioBitacora = null;
+        BitacoraList.Clear();
+    }
+
+    async Task Toggle(int id)
+    {
+        await UsuarioSvc.ToggleActivoAsync(id);
+        await Cargar();
+    }
+
+    async Task AbrirModalAprobar(Usuario u)
+    {
+        UsuarioAprobar = u;
+        RolAprobar = string.IsNullOrWhiteSpace(u.Rol) ? "Personal" : u.Rol;
+        MotivoAprobar = "";
+        MatricesSeleccionadasAprobar.Clear();
+        MatricesProcesosAprobar = await UsuarioSvc.GetMatricesProcesosActivasAsync();
+        MostrarModalAprobar = true;
+    }
+
+    void CerrarModalAprobar()
+    {
+        MostrarModalAprobar = false;
+        UsuarioAprobar = null;
+        MatricesSeleccionadasAprobar.Clear();
+    }
+
+    void ToggleMatrizAprobar(int id, bool seleccionado)
+    {
+        if (seleccionado)
+        {
+            if (!MatricesSeleccionadasAprobar.Contains(id)) MatricesSeleccionadasAprobar.Add(id);
+        }
+        else
+        {
+            MatricesSeleccionadasAprobar.Remove(id);
+        }
+    }
+
+    void SeleccionarTodasMatricesAprobar()
+    {
+        MatricesSeleccionadasAprobar = MatricesProcesosAprobar.Select(m => m.Id).ToList();
+    }
+
+    void DesmarcarTodasMatricesAprobar()
+    {
+        MatricesSeleccionadasAprobar.Clear();
+    }
+
+    async Task ConfirmarAprobacionUsuario()
+    {
+        if (UsuarioAprobar == null) return;
+        await UsuarioSvc.AprobarUsuarioConRolYMatricesAsync(
+            UsuarioAprobar.Id,
+            RolAprobar,
+            MatricesSeleccionadasAprobar,
+            UsuarioActualEmail
+        );
+        CerrarModalAprobar();
+        await Cargar();
+    }
+
+    async Task Activar(int id)
+    {
+        await UsuarioSvc.ActivarAsync(id);
+        await Cargar();
+    }
+
+    async Task Eliminar(int id)
+    {
+        await UsuarioSvc.EliminarAsync(id);
+        await Cargar();
+    }
+}

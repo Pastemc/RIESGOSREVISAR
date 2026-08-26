@@ -1,0 +1,365 @@
+@page "/eventos-riesgo"
+@layout MainLayout
+@attribute [Authorize]
+@inject GrcService GrcSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-7">
+                <h1 class="m-0"><i class="fas fa-bell mr-2"></i>Eventos de Riesgo</h1>
+            </div>
+            <div class="col-sm-5">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="/grc">GIR</a></li>
+                    <li class="breadcrumb-item active">Eventos</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    @if (MostrarForm)
+    {
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">@(EditandoId == 0 ? "Nuevo Evento" : $"Editar Evento {FCodigo}")</h3>
+            </div>
+            <div class="card-body">
+                @if (MsgForm != "")
+                {
+                    <div class="alert alert-@AlertClass">@MsgForm</div>
+                }
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Fecha del evento</label>
+                            <input type="date" value="@FFechaEvento" @oninput="e => FFechaEvento = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select value="@FTipoEvento" @onchange="e => FTipoEvento = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Incidente</option>
+                                <option>Casi evento</option>
+                                <option>Perdida operativa</option>
+                                <option>Falla de control</option>
+                                <option>Alerta temprana</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select value="@FEstado" @onchange="e => FEstado = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                @foreach (var estado in GrcService.EstadosEvento)
+                                {
+                                    <option value="@estado">@estado</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Perdida estimada</label>
+                            <input value="@FMonto" @oninput="e => FMonto = e.Value?.ToString() ?? string.Empty" class="form-control" placeholder="0.00" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Riesgo asociado</label>
+                            <select value="@FRiesgoId" @onchange="e => FRiesgoId = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option value="">Sin vincular</option>
+                                @foreach (var r in Riesgos)
+                                {
+                                    <option value="@r.Id">@r.CodigoRiesgo - @Cortar(r.DescripcionRiesgo, 90)</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Proceso</label>
+                            <select value="@FProceso" @onchange="e => FProceso = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option value="">Seleccione</option>
+                                @foreach (var p in RiesgoService.Procesos)
+                                {
+                                    <option value="@p.Key">@p.Key - @p.Value</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Area que reporta</label>
+                            <input value="@FArea" @oninput="e => FArea = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Responsable de registro</label>
+                            <input value="@FResponsable" @oninput="e => FResponsable = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <label>Descripcion</label>
+                            <textarea value="@FDescripcion" @oninput="e => FDescripcion = e.Value?.ToString() ?? string.Empty" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Causa raiz</label>
+                            <textarea value="@FCausa" @oninput="e => FCausa = e.Value?.ToString() ?? string.Empty" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Accion inmediata</label>
+                            <textarea value="@FAccion" @oninput="e => FAccion = e.Value?.ToString() ?? string.Empty" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Leccion aprendida</label>
+                            <textarea value="@FLeccion" @oninput="e => FLeccion = e.Value?.ToString() ?? string.Empty" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary mr-2" @onclick="Guardar">
+                    <i class="fas fa-save mr-1"></i>Guardar
+                </button>
+                <button class="btn btn-secondary" @onclick="CerrarForm">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    <div class="card card-primary">
+        <div class="card-header">
+            <h3 class="card-title">Registro de eventos</h3>
+            <div class="card-tools">
+                <button class="btn btn-success btn-sm" @onclick="AbrirForm">
+                    <i class="fas fa-plus mr-1"></i>Nuevo evento
+                </button>
+            </div>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-hover table-striped table-sm">
+                <thead class="bg-primary">
+                    <tr class="text-white">
+                        <th>Codigo</th>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Proceso/Riesgo</th>
+                        <th>Descripcion</th>
+                        <th>Estado</th>
+                        <th class="text-right">Perdida</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Lista.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">No hay eventos registrados.</td>
+                        </tr>
+                    }
+                    @foreach (var item in Lista)
+                    {
+                        <tr>
+                            <td><strong>@item.Codigo</strong></td>
+                            <td>@item.FechaEvento.ToString("dd/MM/yyyy")</td>
+                            <td>@item.TipoEvento</td>
+                            <td>
+                                <span class="badge badge-light border">@item.CodigoProceso</span>
+                                @if (item.Riesgo != null)
+                                {
+                                    <div class="small text-muted">@item.Riesgo.CodigoRiesgo</div>
+                                }
+                            </td>
+                            <td style="min-width:260px;white-space:normal;">@Cortar(item.Descripcion, 160)</td>
+                            <td><span class="badge badge-@EstadoColor(item.Estado)">@item.Estado</span></td>
+                            <td class="text-right">@((item.MontoPerdidaEstimado ?? 0).ToString("C"))</td>
+                            <td>
+                                <button class="btn btn-xs btn-primary mr-1" @onclick="() => Editar(item)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                @if (EsAdmin)
+                                {
+                                    <button class="btn btn-xs btn-danger" @onclick="() => Eliminar(item.Id)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<EventoRiesgo> Lista = new();
+    List<Riesgo> Riesgos = new();
+    int UserId;
+    string Rol = "Personal";
+    bool EsAdmin;
+    bool MostrarForm;
+    bool FormOk;
+    string MsgForm = "";
+
+    int EditandoId;
+    string FCodigo = "";
+    string FFechaEvento = DateTime.Today.ToString("yyyy-MM-dd");
+    string FTipoEvento = "Incidente";
+    string FEstado = "Reportado";
+    string FMonto = "";
+    string FRiesgoId = "";
+    string FProceso = "";
+    string FArea = "";
+    string FResponsable = "";
+    string FDescripcion = "";
+    string FCausa = "";
+    string FAccion = "";
+    string FLeccion = "";
+
+    string AlertClass => FormOk ? "success" : "danger";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        UserId = int.TryParse(state.User.FindFirst("UserId")?.Value, out var id) ? id : 0;
+        Rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Personal";
+        EsAdmin = state.User.IsInRole("SuperAdmin") || state.User.IsInRole("Admin");
+        await Cargar();
+    }
+
+    async Task Cargar()
+    {
+        Riesgos = await GrcSvc.GetRiesgosParaSelectorAsync(UserId, Rol);
+        Lista = await GrcSvc.GetEventosAsync(UserId, Rol);
+    }
+
+    void AbrirForm()
+    {
+        LimpiarForm();
+        MostrarForm = true;
+    }
+
+    void CerrarForm()
+    {
+        MostrarForm = false;
+        MsgForm = "";
+    }
+
+    void Editar(EventoRiesgo item)
+    {
+        EditandoId = item.Id;
+        FCodigo = item.Codigo;
+        FFechaEvento = item.FechaEvento.ToString("yyyy-MM-dd");
+        FTipoEvento = item.TipoEvento;
+        FEstado = item.Estado;
+        FMonto = item.MontoPerdidaEstimado?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        FRiesgoId = item.RiesgoId?.ToString() ?? "";
+        FProceso = item.CodigoProceso;
+        FArea = item.AreaReporta;
+        FResponsable = item.ResponsableRegistro;
+        FDescripcion = item.Descripcion;
+        FCausa = item.CausaRaiz;
+        FAccion = item.AccionInmediata;
+        FLeccion = item.LeccionAprendida;
+        MsgForm = "";
+        MostrarForm = true;
+    }
+
+    async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(FDescripcion))
+        {
+            FormOk = false;
+            MsgForm = "Registra la descripcion del evento.";
+            return;
+        }
+
+        int? riesgoId = int.TryParse(FRiesgoId, out var rid) ? rid : null;
+        decimal? monto = null;
+        if (!string.IsNullOrWhiteSpace(FMonto))
+        {
+            if (decimal.TryParse(FMonto, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var montoInvariant))
+                monto = montoInvariant;
+            else if (decimal.TryParse(FMonto, out var montoLocal))
+                monto = montoLocal;
+        }
+
+        var evento = new EventoRiesgo
+        {
+            Id = EditandoId,
+            Codigo = FCodigo,
+            FechaEvento = DateTime.TryParse(FFechaEvento, out var fecha) ? fecha : DateTime.Today,
+            TipoEvento = FTipoEvento,
+            Estado = FEstado,
+            MontoPerdidaEstimado = monto,
+            RiesgoId = riesgoId,
+            CodigoProceso = FProceso,
+            AreaReporta = FArea,
+            ResponsableRegistro = FResponsable,
+            Descripcion = FDescripcion,
+            CausaRaiz = FCausa,
+            AccionInmediata = FAccion,
+            LeccionAprendida = FLeccion
+        };
+
+        await GrcSvc.GuardarEventoAsync(evento);
+        FormOk = true;
+        MsgForm = "Evento guardado correctamente.";
+        LimpiarForm();
+        MostrarForm = false;
+        await Cargar();
+    }
+
+    async Task Eliminar(int id)
+    {
+        await GrcSvc.EliminarEventoAsync(id);
+        await Cargar();
+    }
+
+    void LimpiarForm()
+    {
+        EditandoId = 0;
+        FCodigo = "";
+        FFechaEvento = DateTime.Today.ToString("yyyy-MM-dd");
+        FTipoEvento = "Incidente";
+        FEstado = "Reportado";
+        FMonto = "";
+        FRiesgoId = "";
+        FProceso = "";
+        FArea = "";
+        FResponsable = "";
+        FDescripcion = "";
+        FCausa = "";
+        FAccion = "";
+        FLeccion = "";
+        MsgForm = "";
+    }
+
+    string EstadoColor(string estado) => estado switch
+    {
+        "Cerrado" => "success",
+        "En tratamiento" => "warning",
+        "En analisis" => "info",
+        _ => "secondary"
+    };
+
+    static string Cortar(string texto, int max)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Length <= max) return texto;
+        return texto[..max] + "...";
+    }
+}

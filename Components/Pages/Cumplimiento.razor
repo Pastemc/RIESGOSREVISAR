@@ -1,0 +1,358 @@
+@page "/cumplimiento"
+@layout MainLayout
+@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@inject GrcService GrcSvc
+@inject AuthenticationStateProvider AuthState
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-7">
+                <h1 class="m-0"><i class="fas fa-scale-balanced mr-2"></i>Cumplimiento Normativo</h1>
+            </div>
+            <div class="col-sm-5">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="/grc">GIR</a></li>
+                    <li class="breadcrumb-item active">Cumplimiento</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    @if (MostrarForm)
+    {
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">@(EditandoId == 0 ? "Nueva Obligacion" : $"Editar Obligacion {FCodigo}")</h3>
+            </div>
+            <div class="card-body">
+                @if (MsgForm != "")
+                {
+                    <div class="alert alert-@AlertClass">@MsgForm</div>
+                }
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label>Norma</label>
+                            <input value="@FNorma" @oninput="e => FNorma = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Articulo</label>
+                            <input value="@FArticulo" @oninput="e => FArticulo = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Periodicidad</label>
+                            <select value="@FPeriodicidad" @onchange="e => FPeriodicidad = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option>Mensual</option>
+                                <option>Trimestral</option>
+                                <option>Semestral</option>
+                                <option>Anual</option>
+                                <option>Eventual</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select value="@FEstado" @onchange="e => FEstado = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                @foreach (var estado in GrcService.EstadosCumplimiento)
+                                {
+                                    <option value="@estado">@estado</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Vencimiento</label>
+                            <input type="date" value="@FFechaVencimiento" @oninput="e => FFechaVencimiento = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label>Riesgo asociado</label>
+                            <select value="@FRiesgoId" @onchange="e => FRiesgoId = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option value="">Sin vincular</option>
+                                @foreach (var r in Riesgos)
+                                {
+                                    <option value="@r.Id">@r.CodigoRiesgo - @Cortar(r.DescripcionRiesgo, 90)</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Proceso</label>
+                            <select value="@FProceso" @onchange="e => FProceso = e.Value?.ToString() ?? string.Empty" class="form-control">
+                                <option value="">Seleccione</option>
+                                @foreach (var p in RiesgoService.Procesos)
+                                {
+                                    <option value="@p.Key">@p.Key - @p.Value</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Area responsable</label>
+                            <input value="@FArea" @oninput="e => FArea = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Responsable</label>
+                            <input value="@FResponsable" @oninput="e => FResponsable = e.Value?.ToString() ?? string.Empty" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="form-group">
+                            <label>Descripcion de la obligacion</label>
+                            <textarea value="@FDescripcion" @oninput="e => FDescripcion = e.Value?.ToString() ?? string.Empty" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <label>Evidencia requerida o entregada</label>
+                            <textarea value="@FEvidencia" @oninput="e => FEvidencia = e.Value?.ToString() ?? string.Empty" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary mr-2" @onclick="Guardar">
+                    <i class="fas fa-save mr-1"></i>Guardar
+                </button>
+                <button class="btn btn-secondary" @onclick="CerrarForm">Cancelar</button>
+            </div>
+        </div>
+    }
+
+    <div class="card card-primary">
+        <div class="card-header">
+            <h3 class="card-title">Obligaciones y evidencias</h3>
+            <div class="card-tools">
+                <button class="btn btn-success btn-sm" @onclick="AbrirForm">
+                    <i class="fas fa-plus mr-1"></i>Nueva obligacion
+                </button>
+            </div>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-hover table-striped table-sm">
+                <thead class="bg-primary">
+                    <tr class="text-white">
+                        <th>Codigo</th>
+                        <th>Norma</th>
+                        <th>Proceso</th>
+                        <th>Responsable</th>
+                        <th>Vencimiento</th>
+                        <th>Estado</th>
+                        <th>Riesgo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Lista.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">No hay obligaciones registradas.</td>
+                        </tr>
+                    }
+                    @foreach (var item in Lista)
+                    {
+                        <tr>
+                            <td><strong>@item.Codigo</strong></td>
+                            <td>
+                                <div>@item.Norma</div>
+                                <div class="small text-muted">@item.Articulo</div>
+                            </td>
+                            <td><span class="badge badge-light border">@item.CodigoProceso</span></td>
+                            <td>@item.Responsable</td>
+                            <td>
+                                @if (item.FechaVencimiento.HasValue)
+                                {
+                                    <span class="@VencimientoClass(item)">@item.FechaVencimiento.Value.ToString("dd/MM/yyyy")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Sin fecha</span>
+                                }
+                            </td>
+                            <td><span class="badge badge-@EstadoColor(item.Estado)">@item.Estado</span></td>
+                            <td>@(item.Riesgo?.CodigoRiesgo ?? "-")</td>
+                            <td>
+                                <button class="btn btn-xs btn-primary mr-1" @onclick="() => Editar(item)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-xs btn-danger" @onclick="() => Eliminar(item.Id)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<ObligacionNormativa> Lista = new();
+    List<Riesgo> Riesgos = new();
+    int UserId;
+    string Rol = "Admin";
+    bool MostrarForm;
+    bool FormOk;
+    string MsgForm = "";
+
+    int EditandoId;
+    string FCodigo = "";
+    string FNorma = "";
+    string FArticulo = "";
+    string FDescripcion = "";
+    string FProceso = "";
+    string FArea = "";
+    string FResponsable = "";
+    string FPeriodicidad = "Anual";
+    string FFechaVencimiento = "";
+    string FEstado = "Pendiente";
+    string FEvidencia = "";
+    string FRiesgoId = "";
+
+    string AlertClass => FormOk ? "success" : "danger";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        UserId = int.TryParse(state.User.FindFirst("UserId")?.Value, out var id) ? id : 0;
+        Rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Admin";
+        await Cargar();
+    }
+
+    async Task Cargar()
+    {
+        Riesgos = await GrcSvc.GetRiesgosParaSelectorAsync(UserId, Rol);
+        Lista = await GrcSvc.GetObligacionesAsync(UserId, Rol);
+    }
+
+    void AbrirForm()
+    {
+        LimpiarForm();
+        MostrarForm = true;
+    }
+
+    void CerrarForm()
+    {
+        MostrarForm = false;
+        MsgForm = "";
+    }
+
+    void Editar(ObligacionNormativa item)
+    {
+        EditandoId = item.Id;
+        FCodigo = item.Codigo;
+        FNorma = item.Norma;
+        FArticulo = item.Articulo;
+        FDescripcion = item.Descripcion;
+        FProceso = item.CodigoProceso;
+        FArea = item.AreaResponsable;
+        FResponsable = item.Responsable;
+        FPeriodicidad = item.Periodicidad;
+        FFechaVencimiento = item.FechaVencimiento?.ToString("yyyy-MM-dd") ?? "";
+        FEstado = item.Estado;
+        FEvidencia = item.Evidencia;
+        FRiesgoId = item.RiesgoId?.ToString() ?? "";
+        MsgForm = "";
+        MostrarForm = true;
+    }
+
+    async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(FNorma) || string.IsNullOrWhiteSpace(FDescripcion))
+        {
+            FormOk = false;
+            MsgForm = "Registra la norma y la descripcion de la obligacion.";
+            return;
+        }
+
+        int? riesgoId = int.TryParse(FRiesgoId, out var rid) ? rid : null;
+        DateTime? vencimiento = DateTime.TryParse(FFechaVencimiento, out var fecha) ? fecha : null;
+
+        var obligacion = new ObligacionNormativa
+        {
+            Id = EditandoId,
+            Codigo = FCodigo,
+            Norma = FNorma,
+            Articulo = FArticulo,
+            Descripcion = FDescripcion,
+            CodigoProceso = FProceso,
+            AreaResponsable = FArea,
+            Responsable = FResponsable,
+            Periodicidad = FPeriodicidad,
+            FechaVencimiento = vencimiento,
+            Estado = FEstado,
+            Evidencia = FEvidencia,
+            RiesgoId = riesgoId
+        };
+
+        await GrcSvc.GuardarObligacionAsync(obligacion);
+        FormOk = true;
+        MsgForm = "Obligacion guardada correctamente.";
+        LimpiarForm();
+        MostrarForm = false;
+        await Cargar();
+    }
+
+    async Task Eliminar(int id)
+    {
+        await GrcSvc.EliminarObligacionAsync(id);
+        await Cargar();
+    }
+
+    void LimpiarForm()
+    {
+        EditandoId = 0;
+        FCodigo = "";
+        FNorma = "";
+        FArticulo = "";
+        FDescripcion = "";
+        FProceso = "";
+        FArea = "";
+        FResponsable = "";
+        FPeriodicidad = "Anual";
+        FFechaVencimiento = "";
+        FEstado = "Pendiente";
+        FEvidencia = "";
+        FRiesgoId = "";
+        MsgForm = "";
+    }
+
+    string EstadoColor(string estado) => estado switch
+    {
+        "Cumplida" => "success",
+        "Vencida" => "danger",
+        "En proceso" => "warning",
+        "No aplica" => "secondary",
+        _ => "info"
+    };
+
+    string VencimientoClass(ObligacionNormativa item)
+    {
+        if (!item.FechaVencimiento.HasValue || item.Estado == "Cumplida") return "";
+        if (item.FechaVencimiento.Value < DateTime.Today) return "text-danger font-weight-bold";
+        if (item.FechaVencimiento.Value <= DateTime.Today.AddDays(30)) return "text-warning font-weight-bold";
+        return "";
+    }
+
+    static string Cortar(string texto, int max)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Length <= max) return texto;
+        return texto[..max] + "...";
+    }
+}
