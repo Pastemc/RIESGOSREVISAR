@@ -6,37 +6,56 @@ namespace RiesgosElor.Services;
 
 public class UsuarioService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly EmailService _emailSvc;
 
-    public UsuarioService(AppDbContext db, EmailService emailSvc)
+    public UsuarioService(IDbContextFactory<AppDbContext> dbFactory, EmailService emailSvc)
     {
-        _db = db;
+        _dbFactory = dbFactory;
         _emailSvc = emailSvc;
     }
 
-    public Task<List<Usuario>> GetTodosAsync() =>
-        _db.Usuarios.OrderBy(u => u.FechaCreacion).ToListAsync();
+    public async Task<List<Usuario>> GetTodosAsync()
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return await db.Usuarios.OrderBy(u => u.FechaCreacion).ToListAsync();
+    }
 
-    public Task<List<Usuario>> GetPersonalAsync() =>
-        _db.Usuarios.Where(u => u.Rol != "SuperAdmin" && u.Activo).OrderBy(u => u.Nombre).ToListAsync();
+    public async Task<List<Usuario>> GetPersonalAsync()
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return await db.Usuarios
+            .Where(u => u.Rol != "SuperAdmin" && u.Activo)
+            .OrderBy(u => u.Nombre)
+            .ToListAsync();
+    }
 
-    public Task<List<CambioPassword>> GetCambiosAsync(int usuarioId) =>
-        _db.CambiosPassword
+    public async Task<List<CambioPassword>> GetCambiosAsync(int usuarioId)
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return await db.CambiosPassword
             .Where(c => c.UsuarioId == usuarioId)
             .OrderByDescending(c => c.Fecha)
             .ToListAsync();
+    }
 
-    public async Task<List<UsuarioMatriz>> GetTodasAsignacionesAsync() =>
-        await _db.UsuarioMatrices.ToListAsync();
+    public async Task<List<UsuarioMatriz>> GetTodasAsignacionesAsync()
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return await db.UsuarioMatrices.ToListAsync();
+    }
 
-    public async Task<List<MatrizGrupo>> GetMatricesProcesosActivasAsync() =>
-        await _db.MatrizGrupos.OrderBy(m => m.Nombre).ToListAsync();
+    public async Task<List<MatrizGrupo>> GetMatricesProcesosActivasAsync()
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return await db.MatrizGrupos.OrderBy(m => m.Nombre).ToListAsync();
+    }
 
     public async Task<List<BitacoraUsuario>> GetBitacorasAsync(int usuarioId)
     {
-        await AuthService.EnsureUsuarioColumnsExistAsync(_db);
-        return await _db.BitacorasUsuario
+        using var db = _dbFactory.CreateDbContext();
+        await AuthService.EnsureUsuarioColumnsExistAsync(db);
+        return await db.BitacorasUsuario
             .Where(b => b.UsuarioId == usuarioId)
             .OrderByDescending(b => b.FechaCambio)
             .ToListAsync();
@@ -44,8 +63,9 @@ public class UsuarioService
 
     public async Task<bool> CrearAsync(string nombre, string correo, string password, string rol)
     {
-        if (await _db.Usuarios.AnyAsync(u => u.Correo == correo)) return false;
-        _db.Usuarios.Add(new Usuario
+        using var db = _dbFactory.CreateDbContext();
+        if (await db.Usuarios.AnyAsync(u => u.Correo == correo)) return false;
+        db.Usuarios.Add(new Usuario
         {
             Nombre = nombre,
             Correo = correo,
@@ -53,7 +73,7 @@ public class UsuarioService
             Rol = rol,
             Activo = false
         });
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         return true;
     }
 
@@ -70,8 +90,10 @@ public class UsuarioService
         string modificadoPor,
         string motivo = "")
     {
-        await AuthService.EnsureUsuarioColumnsExistAsync(_db);
-        var u = await _db.Usuarios.FindAsync(id);
+        using var db = _dbFactory.CreateDbContext();
+        await AuthService.EnsureUsuarioColumnsExistAsync(db);
+
+        var u = await db.Usuarios.FindAsync(id);
         if (u == null) return false;
 
         nombre = nombre?.Trim() ?? "";
@@ -110,9 +132,9 @@ public class UsuarioService
         RegistrarCambio("Cargo", u.Cargo ?? "", cargo);
         RegistrarCambio("Gerencia", u.Gerencia ?? "", gerencia);
         RegistrarCambio("Departamento", u.Departamento ?? "", departamento);
-        RegistrarCambio("Estado", u.Activo ? "Activo" : "Inactivo", activo ? "Activo" : "Inactivo");
+        RegistrarCambio("Estado", u.Activo ? "Activo" : "Inactivo",
+                                        activo ? "Activo" : "Inactivo");
 
-        // Actualizar usuario
         u.Nombre = nombre;
         u.Correo = correo;
         u.Username = username;
@@ -123,14 +145,12 @@ public class UsuarioService
         u.Activo = activo;
 
         if (bitacoras.Any())
-        {
-            _db.BitacorasUsuario.AddRange(bitacoras);
-        }
+            db.BitacorasUsuario.AddRange(bitacoras);
 
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
-        // Sincronizar en Organización GIR y Tablas Maestras
-        await AuthService.SincronizarOrganizacionGirAsync(_db, u.Nombre, u.Correo, u.Cargo, u.Gerencia, u.Departamento);
+        await AuthService.SincronizarOrganizacionGirAsync(
+            db, u.Nombre, u.Correo, u.Cargo, u.Gerencia, u.Departamento);
 
         return true;
     }
@@ -141,8 +161,10 @@ public class UsuarioService
         List<int> idsMatrices,
         string modificadoPor)
     {
-        await AuthService.EnsureUsuarioColumnsExistAsync(_db);
-        var u = await _db.Usuarios.FindAsync(usuarioId);
+        using var db = _dbFactory.CreateDbContext();
+        await AuthService.EnsureUsuarioColumnsExistAsync(db);
+
+        var u = await db.Usuarios.FindAsync(usuarioId);
         if (u == null) return false;
 
         rol = string.IsNullOrWhiteSpace(rol) ? "Personal" : rol.Trim();
@@ -152,18 +174,25 @@ public class UsuarioService
         u.Rol = rol;
         u.Activo = true;
 
-        // Asignar matrices seleccionadas si aplica
         if (idsMatrices != null)
         {
-            await QuitarTodasMatricesAsync(usuarioId);
+            // Quitar matrices actuales
+            var actuales = await db.UsuarioMatrices
+                .Where(um => um.UsuarioId == usuarioId).ToListAsync();
+            db.UsuarioMatrices.RemoveRange(actuales);
+
+            // Agregar nuevas
             foreach (var mId in idsMatrices)
             {
-                await AsignarMatrizAsync(usuarioId, mId);
+                db.UsuarioMatrices.Add(new UsuarioMatriz
+                {
+                    UsuarioId = usuarioId,
+                    MatrizGrupoId = mId
+                });
             }
         }
 
-        // Registrar en Bitácora de Auditoría
-        _db.BitacorasUsuario.Add(new BitacoraUsuario
+        db.BitacorasUsuario.Add(new BitacoraUsuario
         {
             UsuarioId = usuarioId,
             ModificadoPor = modificadoPor,
@@ -174,12 +203,11 @@ public class UsuarioService
             FechaCambio = DateTime.Now
         });
 
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
-        // Sincronizar en Organización GIR y Tablas Maestras
-        await AuthService.SincronizarOrganizacionGirAsync(_db, u.Nombre, u.Correo, u.Cargo, u.Gerencia, u.Departamento);
+        await AuthService.SincronizarOrganizacionGirAsync(
+            db, u.Nombre, u.Correo, u.Cargo, u.Gerencia, u.Departamento);
 
-        // Enviar notificación por correo
         await _emailSvc.EnviarCorreoAprobacionAsync(u.Correo, u.Nombre);
 
         return true;
@@ -187,13 +215,14 @@ public class UsuarioService
 
     public async Task ToggleActivoAsync(int id)
     {
-        var u = await _db.Usuarios.FindAsync(id);
+        using var db = _dbFactory.CreateDbContext();
+        var u = await db.Usuarios.FindAsync(id);
         if (u != null && u.Rol != "SuperAdmin")
         {
             bool estadoAnterior = u.Activo;
             u.Activo = !u.Activo;
 
-            _db.BitacorasUsuario.Add(new BitacoraUsuario
+            db.BitacorasUsuario.Add(new BitacoraUsuario
             {
                 UsuarioId = id,
                 ModificadoPor = "Administrador",
@@ -204,27 +233,28 @@ public class UsuarioService
                 FechaCambio = DateTime.Now
             });
 
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
+
             if (u.Activo)
-            {
                 await _emailSvc.EnviarCorreoAprobacionAsync(u.Correo, u.Nombre);
-            }
         }
     }
 
     public async Task EliminarAsync(int id)
     {
-        var u = await _db.Usuarios.FindAsync(id);
+        using var db = _dbFactory.CreateDbContext();
+        var u = await db.Usuarios.FindAsync(id);
         if (u != null && u.Rol != "SuperAdmin")
         {
-            _db.Usuarios.Remove(u);
-            await _db.SaveChangesAsync();
+            db.Usuarios.Remove(u);
+            await db.SaveChangesAsync();
         }
     }
 
     public async Task<bool> ActivarAsync(int id)
     {
-        var u = await _db.Usuarios.FindAsync(id);
+        using var db = _dbFactory.CreateDbContext();
+        var u = await db.Usuarios.FindAsync(id);
         if (u == null) return false;
 
         bool estadoAnterior = u.Activo;
@@ -232,7 +262,7 @@ public class UsuarioService
 
         if (!estadoAnterior)
         {
-            _db.BitacorasUsuario.Add(new BitacoraUsuario
+            db.BitacorasUsuario.Add(new BitacoraUsuario
             {
                 UsuarioId = id,
                 ModificadoPor = "Administrador",
@@ -244,56 +274,65 @@ public class UsuarioService
             });
         }
 
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         await _emailSvc.EnviarCorreoAprobacionAsync(u.Correo, u.Nombre);
         return true;
     }
 
-    // ===== ASIGNACION DE MATRICES =====
+    // ===== ASIGNACIÓN DE MATRICES =====
 
-    public async Task<List<UsuarioMatriz>> GetMatricesAsignadasAsync(int usuarioId) =>
-        await _db.UsuarioMatrices
+    public async Task<List<UsuarioMatriz>> GetMatricesAsignadasAsync(int usuarioId)
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return await db.UsuarioMatrices
             .Include(um => um.MatrizGrupo)
             .Where(um => um.UsuarioId == usuarioId)
             .ToListAsync();
+    }
 
-    public async Task<List<int>> GetIdsMatricesAsignadasAsync(int usuarioId) =>
-        await _db.UsuarioMatrices
+    public async Task<List<int>> GetIdsMatricesAsignadasAsync(int usuarioId)
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return await db.UsuarioMatrices
             .Where(um => um.UsuarioId == usuarioId)
             .Select(um => um.MatrizGrupoId)
             .ToListAsync();
+    }
 
     public async Task AsignarMatrizAsync(int usuarioId, int matrizId)
     {
-        var existe = await _db.UsuarioMatrices.AnyAsync(
+        using var db = _dbFactory.CreateDbContext();
+        var existe = await db.UsuarioMatrices.AnyAsync(
             um => um.UsuarioId == usuarioId && um.MatrizGrupoId == matrizId);
         if (!existe)
         {
-            _db.UsuarioMatrices.Add(new UsuarioMatriz
+            db.UsuarioMatrices.Add(new UsuarioMatriz
             {
                 UsuarioId = usuarioId,
                 MatrizGrupoId = matrizId
             });
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
     }
 
     public async Task QuitarMatrizAsync(int usuarioId, int matrizId)
     {
-        var um = await _db.UsuarioMatrices.FirstOrDefaultAsync(
+        using var db = _dbFactory.CreateDbContext();
+        var um = await db.UsuarioMatrices.FirstOrDefaultAsync(
             x => x.UsuarioId == usuarioId && x.MatrizGrupoId == matrizId);
         if (um != null)
         {
-            _db.UsuarioMatrices.Remove(um);
-            await _db.SaveChangesAsync();
+            db.UsuarioMatrices.Remove(um);
+            await db.SaveChangesAsync();
         }
     }
 
     public async Task QuitarTodasMatricesAsync(int usuarioId)
     {
-        var lista = await _db.UsuarioMatrices
+        using var db = _dbFactory.CreateDbContext();
+        var lista = await db.UsuarioMatrices
             .Where(um => um.UsuarioId == usuarioId).ToListAsync();
-        _db.UsuarioMatrices.RemoveRange(lista);
-        await _db.SaveChangesAsync();
+        db.UsuarioMatrices.RemoveRange(lista);
+        await db.SaveChangesAsync();
     }
 }

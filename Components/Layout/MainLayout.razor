@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject AuthenticationStateProvider AuthStateProvider
 @inject AppDbContext DbContext
+@inject PersonalCargoService PersonalSvc
 
 <div class="wrapper">
 
@@ -71,7 +72,8 @@
 
         <div class="sidebar">
             <!-- INFO USUARIO EN SIDEBAR -->
-            <div class="user-panel mt-2 pb-2 mb-2 d-flex align-items-center" style="border-bottom:1px solid rgba(255,255,255,0.12);padding-left:0.4rem;">
+            <div class="user-panel mt-2 pb-2 mb-2 d-flex align-items-center"
+                 style="border-bottom:1px solid rgba(255,255,255,0.12);padding-left:0.4rem;">
                 <div class="image d-flex align-items-center justify-content-center">
                     @if (!string.IsNullOrWhiteSpace(FotoDisplay))
                     {
@@ -86,26 +88,42 @@
                     }
                 </div>
                 <div class="info ml-2" style="overflow:hidden;line-height:1.2;">
-                    <span class="d-block text-white font-weight-bold text-truncate" style="font-size:0.86rem;max-width:170px;" title="@NombreDisplay">
+                    <span class="d-block text-white font-weight-bold text-truncate"
+                          style="font-size:0.86rem;max-width:170px;" title="@NombreDisplay">
                         @(string.IsNullOrWhiteSpace(NombreDisplay) ? "Usuario" : NombreDisplay)
                     </span>
                     <div class="mt-1">
-                        @if (!string.IsNullOrWhiteSpace(UsuarioActual?.Cargo))
+                        @* Cargo: primero desde API, luego desde BD, luego Rol *@
+                        @if (!string.IsNullOrWhiteSpace(CargoApi))
                         {
-                            <span class="d-block text-truncate" style="font-size:0.72rem;color:#FFDD00;font-weight:600;max-width:170px;" title="@UsuarioActual.Cargo">
+                            <span class="d-block text-truncate"
+                                  style="font-size:0.72rem;color:#FFDD00;font-weight:600;max-width:170px;"
+                                  title="@CargoApi">
+                                <i class="fas fa-user-tag mr-1" style="font-size:0.65rem;"></i>@CargoApi
+                            </span>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(UsuarioActual?.Cargo))
+                        {
+                            <span class="d-block text-truncate"
+                                  style="font-size:0.72rem;color:#FFDD00;font-weight:600;max-width:170px;"
+                                  title="@UsuarioActual.Cargo">
                                 <i class="fas fa-user-tag mr-1" style="font-size:0.65rem;"></i>@UsuarioActual.Cargo
                             </span>
                         }
                         else
                         {
-                            <span class="badge" style="font-size:0.68rem;background:rgba(255,221,0,0.18);color:#FFDD00;border:1px solid rgba(255,221,0,0.4);padding:2px 8px;border-radius:10px;">
+                            <span class="badge"
+                                  style="font-size:0.68rem;background:rgba(255,221,0,0.18);color:#FFDD00;border:1px solid rgba(255,221,0,0.4);padding:2px 8px;border-radius:10px;">
                                 @(UsuarioActual?.Rol ?? RolDisplay)
                             </span>
                         }
 
+                        @* Departamento/Gerencia desde BD *@
                         @if (!string.IsNullOrWhiteSpace(UsuarioActual?.Departamento) || !string.IsNullOrWhiteSpace(UsuarioActual?.Gerencia))
                         {
-                            <span class="d-block text-truncate mt-1" style="font-size:0.66rem;color:rgba(255,255,255,0.7);max-width:170px;" title="@(UsuarioActual?.Departamento ?? UsuarioActual?.Gerencia)">
+                            <span class="d-block text-truncate mt-1"
+                                  style="font-size:0.66rem;color:rgba(255,255,255,0.7);max-width:170px;"
+                                  title="@(UsuarioActual?.Departamento ?? UsuarioActual?.Gerencia)">
                                 <i class="fas fa-building mr-1"></i>@(UsuarioActual?.Departamento ?? UsuarioActual?.Gerencia)
                             </span>
                         }
@@ -225,9 +243,7 @@
 
     <!-- FOOTER -->
     <footer class="main-footer"
-            style="background:#00203E;
-                   border-top:2px solid #FFDD00;
-                   color:rgba(255,255,255,0.75);">
+            style="background:#00203E;border-top:2px solid #FFDD00;color:rgba(255,255,255,0.75);">
         <strong>RiesgosElor &copy; @DateTime.Now.Year</strong> &mdash;
         <span style="color:#FFDD00;font-weight:600;">Electro Oriente S.A.</span>
     </footer>
@@ -241,9 +257,13 @@
     private string InicialesDisplay = "";
     private string FotoDisplay = "";
 
+    // Cargo obtenido en tiempo real desde la API de personal ELORSA
+    private string CargoApi = "";
+
     protected override async Task OnInitializedAsync()
     {
         await CargarDatosUsuarioAsync();
+        await CargarCargoDesdeApiAsync();
     }
 
     private async Task CargarDatosUsuarioAsync()
@@ -267,7 +287,8 @@
 
                 if (UsuarioActual == null && !string.IsNullOrEmpty(email))
                 {
-                    UsuarioActual = await DbContext.Usuarios.FirstOrDefaultAsync(u => u.Correo == email || u.Username == email);
+                    UsuarioActual = await DbContext.Usuarios
+                        .FirstOrDefaultAsync(u => u.Correo == email || u.Username == email);
                 }
 
                 if (UsuarioActual != null)
@@ -280,10 +301,12 @@
                 }
                 else
                 {
-                    NombreDisplay = !string.IsNullOrWhiteSpace(userClaims.Identity.Name) ? userClaims.Identity.Name : email;
+                    NombreDisplay = !string.IsNullOrWhiteSpace(userClaims.Identity.Name)
+                        ? userClaims.Identity.Name
+                        : email;
                 }
 
-                InicialesDisplay = ObtenesIniciales(NombreDisplay);
+                InicialesDisplay = ObtenerIniciales(NombreDisplay);
             }
         }
         catch (Exception ex)
@@ -292,7 +315,65 @@
         }
     }
 
-    private static string ObtenesIniciales(string nombre)
+    private async Task CargarCargoDesdeApiAsync()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(NombreDisplay)) return;
+
+            // Estrategia: buscar por apellido paterno (primera palabra del nombre almacenado)
+            // El nombre en BD viene como "APELLIDO PATERNO APELLIDO MATERNO, NOMBRE"
+            // o como "NOMBRE APELLIDO" según cómo fue registrado
+            var palabras = NombreDisplay.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (palabras.Length == 0) return;
+
+            // Intentar con la primera palabra (suele ser el apellido)
+            var terminoBusqueda = palabras[0];
+            var resultados = await PersonalSvc.BuscarAsync(terminoBusqueda, 20);
+
+            if (!resultados.Any() && palabras.Length > 1)
+            {
+                // Si no encuentra, intentar con la segunda palabra
+                resultados = await PersonalSvc.BuscarAsync(palabras[1], 20);
+            }
+
+            if (!resultados.Any()) return;
+
+            // Buscar la mejor coincidencia comparando el nombre completo
+            var nombreNormalizado = NombreDisplay.ToUpperInvariant().Replace(",", "").Replace("  ", " ").Trim();
+
+            // Coincidencia exacta primero
+            var exacto = resultados.FirstOrDefault(p =>
+                p.NombreCompleto.Replace(",", "").Replace("  ", " ")
+                    .Equals(nombreNormalizado, StringComparison.OrdinalIgnoreCase));
+
+            if (exacto != null)
+            {
+                CargoApi = exacto.Cargo;
+                return;
+            }
+
+            // Coincidencia parcial: todos los apellidos y nombre están contenidos
+            var mejorCoincidencia = resultados.FirstOrDefault(p =>
+            {
+                var nombreApi = $"{p.ApellidoPaterno} {p.ApellidoMaterno} {p.Nombre}".ToUpperInvariant();
+                return palabras.All(palabra =>
+                    nombreApi.Contains(palabra, StringComparison.OrdinalIgnoreCase));
+            });
+
+            if (mejorCoincidencia != null)
+            {
+                CargoApi = mejorCoincidencia.Cargo;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainLayout CargarCargoApi Error]: {ex.Message}");
+            // Si la API falla, no muestra nada — el sistema sigue funcionando
+        }
+    }
+
+    private static string ObtenerIniciales(string nombre)
     {
         if (string.IsNullOrWhiteSpace(nombre)) return "U";
         var partes = nombre.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -300,3 +381,4 @@
         return $"{char.ToUpper(partes[0][0])}{char.ToUpper(partes[1][0])}";
     }
 }
+

@@ -9,7 +9,7 @@ using RiesgosElor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Permitir conexiones desde cualquier IP de la red local (ej. 10.117.8.204)
+// Permitir conexiones desde cualquier IP de la red local
 builder.WebHost.UseUrls("http://0.0.0.0:5000", "http://0.0.0.0:5266");
 
 if (builder.Environment.IsDevelopment())
@@ -40,7 +40,10 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 builder.Services.AddScoped<AppDbContext>(sp =>
     sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
+// ─── HTTP CLIENT ──────────────────────────────────────────────────────────────
 builder.Services.AddHttpClient();
+
+// ─── SERVICIOS DE APLICACIÓN ──────────────────────────────────────────────────
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<RiesgoService>();
@@ -48,6 +51,20 @@ builder.Services.AddScoped<ExcelService>();
 builder.Services.AddScoped<GrcService>();
 builder.Services.AddScoped<EmailService>();
 
+// ─── API PERSONAL ELORSA (Singleton: caché compartido entre todas las sesiones) ─
+builder.Services.AddHttpClient<PersonalCargoService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddSingleton<PersonalCargoService>(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    var http = factory.CreateClient(nameof(PersonalCargoService));
+    var logger = sp.GetRequiredService<ILogger<PersonalCargoService>>();
+    return new PersonalCargoService(http, logger);
+});
+
+// ─── AUTENTICACIÓN Y AUTORIZACIÓN ─────────────────────────────────────────────
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opt =>
     {
@@ -101,13 +118,9 @@ app.MapPost("/do-login", async (HttpContext ctx, AuthService authSvc) =>
     var res = await authSvc.ProcesarLoginAsync(correo, password);
 
     if (res.Type == AuthResultType.InvalidCredentials)
-    {
         return Results.Redirect("/login?error=1");
-    }
     else if (res.Type == AuthResultType.PendingApproval)
-    {
         return Results.Redirect("/login?status=pending");
-    }
     else if (res.Type == AuthResultType.FirstTimeNeedsConfirmation)
     {
         string encU = Convert.ToBase64String(Encoding.UTF8.GetBytes(correo));
@@ -118,9 +131,7 @@ app.MapPost("/do-login", async (HttpContext ctx, AuthService authSvc) =>
 
     var user = res.User;
     if (user == null || !user.Activo)
-    {
         return Results.Redirect("/login?status=pending");
-    }
 
     var claims = new List<System.Security.Claims.Claim>
     {

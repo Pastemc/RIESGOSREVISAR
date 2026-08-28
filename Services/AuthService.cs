@@ -1,11 +1,33 @@
-using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using RiesgosElor.Data;
 using RiesgosElor.Models;
 
 namespace RiesgosElor.Services;
+
+public class PersonaCargo
+{
+    public string Nombre { get; set; } = "";
+    public string ApellidoPaterno { get; set; } = "";
+    public string ApellidoMaterno { get; set; } = "";
+    public string CodigoCargo { get; set; } = "";
+    public string Cargo { get; set; } = "";
+
+    public string NombreCompleto =>
+        $"{ApellidoPaterno} {ApellidoMaterno} {Nombre}".Trim().ToUpper();
+
+    public string NombreCompletoAlt =>
+        $"{Nombre} {ApellidoPaterno} {ApellidoMaterno}".Trim().ToUpper();
+}
+
+public class RespuestaPersonalCargo
+{
+    public bool Status { get; set; }
+    public List<PersonaCargo> Value { get; set; } = new();
+    public string Msg { get; set; } = "";
+}
 
 public class AuthResult
 {
@@ -32,10 +54,175 @@ public class AuthService
     private readonly AppDbContext _db;
     private readonly HttpClient _httpClient;
 
+    private static List<PersonaCargo>? _cachePersonal = null;
+    private static DateTime _cacheExpira = DateTime.MinValue;
+
     public AuthService(AppDbContext db, HttpClient httpClient)
     {
         _db = db;
         _httpClient = httpClient;
+    }
+
+    private static string NormalizarNombre(string texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return "";
+        var sb = new StringBuilder();
+        foreach (char c in texto)
+        {
+            if (char.IsLetter(c) || char.IsDigit(c))
+                sb.Append(char.ToUpper(c));
+            else if (c == ' ' || c == '\u00A0' || char.IsWhiteSpace(c))
+                sb.Append(' ');
+        }
+        return Regex.Replace(sb.ToString().Trim(), @"\s+", " ");
+    }
+
+    private async Task<List<PersonaCargo>> ObtenerPersonalCargoAsync()
+    {
+        if (_cachePersonal != null && DateTime.Now < _cacheExpira)
+            return _cachePersonal;
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            var response = await _httpClient.GetAsync(
+                "https://www1.elor.com.pe/ApiPersonalCargo/api/Persona/ListarPersonaCargo",
+                cts.Token);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync(cts.Token);
+                var data = JsonSerializer.Deserialize<RespuestaPersonalCargo>(json,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (data?.Status == true && data.Value?.Any() == true)
+                {
+                    _cachePersonal = data.Value;
+                    _cacheExpira   = DateTime.Now.AddHours(1);
+                    Console.WriteLine($"[ApiPersonalCargo] Cargados {_cachePersonal.Count} registros.");
+
+                    var pinedo = _cachePersonal.FirstOrDefault(p =>
+                        p.ApellidoPaterno.ToUpper().Contains("PINEDO"));
+                    if (pinedo != null)
+                    {
+                        Console.WriteLine($"[PersonalCargo DEBUG] PINEDO:");
+                        Console.WriteLine($"  nombre='{pinedo.Nombre}'");
+                        Console.WriteLine($"  paterno='{pinedo.ApellidoPaterno}'");
+                        Console.WriteLine($"  materno='{pinedo.ApellidoMaterno}'");
+                        Console.WriteLine($"  cargo='{pinedo.Cargo}'");
+                        Console.WriteLine($"  NomCompleto='{pinedo.NombreCompleto}'");
+                        Console.WriteLine($"  NomNorm='{NormalizarNombre(pinedo.NombreCompleto)}'");
+                        Console.WriteLine($"  Bytes: {string.Join("-", Encoding.UTF8.GetBytes(NormalizarNombre(pinedo.NombreCompleto)).Take(40))}");
+                    }
+
+                    foreach (var p in _cachePersonal.Take(3))
+                        Console.WriteLine($"[PersonalCargo] '{p.NombreCompleto}' → '{p.Cargo}'");
+
+                    return _cachePersonal;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ApiPersonalCargo] Error: {ex.Message}");
+        }
+
+        return _cachePersonal ?? new List<PersonaCargo>();
+    }
+
+    private static string BuscarCargoPorNombre(List<PersonaCargo> lista, string nombreCompleto)
+    {
+        if (string.IsNullOrWhiteSpace(nombreCompleto) || !lista.Any())
+            return "";
+
+        var buscar = NormalizarNombre(nombreCompleto);
+        Console.WriteLine($"[ApiPersonalCargo] Buscando: '{buscar}'");
+        Console.WriteLine($"[ApiPersonalCargo] Bytes: {string.Join("-", Encoding.UTF8.GetBytes(buscar).Take(40))}");
+
+        // 1. Recorrer manualmente con StringComparison.Ordinal
+        PersonaCargo? encontrado = null;
+        foreach (var p in lista)
+        {
+            var nc  = NormalizarNombre(p.NombreCompleto);
+            var nca = NormalizarNombre(p.NombreCompletoAlt);
+            if (string.Compare(nc,  buscar, StringComparison.Ordinal) == 0 ||
+                string.Compare(nca, buscar, StringComparison.Ordinal) == 0)
+            {
+                encontrado = p;
+                break;
+            }
+        }
+
+        if (encontrado != null)
+        {
+            Console.WriteLine($"[ApiPersonalCargo] ✅ Exacto: '{encontrado.Cargo}'");
+            return encontrado.Cargo;
+        }
+
+        // 2. Por apellido paterno + materno + algún nombre
+        var palabras = buscar.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var p in lista)
+        {
+            var pat = NormalizarNombre(p.ApellidoPaterno);
+            var mat = NormalizarNombre(p.ApellidoMaterno);
+            var nom = NormalizarNombre(p.Nombre);
+            if (palabras.Contains(pat) &&
+                palabras.Contains(mat) &&
+                palabras.Any(pal => nom.Contains(pal)))
+            {
+                Console.WriteLine($"[ApiPersonalCargo] ✅ Por apellidos: '{p.Cargo}'");
+                return p.Cargo;
+            }
+        }
+
+        // 3. Por cantidad de palabras coincidentes
+        PersonaCargo? mejorPersona = null;
+        int mejorHits = 0;
+        foreach (var p in lista)
+        {
+            var nc  = NormalizarNombre(p.NombreCompleto);
+            var nca = NormalizarNombre(p.NombreCompletoAlt);
+            int hits = palabras.Count(pal => nc.Contains(pal) || nca.Contains(pal));
+            if (hits >= Math.Min(3, palabras.Length) && hits > mejorHits)
+            {
+                mejorHits    = hits;
+                mejorPersona = p;
+            }
+        }
+
+        if (mejorPersona != null)
+        {
+            Console.WriteLine($"[ApiPersonalCargo] ✅ Parcial ({mejorHits} hits): '{mejorPersona.Cargo}'");
+            return mejorPersona.Cargo;
+        }
+
+        // 4. Solo apellido paterno + primer nombre
+        foreach (var p in lista)
+        {
+            var pat = NormalizarNombre(p.ApellidoPaterno);
+            var nom = NormalizarNombre(p.Nombre);
+            if (palabras.Contains(pat) &&
+                nom.Split(' ').Any(n => palabras.Contains(n)))
+            {
+                Console.WriteLine($"[ApiPersonalCargo] ✅ Apellido+nombre: '{p.Cargo}'");
+                return p.Cargo;
+            }
+        }
+
+        Console.WriteLine($"[ApiPersonalCargo] ❌ Sin coincidencia para: '{buscar}'");
+        var cercanos = lista
+            .Where(p => palabras.Any(pal =>
+                string.Compare(NormalizarNombre(p.ApellidoPaterno), pal,
+                    StringComparison.Ordinal) == 0))
+            .Take(5);
+        foreach (var c in cercanos)
+        {
+            var norm = NormalizarNombre(c.NombreCompleto);
+            Console.WriteLine($"  → '{norm}'");
+            Console.WriteLine($"  → Bytes: {string.Join("-", Encoding.UTF8.GetBytes(norm).Take(40))}");
+        }
+
+        return "";
     }
 
     public static async Task EnsureUsuarioColumnsExistAsync(AppDbContext db)
@@ -86,103 +273,143 @@ END";
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "http://www1.elor.com.pe/WSToken/api/Login");
+            using var request = new HttpRequestMessage(HttpMethod.Post,
+                "http://www1.elor.com.pe/WSToken/api/Login");
             request.Headers.Add("x-api-key", "1");
             var payload = new { Usuario = usuarioOrCorreo, Password = password };
-            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+            request.Content = new StringContent(JsonSerializer.Serialize(payload),
+                Encoding.UTF8, "application/json");
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
             var response = await _httpClient.SendAsync(request, cts.Token);
-            var content = await response.Content.ReadAsStringAsync(cts.Token);
+            var content  = await response.Content.ReadAsStringAsync(cts.Token);
 
-            Console.WriteLine($"[WSToken] StatusCode: {response.StatusCode}");
-            Console.WriteLine($"[WSToken] JSON: {content}");
+            Console.WriteLine($"[WSToken] Status: {response.StatusCode} | JSON: {content}");
 
             if (response.IsSuccessStatusCode)
             {
                 using var doc = JsonDocument.Parse(content);
                 var root = doc.RootElement;
 
-                // ── ESTRUCTURA REAL: { CodResp, Resp(JWT), Data: { Usuario, Email, Fullname, CodUsuario } }
-                // Leer del objeto Data directamente
-                string nombre = "";
-                string correo = "";
-                string usernameApi = "";
+                var codResp = "";
+                if (root.TryGetProperty("CodResp", out var codProp))
+                    codResp = codProp.GetString() ?? "";
 
-                if (root.TryGetProperty("Data", out var data))
+                Console.WriteLine($"[WSToken] CodResp='{codResp}'");
+
+                if (codResp != "2")
                 {
-                    nombre = GetStr(data, "Fullname", "fullname", "NombreCompleto", "Nombre");
-                    correo = GetStr(data, "Email", "email", "Correo", "Mail");
-                    usernameApi = GetStr(data, "Usuario", "Username", "User", "CodUsuario");
+                    Console.WriteLine($"[WSToken] Rechazado → fallback BD local.");
+                    var localUser = await _db.Usuarios.FirstOrDefaultAsync(u =>
+                        u.Correo == usuarioOrCorreo || u.Username == usuarioOrCorreo);
+                    if (localUser != null &&
+                        BCrypt.Net.BCrypt.Verify(password, localUser.PasswordHash))
+                    {
+                        if (!localUser.Activo)
+                        {
+                            result.Type = AuthResultType.PendingApproval;
+                            result.User = localUser;
+                            return result;
+                        }
+                        result.Type = AuthResultType.Success;
+                        result.User = localUser;
+                        return result;
+                    }
+                    result.Type = AuthResultType.InvalidCredentials;
+                    return result;
                 }
 
-                // Fallback: buscar recursivo por si cambia la estructura
-                if (string.IsNullOrWhiteSpace(nombre))
-                    nombre = GetJsonProp(root, "Fullname", "fullname", "NombreCompleto", "Nombre", "FullName");
-                if (string.IsNullOrWhiteSpace(correo))
-                    correo = GetJsonProp(root, "Email", "email", "Correo", "Mail", "EmailAddress");
-                if (string.IsNullOrWhiteSpace(usernameApi))
-                    usernameApi = GetJsonProp(root, "Usuario", "Username", "User", "CodUsuario");
+                if (!root.TryGetProperty("Data", out var data) ||
+                    data.ValueKind == JsonValueKind.Null)
+                {
+                    Console.WriteLine("[WSToken] Data null → fallback BD local.");
+                    var localUser = await _db.Usuarios.FirstOrDefaultAsync(u =>
+                        u.Correo == usuarioOrCorreo || u.Username == usuarioOrCorreo);
+                    if (localUser != null &&
+                        BCrypt.Net.BCrypt.Verify(password, localUser.PasswordHash))
+                    {
+                        if (!localUser.Activo)
+                        {
+                            result.Type = AuthResultType.PendingApproval;
+                            result.User = localUser;
+                            return result;
+                        }
+                        result.Type = AuthResultType.Success;
+                        result.User = localUser;
+                        return result;
+                    }
+                    result.Type = AuthResultType.InvalidCredentials;
+                    return result;
+                }
 
-                // También leer el JWT y extraer datos adicionales si los hay
+                string nombre      = GetStr(data, "Fullname", "fullname", "NombreCompleto", "Nombre");
+                string correo      = GetStr(data, "Email", "email", "Correo", "Mail");
+                string usernameApi = GetStr(data, "Usuario", "Username", "User", "CodUsuario");
+
+                if (string.IsNullOrWhiteSpace(nombre))
+                    nombre = GetJsonProp(root, "Fullname", "fullname", "NombreCompleto", "Nombre");
+                if (string.IsNullOrWhiteSpace(correo))
+                    correo = GetJsonProp(root, "Email", "email", "Correo", "Mail");
+                if (string.IsNullOrWhiteSpace(usernameApi))
+                    usernameApi = GetJsonProp(root, "Usuario", "Username", "User");
+
                 if (root.TryGetProperty("Resp", out var jwtProp))
                 {
                     var jwt = jwtProp.GetString() ?? "";
-                    var jwtData = DecodeJwtPayload(jwt);
-                    if (jwtData != null)
+                    if (!string.IsNullOrWhiteSpace(jwt) && !jwt.StartsWith("Error"))
                     {
-                        if (string.IsNullOrWhiteSpace(nombre))
-                            nombre = GetStr(jwtData.Value, "fullname", "unique_name", "name");
-                        if (string.IsNullOrWhiteSpace(correo))
-                            correo = GetStr(jwtData.Value, "email", "correo");
-                        if (string.IsNullOrWhiteSpace(usernameApi))
-                            usernameApi = GetStr(jwtData.Value, "usuario", "unique_name", "codusuario");
+                        var jwtData = DecodeJwtPayload(jwt);
+                        if (jwtData != null)
+                        {
+                            if (string.IsNullOrWhiteSpace(nombre))
+                                nombre = GetStr(jwtData.Value, "fullname", "unique_name", "name");
+                            if (string.IsNullOrWhiteSpace(correo))
+                                correo = GetStr(jwtData.Value, "email", "correo");
+                            if (string.IsNullOrWhiteSpace(usernameApi))
+                                usernameApi = GetStr(jwtData.Value, "usuario", "unique_name");
+                        }
                     }
                 }
 
-                if (string.IsNullOrWhiteSpace(nombre)) nombre = usuarioOrCorreo;
+                if (string.IsNullOrWhiteSpace(nombre))      nombre      = usuarioOrCorreo;
                 if (string.IsNullOrWhiteSpace(correo))
-                    correo = usuarioOrCorreo.Contains("@") ? usuarioOrCorreo : $"{usuarioOrCorreo}@elor.com.pe";
+                    correo = usuarioOrCorreo.Contains("@") ? usuarioOrCorreo
+                           : $"{usuarioOrCorreo}@elor.com.pe";
                 if (string.IsNullOrWhiteSpace(usernameApi)) usernameApi = usuarioOrCorreo;
 
-                // La API NO devuelve Cargo/Gerencia/Departamento — quedan vacíos por ahora
-                Console.WriteLine($"[WSToken] → Nombre='{nombre}' Correo='{correo}' Username='{usernameApi}'");
+                var listaPersonal = await ObtenerPersonalCargoAsync();
+                var cargo         = BuscarCargoPorNombre(listaPersonal, nombre);
 
-                result.Nombre = nombre;
-                result.Correo = correo;
+                Console.WriteLine($"[WSToken] → Nombre='{nombre}' Correo='{correo}' Username='{usernameApi}' Cargo='{cargo}'");
+
+                result.Nombre   = nombre;
+                result.Correo   = correo;
                 result.Username = usernameApi;
+                result.Cargo    = cargo;
 
-                // ── FIX PROBLEMA 2: buscar por Username O por Correo pero sin conflicto ──
-                // Primero buscar por Username (más específico)
                 var userLocal = await _db.Usuarios.FirstOrDefaultAsync(u =>
                     u.Username == usernameApi && u.Username != "");
-
-                // Si no encontró por username, buscar por correo
                 if (userLocal == null)
                     userLocal = await _db.Usuarios.FirstOrDefaultAsync(u =>
                         u.Correo == correo);
-
-                // Si tampoco, buscar por el texto que ingresó
                 if (userLocal == null)
                     userLocal = await _db.Usuarios.FirstOrDefaultAsync(u =>
                         u.Correo == usuarioOrCorreo || u.Username == usuarioOrCorreo);
 
                 if (userLocal != null)
                 {
-                    // Actualizar nombre y username siempre
-                    if (!string.IsNullOrWhiteSpace(nombre)) userLocal.Nombre = nombre;
+                    if (!string.IsNullOrWhiteSpace(nombre))      userLocal.Nombre   = nombre;
                     if (!string.IsNullOrWhiteSpace(usernameApi)) userLocal.Username = usernameApi;
+                    if (!string.IsNullOrWhiteSpace(cargo))       userLocal.Cargo    = cargo;
 
-                    // ── FIX: solo actualizar correo si NO genera duplicado ──
                     if (!string.IsNullOrWhiteSpace(correo) && correo != userLocal.Correo)
                     {
                         bool correoEnUso = await _db.Usuarios.AnyAsync(u =>
                             u.Correo == correo && u.Id != userLocal.Id);
-                        if (!correoEnUso)
-                            userLocal.Correo = correo;
+                        if (!correoEnUso) userLocal.Correo = correo;
                     }
 
-                    userLocal.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+                    userLocal.PasswordHash            = BCrypt.Net.BCrypt.HashPassword(password);
                     userLocal.UltimaSincronizacionApi = DateTime.Now;
                     await _db.SaveChangesAsync();
 
@@ -199,18 +426,18 @@ END";
                 }
                 else
                 {
-                    // Primera vez — correos especiales crean admin directo
                     if (correo.Equals("superadmin@gmail.com", StringComparison.OrdinalIgnoreCase) ||
-                        correo.Equals("admin@gmail.com", StringComparison.OrdinalIgnoreCase))
+                        correo.Equals("admin@gmail.com",      StringComparison.OrdinalIgnoreCase))
                     {
                         var adminSeed = new Usuario
                         {
-                            Nombre = nombre,
-                            Correo = correo,
-                            Username = usernameApi,
-                            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-                            Rol = correo.Contains("superadmin") ? "SuperAdmin" : "Admin",
-                            Activo = true,
+                            Nombre        = nombre,
+                            Correo        = correo,
+                            Username      = usernameApi,
+                            PasswordHash  = BCrypt.Net.BCrypt.HashPassword(password),
+                            Rol           = correo.Contains("superadmin") ? "SuperAdmin" : "Admin",
+                            Activo        = true,
+                            Cargo         = cargo,
                             FechaCreacion = DateTime.Now
                         };
                         _db.Usuarios.Add(adminSeed);
@@ -226,7 +453,7 @@ END";
             }
             else
             {
-                Console.WriteLine($"[WSToken] Credenciales inválidas. Status: {response.StatusCode}");
+                Console.WriteLine($"[WSToken] HTTP Error: {response.StatusCode}");
                 result.Type = AuthResultType.InvalidCredentials;
                 return result;
             }
@@ -236,11 +463,11 @@ END";
             Console.WriteLine($"[WSToken] Error: {ex.Message}");
         }
 
-        // FALLBACK BD LOCAL
         var fallbackUser = await _db.Usuarios.FirstOrDefaultAsync(u =>
             u.Correo == usuarioOrCorreo || u.Username == usuarioOrCorreo);
 
-        if (fallbackUser != null && BCrypt.Net.BCrypt.Verify(password, fallbackUser.PasswordHash))
+        if (fallbackUser != null &&
+            BCrypt.Net.BCrypt.Verify(password, fallbackUser.PasswordHash))
         {
             if (!fallbackUser.Activo)
             {
@@ -267,10 +494,12 @@ END";
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "http://www1.elor.com.pe/WSToken/api/Login");
+            using var request = new HttpRequestMessage(HttpMethod.Post,
+                "http://www1.elor.com.pe/WSToken/api/Login");
             request.Headers.Add("x-api-key", "1");
             var payload = new { Usuario = usuarioOrCorreo, Password = password };
-            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+            request.Content = new StringContent(JsonSerializer.Serialize(payload),
+                Encoding.UTF8, "application/json");
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var response = await _httpClient.SendAsync(request, cts.Token);
@@ -280,53 +509,73 @@ END";
             using var doc = JsonDocument.Parse(content);
             var root = doc.RootElement;
 
-            string nombre = "", correo = "", username = "";
+            var codResp = "";
+            if (root.TryGetProperty("CodResp", out var codProp))
+                codResp = codProp.GetString() ?? "";
+            if (codResp != "2") return false;
 
-            if (root.TryGetProperty("Data", out var data))
-            {
-                nombre = GetStr(data, "Fullname", "fullname", "NombreCompleto", "Nombre");
-                correo = GetStr(data, "Email", "email", "Correo", "Mail");
-                username = GetStr(data, "Usuario", "Username", "User", "CodUsuario");
-            }
+            if (!root.TryGetProperty("Data", out var data) ||
+                data.ValueKind == JsonValueKind.Null)
+                return false;
 
-            if (string.IsNullOrWhiteSpace(nombre)) nombre = GetJsonProp(root, "Fullname", "fullname", "Nombre");
-            if (string.IsNullOrWhiteSpace(correo)) correo = GetJsonProp(root, "Email", "email", "Correo");
-            if (string.IsNullOrWhiteSpace(username)) username = GetJsonProp(root, "Usuario", "Username");
+            string nombre   = GetStr(data, "Fullname", "fullname", "NombreCompleto", "Nombre");
+            string correo   = GetStr(data, "Email", "email", "Correo", "Mail");
+            string username = GetStr(data, "Usuario", "Username", "User", "CodUsuario");
 
-            // Leer JWT también
+            if (string.IsNullOrWhiteSpace(nombre))
+                nombre = GetJsonProp(root, "Fullname", "fullname", "Nombre");
+            if (string.IsNullOrWhiteSpace(correo))
+                correo = GetJsonProp(root, "Email", "email", "Correo");
+            if (string.IsNullOrWhiteSpace(username))
+                username = GetJsonProp(root, "Usuario", "Username");
+
             if (root.TryGetProperty("Resp", out var jwtProp))
             {
-                var jwtData = DecodeJwtPayload(jwtProp.GetString() ?? "");
-                if (jwtData != null)
+                var jwt = jwtProp.GetString() ?? "";
+                if (!string.IsNullOrWhiteSpace(jwt) && !jwt.StartsWith("Error"))
                 {
-                    if (string.IsNullOrWhiteSpace(nombre)) nombre = GetStr(jwtData.Value, "fullname", "unique_name");
-                    if (string.IsNullOrWhiteSpace(correo)) correo = GetStr(jwtData.Value, "email");
-                    if (string.IsNullOrWhiteSpace(username)) username = GetStr(jwtData.Value, "usuario", "unique_name");
+                    var jwtData = DecodeJwtPayload(jwt);
+                    if (jwtData != null)
+                    {
+                        if (string.IsNullOrWhiteSpace(nombre))
+                            nombre = GetStr(jwtData.Value, "fullname", "unique_name");
+                        if (string.IsNullOrWhiteSpace(correo))
+                            correo = GetStr(jwtData.Value, "email");
+                        if (string.IsNullOrWhiteSpace(username))
+                            username = GetStr(jwtData.Value, "usuario", "unique_name");
+                    }
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(nombre)) nombre = usuarioOrCorreo;
+            if (string.IsNullOrWhiteSpace(nombre))   nombre   = usuarioOrCorreo;
             if (string.IsNullOrWhiteSpace(correo))
-                correo = usuarioOrCorreo.Contains("@") ? usuarioOrCorreo : $"{usuarioOrCorreo}@elor.com.pe";
+                correo = usuarioOrCorreo.Contains("@") ? usuarioOrCorreo
+                       : $"{usuarioOrCorreo}@elor.com.pe";
             if (string.IsNullOrWhiteSpace(username)) username = usuarioOrCorreo;
 
-            // Buscar existente por username primero, luego por correo
-            var usuarioExistente = await _db.Usuarios.FirstOrDefaultAsync(u => u.Username == username && u.Username != "");
+            var listaPersonal = await ObtenerPersonalCargoAsync();
+            var cargo         = BuscarCargoPorNombre(listaPersonal, nombre);
+
+            var usuarioExistente = await _db.Usuarios.FirstOrDefaultAsync(u =>
+                u.Username == username && u.Username != "");
             if (usuarioExistente == null)
-                usuarioExistente = await _db.Usuarios.FirstOrDefaultAsync(u => u.Correo == correo);
+                usuarioExistente = await _db.Usuarios.FirstOrDefaultAsync(u =>
+                    u.Correo == correo);
             if (usuarioExistente == null)
                 usuarioExistente = await _db.Usuarios.FirstOrDefaultAsync(u =>
                     u.Correo == usuarioOrCorreo || u.Username == usuarioOrCorreo);
 
             if (usuarioExistente != null)
             {
-                usuarioExistente.Activo = false;
+                usuarioExistente.Activo       = false;
                 usuarioExistente.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
-                if (!string.IsNullOrWhiteSpace(nombre)) usuarioExistente.Nombre = nombre;
+                if (!string.IsNullOrWhiteSpace(nombre))   usuarioExistente.Nombre   = nombre;
                 if (!string.IsNullOrWhiteSpace(username)) usuarioExistente.Username = username;
+                if (!string.IsNullOrWhiteSpace(cargo))    usuarioExistente.Cargo    = cargo;
                 if (!string.IsNullOrWhiteSpace(correo) && correo != usuarioExistente.Correo)
                 {
-                    bool enUso = await _db.Usuarios.AnyAsync(u => u.Correo == correo && u.Id != usuarioExistente.Id);
+                    bool enUso = await _db.Usuarios.AnyAsync(u =>
+                        u.Correo == correo && u.Id != usuarioExistente.Id);
                     if (!enUso) usuarioExistente.Correo = correo;
                 }
                 await _db.SaveChangesAsync();
@@ -335,12 +584,13 @@ END";
 
             var nuevo = new Usuario
             {
-                Nombre = nombre,
-                Correo = correo,
-                Username = username,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-                Rol = "Personal",
-                Activo = false,
+                Nombre        = nombre,
+                Correo        = correo,
+                Username      = username,
+                PasswordHash  = BCrypt.Net.BCrypt.HashPassword(password),
+                Rol           = "Personal",
+                Activo        = false,
+                Cargo         = cargo,
                 FechaCreacion = DateTime.Now
             };
             _db.Usuarios.Add(nuevo);
@@ -354,13 +604,10 @@ END";
         }
     }
 
-    // ── FIX PROBLEMA 3: SincronizarOrganizacionGirAsync sin StringComparison ──
     public static async Task SincronizarOrganizacionGirAsync(AppDbContext db, string nombre,
         string correo, string cargo, string gerencia, string departamento)
     {
         if (db == null) return;
-
-        // Si no hay cargo/gerencia/departamento, no hay nada que sincronizar
         if (string.IsNullOrWhiteSpace(gerencia) && string.IsNullOrWhiteSpace(departamento) &&
             string.IsNullOrWhiteSpace(cargo))
             return;
@@ -368,30 +615,27 @@ END";
         try
         {
             MaestroArea? gerenciaArea = null;
-            MaestroArea? deptoArea = null;
+            MaestroArea? deptoArea    = null;
 
             if (!string.IsNullOrWhiteSpace(gerencia))
             {
                 gerencia = gerencia.Trim();
                 var gerenciaUpper = gerencia.ToUpper();
-
-                // ── FIX: usar ToUpper() en vez de StringComparison.OrdinalIgnoreCase ──
                 gerenciaArea = await db.MaestroAreas.FirstOrDefaultAsync(a =>
                     a.Nombre.ToUpper() == gerenciaUpper ||
                     (a.Categoria == "GERENCIAS" && a.Nombre.ToUpper().Contains(gerenciaUpper)));
 
                 if (gerenciaArea == null)
                 {
-                    string codigo = GenerarCodigoArea(gerencia);
                     int maxOrden = await db.MaestroAreas.AnyAsync()
                         ? await db.MaestroAreas.MaxAsync(a => a.Orden) + 1 : 1;
                     gerenciaArea = new MaestroArea
                     {
-                        Nombre = gerencia,
+                        Nombre    = gerencia,
                         Categoria = "GERENCIAS",
-                        Codigo = codigo,
-                        Activo = true,
-                        Orden = maxOrden
+                        Codigo    = GenerarCodigoArea(gerencia),
+                        Activo    = true,
+                        Orden     = maxOrden
                     };
                     db.MaestroAreas.Add(gerenciaArea);
                     await db.SaveChangesAsync();
@@ -402,23 +646,21 @@ END";
             {
                 departamento = departamento.Trim();
                 var deptoUpper = departamento.ToUpper();
-
                 deptoArea = await db.MaestroAreas.FirstOrDefaultAsync(a =>
                     a.Nombre.ToUpper() == deptoUpper);
 
                 if (deptoArea == null)
                 {
-                    string codigo = GenerarCodigoArea(departamento);
                     int maxOrden = await db.MaestroAreas.AnyAsync()
                         ? await db.MaestroAreas.MaxAsync(a => a.Orden) + 1 : 1;
                     deptoArea = new MaestroArea
                     {
-                        Nombre = departamento,
+                        Nombre    = departamento,
                         Categoria = "DEPARTAMENTOS",
-                        Codigo = codigo,
-                        PadreId = gerenciaArea?.Id,
-                        Activo = true,
-                        Orden = maxOrden
+                        Codigo    = GenerarCodigoArea(departamento),
+                        PadreId   = gerenciaArea?.Id,
+                        Activo    = true,
+                        Orden     = maxOrden
                     };
                     db.MaestroAreas.Add(deptoArea);
                     await db.SaveChangesAsync();
@@ -433,17 +675,16 @@ END";
             if (!string.IsNullOrWhiteSpace(nombre) || !string.IsNullOrWhiteSpace(correo))
             {
                 int? areaAsignadaId = deptoArea?.Id ?? gerenciaArea?.Id;
-                var correoUpper = correo?.ToUpper() ?? "";
-                var nombreUpper = nombre?.ToUpper() ?? "";
+                var correoUpper     = correo?.ToUpper() ?? "";
+                var nombreUpper     = nombre?.ToUpper() ?? "";
 
-                // ── FIX: ToUpper() en lugar de StringComparison ──
                 var resp = await db.MaestroResponsables.FirstOrDefaultAsync(r =>
                     (!string.IsNullOrWhiteSpace(correo) && r.Correo.ToUpper() == correoUpper) ||
                     (!string.IsNullOrWhiteSpace(nombre) && r.Nombre.ToUpper() == nombreUpper));
 
                 if (resp != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(cargo)) resp.Cargo = cargo;
+                    if (!string.IsNullOrWhiteSpace(cargo))  resp.Cargo  = cargo;
                     if (!string.IsNullOrWhiteSpace(correo)) resp.Correo = correo;
                     if (!string.IsNullOrWhiteSpace(nombre)) resp.Nombre = nombre;
                     if (areaAsignadaId.HasValue) resp.AreaId = areaAsignadaId.Value;
@@ -453,16 +694,15 @@ END";
                 {
                     int maxOrdenResp = await db.MaestroResponsables.AnyAsync()
                         ? await db.MaestroResponsables.MaxAsync(r => r.Orden) + 1 : 1;
-                    var nuevoResp = new MaestroResponsable
+                    db.MaestroResponsables.Add(new MaestroResponsable
                     {
-                        Nombre = string.IsNullOrWhiteSpace(nombre) ? correo : nombre,
-                        Correo = correo ?? "",
-                        Cargo = string.IsNullOrWhiteSpace(cargo) ? "Personal GIR" : cargo,
-                        AreaId = areaAsignadaId,
-                        Activo = true,
-                        Orden = maxOrdenResp
-                    };
-                    db.MaestroResponsables.Add(nuevoResp);
+                        Nombre  = string.IsNullOrWhiteSpace(nombre) ? correo : nombre,
+                        Correo  = correo ?? "",
+                        Cargo   = string.IsNullOrWhiteSpace(cargo) ? "Personal GIR" : cargo,
+                        AreaId  = areaAsignadaId,
+                        Activo  = true,
+                        Orden   = maxOrdenResp
+                    });
                     await db.SaveChangesAsync();
                 }
             }
@@ -473,7 +713,6 @@ END";
         }
     }
 
-    // ── Decodificar JWT para extraer claims ──
     private static JsonElement? DecodeJwtPayload(string jwt)
     {
         try
@@ -481,17 +720,14 @@ END";
             var parts = jwt.Split('.');
             if (parts.Length < 2) return null;
             var payload = parts[1];
-            // Agregar padding si falta
             payload = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
             var bytes = Convert.FromBase64String(payload.Replace('-', '+').Replace('_', '/'));
-            var json = Encoding.UTF8.GetString(bytes);
-            var doc = JsonDocument.Parse(json);
-            return doc.RootElement;
+            var json  = Encoding.UTF8.GetString(bytes);
+            return JsonDocument.Parse(json).RootElement;
         }
         catch { return null; }
     }
 
-    // Acceso directo a campo de JsonElement (sin recursión)
     private static string GetStr(JsonElement el, params string[] names)
     {
         foreach (var name in names)
@@ -513,7 +749,8 @@ END";
             {
                 foreach (var prop in el.EnumerateObject())
                 {
-                    if (propNames.Any(name => string.Equals(name, prop.Name, StringComparison.OrdinalIgnoreCase)))
+                    if (propNames.Any(name =>
+                        string.Equals(name, prop.Name, StringComparison.OrdinalIgnoreCase)))
                     {
                         if (prop.Value.ValueKind == JsonValueKind.String)
                         {
@@ -526,7 +763,8 @@ END";
                 }
                 foreach (var prop in el.EnumerateObject())
                 {
-                    if (prop.Value.ValueKind == JsonValueKind.Object || prop.Value.ValueKind == JsonValueKind.Array)
+                    if (prop.Value.ValueKind == JsonValueKind.Object ||
+                        prop.Value.ValueKind == JsonValueKind.Array)
                     {
                         var res = GetJsonProp(prop.Value, propNames);
                         if (!string.IsNullOrWhiteSpace(res)) return res;
@@ -551,9 +789,9 @@ END";
         if (string.IsNullOrWhiteSpace(nombreArea)) return "ORG";
         var palabras = nombreArea.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Where(p => p.Length > 2
-                && !p.Equals("del", StringComparison.OrdinalIgnoreCase)
-                && !p.Equals("las", StringComparison.OrdinalIgnoreCase)
-                && !p.Equals("los", StringComparison.OrdinalIgnoreCase)
+                && !p.Equals("del",  StringComparison.OrdinalIgnoreCase)
+                && !p.Equals("las",  StringComparison.OrdinalIgnoreCase)
+                && !p.Equals("los",  StringComparison.OrdinalIgnoreCase)
                 && !p.Equals("para", StringComparison.OrdinalIgnoreCase))
             .Take(4);
         var acronimo = string.Concat(palabras.Select(p => char.ToUpper(p[0])));
@@ -570,9 +808,9 @@ END";
 
         var cambio = new CambioPassword
         {
-            UsuarioId = usuarioId,
+            UsuarioId            = usuarioId,
             PasswordHashAnterior = user.PasswordHash,
-            PasswordHashNuevo = BCrypt.Net.BCrypt.HashPassword(passwordNuevo)
+            PasswordHashNuevo    = BCrypt.Net.BCrypt.HashPassword(passwordNuevo)
         };
         user.PasswordHash = cambio.PasswordHashNuevo;
         _db.CambiosPassword.Add(cambio);
@@ -586,15 +824,33 @@ END";
 
         var usuarios = new[]
         {
-            new Usuario { Nombre = "Super Admin", Correo = "superadmin@gmail.com", Username = "superadmin",
+            new Usuario
+            {
+                Nombre       = "Super Admin",
+                Correo       = "superadmin@gmail.com",
+                Username     = "superadmin",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("12345678"),
-                Rol = "SuperAdmin", Activo = true },
-            new Usuario { Nombre = "Admin", Correo = "admin@gmail.com", Username = "admin",
+                Rol          = "SuperAdmin",
+                Activo       = true
+            },
+            new Usuario
+            {
+                Nombre       = "Admin",
+                Correo       = "admin@gmail.com",
+                Username     = "admin",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("12345678"),
-                Rol = "Admin", Activo = true },
-            new Usuario { Nombre = "Personal", Correo = "personal@gmail.com", Username = "personal",
+                Rol          = "Admin",
+                Activo       = true
+            },
+            new Usuario
+            {
+                Nombre       = "Personal",
+                Correo       = "personal@gmail.com",
+                Username     = "personal",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("12345678"),
-                Rol = "Personal", Activo = true },
+                Rol          = "Personal",
+                Activo       = true
+            },
         };
 
         _db.Usuarios.AddRange(usuarios);

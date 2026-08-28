@@ -3,6 +3,7 @@
 @attribute [Authorize(Roles = "SuperAdmin,Admin")]
 @inject UsuarioService UsuarioSvc
 @inject AuthenticationStateProvider AuthState
+@inject PersonalCargoService PersonalSvc
 
 <div class="content-header">
     <div class="container-fluid">
@@ -240,6 +241,99 @@
                         <div class="alert alert-@AlertEditarClass">@MsgEditar</div>
                     }
 
+                    @* ===== BUSCADOR DE PERSONAL DESDE API ===== *@
+                    <div class="card border-info mb-4" style="border-radius: 10px; overflow: hidden;">
+                        <div class="card-header py-2" style="background: linear-gradient(135deg, #0062B8 0%, #0891b2 100%);">
+                            <span class="text-white font-weight-bold">
+                                <i class="fas fa-search mr-2"></i>Buscar Personal ELORSA
+                                <small class="ml-2 font-weight-normal opacity-75">(Escribe nombre, apellido o cargo)</small>
+                            </span>
+                            <button class="btn btn-xs btn-outline-light float-right" @onclick="LimpiarCachePersonal" title="Actualizar lista desde API">
+                                <i class="fas fa-sync-alt mr-1"></i>Actualizar
+                            </button>
+                        </div>
+                        <div class="card-body py-3 px-3">
+                            <div class="input-group mb-2">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text bg-white border-right-0">
+                                        <i class="fas fa-user-search text-primary"></i>
+                                    </span>
+                                </div>
+                                <input type="text"
+       class="form-control border-left-0"
+       placeholder="Ej: Tuesta, Pinedo, Analista de Sistemas..."
+       value="@BusquedaPersonal"
+       @oninput="OnBusquedaPersonalChange" />
+                                @if (!string.IsNullOrWhiteSpace(BusquedaPersonal))
+                                {
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" @onclick="LimpiarBusqueda">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+
+                            @* Resultados del buscador *@
+                            @if (BuscandoPersonal)
+                            {
+                                <div class="text-center py-2 text-muted">
+                                    <i class="fas fa-spinner fa-spin mr-1"></i>Buscando...
+                                </div>
+                            }
+                            else if (ResultadosPersonal.Any())
+                            {
+                                <div class="list-group" style="max-height: 220px; overflow-y: auto; border-radius: 8px;">
+                                    @foreach (var p in ResultadosPersonal)
+                                    {
+                                        <button type="button"
+                                                class="list-group-item list-group-item-action py-2 px-3"
+                                                style="border-left: 4px solid #0062B8;"
+                                                @onclick="() => SeleccionarPersonal(p)">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <div class="font-weight-bold text-dark" style="font-size: 0.9rem;">
+                                                        <i class="fas fa-user mr-1 text-primary"></i>
+                                                        @p.ApellidoPaterno @p.ApellidoMaterno, @p.Nombre
+                                                    </div>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-briefcase mr-1"></i>@p.Cargo
+                                                    </small>
+                                                </div>
+                                                <small class="badge badge-light text-muted ml-2 mt-1">
+                                                    @p.CodigoCargo
+                                                </small>
+                                            </div>
+                                        </button>
+                                    }
+                                </div>
+                                <small class="text-muted mt-1 d-block">
+                                    <i class="fas fa-hand-pointer mr-1"></i>Haz clic en una persona para autocompletar los campos
+                                </small>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(BusquedaPersonal) && BusquedaPersonal.Length >= 2)
+                            {
+                                <div class="text-center py-2 text-muted">
+                                    <i class="fas fa-user-slash mr-1"></i>No se encontraron resultados para "<strong>@BusquedaPersonal</strong>"
+                                </div>
+                            }
+
+                            @* Indicador de persona seleccionada *@
+                            @if (PersonalSeleccionado != null)
+                            {
+                                <div class="alert alert-success py-2 mt-2 mb-0" style="border-radius: 8px;">
+                                    <i class="fas fa-check-circle mr-1"></i>
+                                    <strong>@PersonalSeleccionado.NombreCompleto</strong> —
+                                    <span class="text-muted">@PersonalSeleccionado.Cargo</span>
+                                    <button class="btn btn-xs btn-outline-success float-right" @onclick="QuitarPersonalSeleccionado">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    @* ===== CAMPOS DEL FORMULARIO ===== *@
                     <div class="row">
                         <div class="col-md-6 form-group">
                             <label class="font-weight-bold">Nombre Completo</label>
@@ -262,8 +356,18 @@
                             </select>
                         </div>
                         <div class="col-md-6 form-group">
-                            <label class="font-weight-bold">Cargo</label>
-                            <input @bind="EditCargo" class="form-control" placeholder="Ej: Especialista de Sistemas" />
+                            <label class="font-weight-bold">
+                                Cargo
+                                @if (PersonalSeleccionado != null)
+                                {
+                                    <span class="badge badge-success ml-1" style="font-size: 0.7rem;">
+                                        <i class="fas fa-link mr-1"></i>Desde API
+                                    </span>
+                                }
+                            </label>
+                            <input @bind="EditCargo" class="form-control"
+                                   placeholder="Ej: Especialista de Sistemas"
+                                   style="@(PersonalSeleccionado != null ? "border-color: #28a745; background-color: #f0fff4;" : "")" />
                         </div>
                         <div class="col-md-6 form-group">
                             <label class="font-weight-bold">Gerencia</label>
@@ -288,7 +392,9 @@
                 </div>
                 <div class="modal-footer bg-light">
                     <button class="btn btn-secondary" @onclick="CerrarEditar">Cancelar</button>
-                    <button class="btn btn-primary" @onclick="GuardarEdicion"><i class="fas fa-save mr-1"></i>Guardar Cambios</button>
+                    <button class="btn btn-primary" @onclick="GuardarEdicion">
+                        <i class="fas fa-save mr-1"></i>Guardar Cambios
+                    </button>
                 </div>
             </div>
         </div>
@@ -303,7 +409,7 @@
             <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
                 <div class="modal-header bg-dark text-white" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 3px solid #FFDD00;">
                     <h5 class="modal-title font-weight-bold">
-                        <i class="fas fa-history mr-2 text-warning"></i>Bitácora de Cambios de Usuario: @UsuarioBitacora.Nombre (@UsuarioBitacora.Correo)
+                        <i class="fas fa-history mr-2 text-warning"></i>Bitácora de Cambios: @UsuarioBitacora.Nombre (@UsuarioBitacora.Correo)
                     </h5>
                     <button type="button" class="close text-white" @onclick="CerrarBitacora">&times;</button>
                 </div>
@@ -385,9 +491,6 @@
                             <option value="Admin">Admin (Gestor de Procesos y Riesgos)</option>
                             <option value="SuperAdmin">SuperAdmin (Acceso Total de Configuración)</option>
                         </select>
-                        <small class="form-text text-muted mt-1">
-                            El rol determina el nivel de permisos que tendrá el usuario una vez autorizada su cuenta.
-                        </small>
                     </div>
 
                     <div class="card border-primary mb-3">
@@ -443,6 +546,7 @@
 }
 
 @code {
+    // ─── LISTA Y ESTADO GENERAL ────────────────────────────────────────────
     List<Usuario> Lista = new();
     bool MostrarForm = false;
     bool EsSuperAdmin = false;
@@ -454,7 +558,14 @@
     string FRol = "Personal";
     string MsgForm = "";
 
-    // MODAL DE APROBACIÓN CON ROL Y PROCESOS
+    // ─── BUSCADOR DE PERSONAL API ─────────────────────────────────────────
+    string BusquedaPersonal = "";
+    List<PersonalCargo> ResultadosPersonal = new();
+    PersonalCargo? PersonalSeleccionado = null;
+    bool BuscandoPersonal = false;
+    private CancellationTokenSource? _debounceToken;
+
+    // ─── MODAL APROBACIÓN ─────────────────────────────────────────────────
     bool MostrarModalAprobar = false;
     Usuario? UsuarioAprobar;
     string RolAprobar = "Personal";
@@ -462,7 +573,7 @@
     List<MatrizGrupo> MatricesProcesosAprobar = new();
     List<int> MatricesSeleccionadasAprobar = new();
 
-    // MODAL EDICIÓN
+    // ─── MODAL EDICIÓN ────────────────────────────────────────────────────
     bool MostrarModalEditar = false;
     Usuario? UsuarioEdicion;
     string EditNombre = "";
@@ -477,7 +588,7 @@
     string MsgEditar = "";
     bool EditOk = false;
 
-    // MODAL BITÁCORA
+    // ─── MODAL BITÁCORA ───────────────────────────────────────────────────
     bool MostrarModalBitacora = false;
     Usuario? UsuarioBitacora;
     List<BitacoraUsuario> BitacoraList = new();
@@ -495,6 +606,7 @@
         return "info";
     }
 
+    // ─── INICIALIZACIÓN ───────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthState.GetAuthenticationStateAsync();
@@ -504,6 +616,72 @@
         await Cargar();
     }
 
+    // ─── BUSCADOR DE PERSONAL API ─────────────────────────────────────────
+    private async Task OnBusquedaPersonalChange(ChangeEventArgs e)
+    {
+        BusquedaPersonal = e.Value?.ToString() ?? "";
+
+        // Cancelar búsqueda anterior (debounce 300ms)
+        _debounceToken?.Cancel();
+        _debounceToken = new CancellationTokenSource();
+        var token = _debounceToken.Token;
+
+        if (BusquedaPersonal.Length < 2)
+        {
+            ResultadosPersonal.Clear();
+            BuscandoPersonal = false;
+            return;
+        }
+
+        BuscandoPersonal = true;
+        StateHasChanged();
+
+        try
+        {
+            await Task.Delay(300, token);
+            if (!token.IsCancellationRequested)
+            {
+                ResultadosPersonal = await PersonalSvc.BuscarAsync(BusquedaPersonal, 8);
+                BuscandoPersonal = false;
+                StateHasChanged();
+            }
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private void SeleccionarPersonal(PersonalCargo p)
+    {
+        PersonalSeleccionado = p;
+
+        // Autocompletar campos del formulario
+        EditNombre = p.NombreCompleto;
+        EditCargo = p.Cargo;
+
+        // Limpiar buscador
+        BusquedaPersonal = "";
+        ResultadosPersonal.Clear();
+    }
+
+    private void QuitarPersonalSeleccionado()
+    {
+        PersonalSeleccionado = null;
+    }
+
+    private void LimpiarBusqueda()
+    {
+        BusquedaPersonal = "";
+        ResultadosPersonal.Clear();
+        BuscandoPersonal = false;
+    }
+
+    private void LimpiarCachePersonal()
+    {
+        PersonalSvc.LimpiarCache();
+        LimpiarBusqueda();
+        PersonalSeleccionado = null;
+    }
+
+    // ─── FORM NUEVO USUARIO ───────────────────────────────────────────────
     void AbrirForm()
     {
         MostrarForm = true;
@@ -534,9 +712,7 @@
         if (ok)
         {
             MsgForm = "Usuario creado. SuperAdmin debe activarlo.";
-            FNombre = "";
-            FCorreo = "";
-            FPassword = "";
+            FNombre = ""; FCorreo = ""; FPassword = "";
             await Cargar();
         }
         else
@@ -545,6 +721,7 @@
         }
     }
 
+    // ─── MODAL EDICIÓN ────────────────────────────────────────────────────
     void AbrirEditar(Usuario u)
     {
         UsuarioEdicion = u;
@@ -559,12 +736,19 @@
         EditMotivo = "";
         MsgEditar = "";
         MostrarModalEditar = true;
+
+        // Limpiar buscador al abrir
+        BusquedaPersonal = "";
+        ResultadosPersonal.Clear();
+        PersonalSeleccionado = null;
     }
 
     void CerrarEditar()
     {
         MostrarModalEditar = false;
         UsuarioEdicion = null;
+        LimpiarBusqueda();
+        PersonalSeleccionado = null;
     }
 
     async Task GuardarEdicion()
@@ -607,6 +791,7 @@
         }
     }
 
+    // ─── MODAL BITÁCORA ───────────────────────────────────────────────────
     async Task AbrirBitacora(Usuario u)
     {
         UsuarioBitacora = u;
@@ -621,12 +806,26 @@
         BitacoraList.Clear();
     }
 
+    // ─── ACCIONES DE TABLA ────────────────────────────────────────────────
     async Task Toggle(int id)
     {
         await UsuarioSvc.ToggleActivoAsync(id);
         await Cargar();
     }
 
+    async Task Eliminar(int id)
+    {
+        await UsuarioSvc.EliminarAsync(id);
+        await Cargar();
+    }
+
+    async Task Activar(int id)
+    {
+        await UsuarioSvc.ActivarAsync(id);
+        await Cargar();
+    }
+
+    // ─── MODAL APROBACIÓN ─────────────────────────────────────────────────
     async Task AbrirModalAprobar(Usuario u)
     {
         UsuarioAprobar = u;
@@ -656,15 +855,11 @@
         }
     }
 
-    void SeleccionarTodasMatricesAprobar()
-    {
+    void SeleccionarTodasMatricesAprobar() =>
         MatricesSeleccionadasAprobar = MatricesProcesosAprobar.Select(m => m.Id).ToList();
-    }
 
-    void DesmarcarTodasMatricesAprobar()
-    {
+    void DesmarcarTodasMatricesAprobar() =>
         MatricesSeleccionadasAprobar.Clear();
-    }
 
     async Task ConfirmarAprobacionUsuario()
     {
@@ -676,18 +871,6 @@
             UsuarioActualEmail
         );
         CerrarModalAprobar();
-        await Cargar();
-    }
-
-    async Task Activar(int id)
-    {
-        await UsuarioSvc.ActivarAsync(id);
-        await Cargar();
-    }
-
-    async Task Eliminar(int id)
-    {
-        await UsuarioSvc.EliminarAsync(id);
         await Cargar();
     }
 }
