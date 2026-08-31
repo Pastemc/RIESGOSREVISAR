@@ -1,4 +1,15 @@
+// ── DESCARGA DE ARCHIVOS ──
 window.downloadFile = function (base64, fileName, mimeType) {
+    var link = document.createElement('a');
+    link.href = 'data:' + mimeType + ';base64,' + base64;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+// Alias usado por CargaMasiva.razor → saveAsFile(fileName, mimeType, base64)
+window.saveAsFile = function (fileName, mimeType, base64) {
     var link = document.createElement('a');
     link.href = 'data:' + mimeType + ';base64,' + base64;
     link.download = fileName;

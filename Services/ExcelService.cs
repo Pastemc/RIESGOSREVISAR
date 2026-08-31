@@ -24,9 +24,9 @@ public class FilaSabanaExcel
 
 public class ExcelService
 {
-    // ─────────────────────────────────────────────────────────────────────────
+    // ───────────────────────────────────────────────────────────────────────
     // 1. MATRIZ INDIVIDUAL
-    // ─────────────────────────────────────────────────────────────────────────
+    // ───────────────────────────────────────────────────────────────────────
     public byte[] GenerarMatrizExcel(List<Riesgo> riesgos, MatrizGrupo matriz)
     {
         using var wb = new XLWorkbook();
@@ -59,14 +59,13 @@ public class ExcelService
         ws.Cell(7, 10).Value = "Aprobado por:";
         ws.Cell(7, 11).Value = matriz.AprobadoPorFirma;
 
-        ws.Cell(8, 1).Value = $"MATRIZ DE RIESGOS Y CONTROLES (MRC) — {matriz.Nombre}";
+        ws.Cell(8, 1).Value = $"MATRIZ DE RIESGOS Y CONTROLES (MRC) – {matriz.Nombre}";
         ws.Range(8, 1, 8, 40).Merge();
         ws.Cell(8, 1).Style.Font.Bold = true;
         ws.Cell(8, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#C00000");
         ws.Cell(8, 1).Style.Font.FontColor = XLColor.White;
         ws.Cell(8, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        // ── Fila 9: grupos de secciones ──
         void MergeSeccion(int c1, int c2, string titulo, string color)
         {
             ws.Range(9, c1, 9, c2).Merge();
@@ -87,25 +86,18 @@ public class ExcelService
         MergeSeccion(35, 40, "INDICADORES", "#0062B8");
         ws.Row(9).Height = 18;
 
-        // ── Fila 10: cabeceras de columna ──
         int fila = 10;
         var cabeceras = new[]
         {
-            // Datos Generales (1-10)
             "COD","Nivel","Gerencia Responsable","Nombre del Proceso","Subproceso",
             "Código del Riesgo","Descripción del Riesgo","Origen del Riesgo",
             "Frecuencia del Riesgo","Tipo de Riesgo",
-            // Riesgo Inherente (11-14)
             "Prob. Inh.","Impacto Inh.","Sev. Inh.","Nivel Inh.",
-            // Control (15-22)
             "Cód. Control","Desc. Control","Área Control","Resp. Control",
             "Frec. Control","Oportunidad","Automatiz.","Evidencia",
-            // Riesgo Residual (23-26)
             "Prob. Res.","Impacto Res.","Sev. Res.","Nivel Res.",
-            // Plan de Acción (27-34)
             "Estrategia","Cód. Plan","Desc. Plan","Área Plan",
             "Resp. Plan","Inicio Plan","Estado Plan","Fin Plan",
-            // Indicadores (35-40)
             "Cód. KRI","Definición KRI","Frecuencia KRI","Meta KRI","KRI Actual","Resp. KRI"
         };
 
@@ -123,7 +115,6 @@ public class ExcelService
         }
         ws.Row(fila).Height = 30;
 
-        // ── DATOS: una fila por control ──
         fila = 11;
         foreach (var r in riesgos)
         {
@@ -143,23 +134,19 @@ public class ExcelService
             {
                 var ctrl = controles.Count > 0 ? controles[ci] : null;
                 bool esPrimera = ci == 0;
-                int col = 1;
 
                 if (esPrimera)
                 {
-                    // Datos Generales — con rowspan via merge al final
-                    ws.Cell(fila, col).Value = r.CodigoProceso;
-                    ws.Cell(fila, col + 1).Value = "Proceso";
-                    ws.Cell(fila, col + 2).Value = r.GerenciaResponsable;
-                    ws.Cell(fila, col + 3).Value = r.NombreProceso;
-                    ws.Cell(fila, col + 4).Value = r.Subproceso;
-                    ws.Cell(fila, col + 5).Value = r.CodigoRiesgo;
-                    ws.Cell(fila, col + 6).Value = r.DescripcionRiesgo;
-                    ws.Cell(fila, col + 7).Value = r.OrigenRiesgo;
-                    ws.Cell(fila, col + 8).Value = r.FrecuenciaRiesgo;
-                    ws.Cell(fila, col + 9).Value = r.TipoRiesgo;
-
-                    // Riesgo Inherente
+                    ws.Cell(fila, 1).Value = r.CodigoProceso;
+                    ws.Cell(fila, 2).Value = "Proceso";
+                    ws.Cell(fila, 3).Value = r.GerenciaResponsable;
+                    ws.Cell(fila, 4).Value = r.NombreProceso;
+                    ws.Cell(fila, 5).Value = r.Subproceso;
+                    ws.Cell(fila, 6).Value = r.CodigoRiesgo;
+                    ws.Cell(fila, 7).Value = r.DescripcionRiesgo;
+                    ws.Cell(fila, 8).Value = r.OrigenRiesgo;
+                    ws.Cell(fila, 9).Value = r.FrecuenciaRiesgo;
+                    ws.Cell(fila, 10).Value = r.TipoRiesgo;
                     ws.Cell(fila, 11).Value = r.ProbabilidadInherente;
                     ws.Cell(fila, 12).Value = r.ImpactoInherente;
                     var cSevI = ws.Cell(fila, 13);
@@ -174,8 +161,6 @@ public class ExcelService
                     cNivI.Style.Font.FontColor = XLColor.White;
                     cNivI.Style.Font.Bold = true;
                     cNivI.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-
-                    // Riesgo Residual
                     ws.Cell(fila, 23).Value = r.ProbabilidadResidual;
                     ws.Cell(fila, 24).Value = r.ImpactoResidual;
                     var cSevR = ws.Cell(fila, 25);
@@ -190,8 +175,6 @@ public class ExcelService
                     cNivR.Style.Font.FontColor = XLColor.White;
                     cNivR.Style.Font.Bold = true;
                     cNivR.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-
-                    // Plan de Acción
                     ws.Cell(fila, 27).Value = r.EstrategiaResidual;
                     ws.Cell(fila, 28).Value = esAE ? (plan1?.CodigoPlan ?? "") : "";
                     ws.Cell(fila, 29).Value = esAE ? (plan1?.DescripcionPlan ?? "") : "";
@@ -200,8 +183,6 @@ public class ExcelService
                     ws.Cell(fila, 32).Value = esAE ? (plan1?.InicioPlan?.ToString("dd/MM/yyyy") ?? "") : "";
                     ws.Cell(fila, 33).Value = esAE ? (plan1?.EstadoPlan ?? "") : "";
                     ws.Cell(fila, 34).Value = esAE ? (plan1?.FinPlan?.ToString("dd/MM/yyyy") ?? "") : "";
-
-                    // Indicadores
                     ws.Cell(fila, 35).Value = esAE ? (kri1?.CodigoKRI ?? "") : "";
                     ws.Cell(fila, 36).Value = esAE ? (kri1?.DefinicionKRI ?? "") : "";
                     ws.Cell(fila, 37).Value = esAE ? (kri1?.Frecuencia ?? "") : "";
@@ -210,7 +191,6 @@ public class ExcelService
                     ws.Cell(fila, 40).Value = esAE ? (kri1?.ResponsableKRI ?? "") : "";
                 }
 
-                // Control — siempre en su propia celda
                 if (ctrl != null)
                 {
                     ws.Cell(fila, 15).Value = ctrl.CodigoControl;
@@ -223,57 +203,33 @@ public class ExcelService
                     ws.Cell(fila, 22).Value = ctrl.EvidenciaControl;
                 }
 
-                // Bordes y wrap fila
                 var rango = ws.Range(fila, 1, fila, 40);
                 rango.Style.Alignment.WrapText = true;
                 rango.Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
                 rango.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 rango.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
-
                 fila++;
             }
 
-            // Merge celdas de datos generales, inherente, residual, plan e indicadores
-            // para las filas que ocupa este riesgo (si tiene más de un control)
             if (totalFilas > 1)
             {
-                // Datos Generales (cols 1-10)
-                for (int c = 1; c <= 10; c++)
-                    ws.Range(filaInicio, c, fila - 1, c).Merge();
-
-                // Riesgo Inherente (cols 11-14)
-                for (int c = 11; c <= 14; c++)
-                    ws.Range(filaInicio, c, fila - 1, c).Merge();
-
-                // Riesgo Residual (cols 23-26)
-                for (int c = 23; c <= 26; c++)
-                    ws.Range(filaInicio, c, fila - 1, c).Merge();
-
-                // Plan de Acción (cols 27-34)
-                for (int c = 27; c <= 34; c++)
-                    ws.Range(filaInicio, c, fila - 1, c).Merge();
-
-                // Indicadores (cols 35-40)
-                for (int c = 35; c <= 40; c++)
-                    ws.Range(filaInicio, c, fila - 1, c).Merge();
-
-                // Alineación vertical centrada en celdas mergeadas
+                for (int c = 1; c <= 10; c++) ws.Range(filaInicio, c, fila - 1, c).Merge();
+                for (int c = 11; c <= 14; c++) ws.Range(filaInicio, c, fila - 1, c).Merge();
+                for (int c = 23; c <= 26; c++) ws.Range(filaInicio, c, fila - 1, c).Merge();
+                for (int c = 27; c <= 34; c++) ws.Range(filaInicio, c, fila - 1, c).Merge();
+                for (int c = 35; c <= 40; c++) ws.Range(filaInicio, c, fila - 1, c).Merge();
                 ws.Range(filaInicio, 1, fila - 1, 14).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
                 ws.Range(filaInicio, 23, fila - 1, 40).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             }
 
-            // Borde exterior del bloque del riesgo completo
-            ws.Range(filaInicio, 1, fila - 1, 40)
-              .Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
+            ws.Range(filaInicio, 1, fila - 1, 40).Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
         }
 
         ws.Columns().AdjustToContents();
-        ws.Column(7).Width = 35;   // Descripción Riesgo
-        ws.Column(16).Width = 35;  // Desc. Control
-        ws.Column(22).Width = 30;  // Evidencia
-
+        ws.Column(7).Width = 35;
+        ws.Column(16).Width = 35;
+        ws.Column(22).Width = 30;
         ws.SheetView.FreezeRows(10);
-
         GenerarHojaHeatmap(wb, riesgos, true);
         GenerarHojaHeatmap(wb, riesgos, false);
 
@@ -282,9 +238,9 @@ public class ExcelService
         return ms.ToArray();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ───────────────────────────────────────────────────────────────────────
     // 2. RESUMEN DE CRITICIDAD RESIDUAL
-    // ─────────────────────────────────────────────────────────────────────────
+    // ───────────────────────────────────────────────────────────────────────
     public byte[] GenerarExcelResumen(List<FilaResumen> filas, string fechaCorte)
     {
         using var wb = new XLWorkbook();
@@ -299,15 +255,13 @@ public class ExcelService
         ws.Cell(1, 1).Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
         ws.Row(1).Height = 22;
 
-        ws.Range(2, 1, 3, 1).Merge();
-        ws.Cell(2, 1).Value = "Macro Proceso";
+        ws.Range(2, 1, 3, 1).Merge(); ws.Cell(2, 1).Value = "Macro Proceso";
         ws.Cell(2, 1).Style.Font.Bold = true;
         ws.Cell(2, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#ffc107");
         ws.Cell(2, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         ws.Cell(2, 1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
-        ws.Range(2, 2, 3, 2).Merge();
-        ws.Cell(2, 2).Value = "Proceso";
+        ws.Range(2, 2, 3, 2).Merge(); ws.Cell(2, 2).Value = "Proceso";
         ws.Cell(2, 2).Style.Font.Bold = true;
         ws.Cell(2, 2).Style.Fill.BackgroundColor = XLColor.FromHtml("#ffc107");
         ws.Cell(2, 2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
@@ -319,57 +273,40 @@ public class ExcelService
         ws.Cell(2, 3).Style.Fill.BackgroundColor = XLColor.FromHtml("#ffc107");
         ws.Cell(2, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        ws.Range(2, 7, 3, 7).Merge();
-        ws.Cell(2, 7).Value = "Total";
-        ws.Cell(2, 7).Style.Font.Bold = true;
-        ws.Cell(2, 7).Style.Fill.BackgroundColor = XLColor.FromHtml("#ffc107");
+        ws.Range(2, 7, 3, 7).Merge(); ws.Cell(2, 7).Value = "Total";
+        ws.Cell(2, 7).Style.Font.Bold = true; ws.Cell(2, 7).Style.Fill.BackgroundColor = XLColor.FromHtml("#ffc107");
         ws.Cell(2, 7).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         ws.Cell(2, 7).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
-        ws.Range(2, 8, 3, 8).Merge();
-        ws.Cell(2, 8).Value = "Total de Indicadores";
-        ws.Cell(2, 8).Style.Font.Bold = true;
-        ws.Cell(2, 8).Style.Fill.BackgroundColor = XLColor.FromHtml("#ffc107");
+        ws.Range(2, 8, 3, 8).Merge(); ws.Cell(2, 8).Value = "Total de Indicadores";
+        ws.Cell(2, 8).Style.Font.Bold = true; ws.Cell(2, 8).Style.Fill.BackgroundColor = XLColor.FromHtml("#ffc107");
         ws.Cell(2, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         ws.Cell(2, 8).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
-        ws.Cell(3, 3).Value = "Extremo";
-        ws.Cell(3, 3).Style.Font.Bold = true;
-        ws.Cell(3, 3).Style.Font.FontColor = XLColor.White;
-        ws.Cell(3, 3).Style.Fill.BackgroundColor = XLColor.FromHtml("#dc3545");
+        ws.Cell(3, 3).Value = "Extremo"; ws.Cell(3, 3).Style.Font.Bold = true;
+        ws.Cell(3, 3).Style.Font.FontColor = XLColor.White; ws.Cell(3, 3).Style.Fill.BackgroundColor = XLColor.FromHtml("#dc3545");
         ws.Cell(3, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-
-        ws.Cell(3, 4).Value = "Alto";
-        ws.Cell(3, 4).Style.Font.Bold = true;
-        ws.Cell(3, 4).Style.Font.FontColor = XLColor.White;
-        ws.Cell(3, 4).Style.Fill.BackgroundColor = XLColor.FromHtml("#fd7e14");
+        ws.Cell(3, 4).Value = "Alto"; ws.Cell(3, 4).Style.Font.Bold = true;
+        ws.Cell(3, 4).Style.Font.FontColor = XLColor.White; ws.Cell(3, 4).Style.Fill.BackgroundColor = XLColor.FromHtml("#fd7e14");
         ws.Cell(3, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-
-        ws.Cell(3, 5).Value = "Moderado";
-        ws.Cell(3, 5).Style.Font.Bold = true;
+        ws.Cell(3, 5).Value = "Moderado"; ws.Cell(3, 5).Style.Font.Bold = true;
         ws.Cell(3, 5).Style.Fill.BackgroundColor = XLColor.FromHtml("#ffc107");
         ws.Cell(3, 5).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-
-        ws.Cell(3, 6).Value = "Bajo";
-        ws.Cell(3, 6).Style.Font.Bold = true;
-        ws.Cell(3, 6).Style.Font.FontColor = XLColor.White;
-        ws.Cell(3, 6).Style.Fill.BackgroundColor = XLColor.FromHtml("#28a745");
+        ws.Cell(3, 6).Value = "Bajo"; ws.Cell(3, 6).Style.Font.Bold = true;
+        ws.Cell(3, 6).Style.Font.FontColor = XLColor.White; ws.Cell(3, 6).Style.Fill.BackgroundColor = XLColor.FromHtml("#28a745");
         ws.Cell(3, 6).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
         ws.Range(2, 1, 3, 8).Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
         ws.Range(2, 1, 3, 8).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-        ws.Row(2).Height = 20;
-        ws.Row(3).Height = 18;
+        ws.Row(2).Height = 20; ws.Row(3).Height = 18;
 
         int fila = 4;
         int totExt = 0, totAlt = 0, totMod = 0, totBaj = 0, totInd = 0;
 
-        var grupos = filas.GroupBy(f => f.MacroProceso).ToList();
-        foreach (var grupo in grupos)
+        foreach (var grupo in filas.GroupBy(f => f.MacroProceso))
         {
             int filaInicio = fila;
             var lista = grupo.ToList();
-
             foreach (var f in lista)
             {
                 ws.Cell(fila, 2).Value = f.NombreProceso;
@@ -379,33 +316,21 @@ public class ExcelService
                 ws.Cell(fila, 6).Value = f.Bajo;
                 ws.Cell(fila, 7).Value = f.Extremo + f.Alto + f.Moderado + f.Bajo;
                 ws.Cell(fila, 8).Value = f.Indicadores;
-
-                ws.Cell(fila, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                ws.Cell(fila, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                ws.Cell(fila, 5).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                ws.Cell(fila, 6).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                ws.Cell(fila, 7).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                for (int c = 3; c <= 8; c++) ws.Cell(fila, c).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                 ws.Cell(fila, 7).Style.Font.Bold = true;
-                ws.Cell(fila, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-
                 if (f.Extremo > 0) { ws.Cell(fila, 3).Style.Fill.BackgroundColor = XLColor.FromHtml("#ffcdd2"); ws.Cell(fila, 3).Style.Font.Bold = true; }
                 if (f.Alto > 0) { ws.Cell(fila, 4).Style.Fill.BackgroundColor = XLColor.FromHtml("#ffe0b2"); ws.Cell(fila, 4).Style.Font.Bold = true; }
                 if (f.Moderado > 0) ws.Cell(fila, 5).Style.Fill.BackgroundColor = XLColor.FromHtml("#fff9c4");
                 if (f.Bajo > 0) ws.Cell(fila, 6).Style.Fill.BackgroundColor = XLColor.FromHtml("#c8e6c9");
                 if (f.Indicadores > 0) ws.Cell(fila, 8).Style.Fill.BackgroundColor = XLColor.FromHtml("#e3f2fd");
-
-                totExt += f.Extremo; totAlt += f.Alto;
-                totMod += f.Moderado; totBaj += f.Bajo; totInd += f.Indicadores;
+                totExt += f.Extremo; totAlt += f.Alto; totMod += f.Moderado; totBaj += f.Bajo; totInd += f.Indicadores;
                 fila++;
             }
-
-            if (lista.Count > 1)
-                ws.Range(filaInicio, 1, fila - 1, 1).Merge();
+            if (lista.Count > 1) ws.Range(filaInicio, 1, fila - 1, 1).Merge();
             ws.Cell(filaInicio, 1).Value = grupo.Key;
             ws.Cell(filaInicio, 1).Style.Font.Bold = true;
             ws.Cell(filaInicio, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#fffde7");
             ws.Cell(filaInicio, 1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-            ws.Cell(filaInicio, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
             ws.Cell(filaInicio, 1).Style.Alignment.WrapText = true;
         }
 
@@ -414,94 +339,70 @@ public class ExcelService
 
         ws.Range(fila, 1, fila, 2).Merge();
         ws.Cell(fila, 1).Value = "Total Riesgos";
-        ws.Cell(fila, 3).Value = totExt;
-        ws.Cell(fila, 4).Value = totAlt;
-        ws.Cell(fila, 5).Value = totMod;
-        ws.Cell(fila, 6).Value = totBaj;
+        ws.Cell(fila, 3).Value = totExt; ws.Cell(fila, 4).Value = totAlt;
+        ws.Cell(fila, 5).Value = totMod; ws.Cell(fila, 6).Value = totBaj;
         ws.Cell(fila, 7).Value = totExt + totAlt + totMod + totBaj;
         ws.Cell(fila, 8).Value = totInd;
-
         var totalRow = ws.Range(fila, 1, fila, 8);
         totalRow.Style.Font.Bold = true;
         totalRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#343a40");
         totalRow.Style.Font.FontColor = XLColor.White;
         totalRow.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         totalRow.Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
-        totalRow.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
         ws.Row(fila).Height = 18;
 
         ws.Columns().AdjustToContents();
-        ws.Column(1).Width = 40;
-        ws.Column(2).Width = 45;
+        ws.Column(1).Width = 40; ws.Column(2).Width = 45;
 
         using var ms = new MemoryStream();
         wb.SaveAs(ms);
         return ms.ToArray();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 3. SÁBANA COMPLETA CON ENCABEZADO REAL + IMAGEN + BORDES
-    // ─────────────────────────────────────────────────────────────────────────
-    public byte[] GenerarExcelSabana(
-        List<FilaSabanaExcel> filas,
-        SabanaEncabezado enc,
-        string logoPath)
+    // ───────────────────────────────────────────────────────────────────────
+    // 3. SÁBANA COMPLETA
+    // ───────────────────────────────────────────────────────────────────────
+    public byte[] GenerarExcelSabana(List<FilaSabanaExcel> filas, SabanaEncabezado enc, string logoPath)
     {
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("SABANA_MRC");
 
-        // === LOGO ===
         try
         {
             if (System.IO.File.Exists(logoPath))
             {
                 var img = ws.AddPicture(logoPath);
                 img.MoveTo(ws.Cell(1, 1), new System.Drawing.Point(2, 2));
-                img.Width = 90;
-                img.Height = 55;
+                img.Width = 90; img.Height = 55;
             }
         }
         catch { }
 
         ws.Range(1, 1, 4, 1).Merge();
-
-        ws.Cell(1, 2).Value = "FORMATO";
-        ws.Cell(1, 2).Style.Font.Bold = true;
+        ws.Cell(1, 2).Value = "FORMATO"; ws.Cell(1, 2).Style.Font.Bold = true;
         ws.Range(1, 3, 1, 7).Merge();
         ws.Range(1, 8, 1, 12).Merge();
-        ws.Cell(1, 8).Value = "SÁBANA — MATRIZ DE RIESGOS Y CONTROLES (MRC)";
+        ws.Cell(1, 8).Value = "SÁBANA – MATRIZ DE RIESGOS Y CONTROLES (MRC)";
         ws.Cell(1, 8).Style.Font.Bold = true;
         ws.Cell(1, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
 
-        ws.Cell(2, 2).Value = "CÓDIGO";
-        ws.Cell(2, 2).Style.Font.Bold = true;
+        ws.Cell(2, 2).Value = "CÓDIGO"; ws.Cell(2, 2).Style.Font.Bold = true;
         ws.Cell(2, 3).Value = enc.Codigo;
-        ws.Cell(2, 4).Value = "ELABORADO POR:";
-        ws.Cell(2, 4).Style.Font.Bold = true;
-        ws.Range(2, 5, 2, 6).Merge();
-        ws.Cell(2, 5).Value = enc.ElaboradoPor;
-        ws.Cell(2, 7).Value = "REVISADO POR:";
-        ws.Cell(2, 7).Style.Font.Bold = true;
-        ws.Range(2, 8, 2, 9).Merge();
-        ws.Cell(2, 8).Value = enc.RevisadoPor;
-        ws.Cell(2, 10).Value = "APROBADO POR:";
-        ws.Cell(2, 10).Style.Font.Bold = true;
-        ws.Range(2, 11, 2, 12).Merge();
-        ws.Cell(2, 11).Value = enc.AprobadoPor;
+        ws.Cell(2, 4).Value = "ELABORADO POR:"; ws.Cell(2, 4).Style.Font.Bold = true;
+        ws.Range(2, 5, 2, 6).Merge(); ws.Cell(2, 5).Value = enc.ElaboradoPor;
+        ws.Cell(2, 7).Value = "REVISADO POR:"; ws.Cell(2, 7).Style.Font.Bold = true;
+        ws.Range(2, 8, 2, 9).Merge(); ws.Cell(2, 8).Value = enc.RevisadoPor;
+        ws.Cell(2, 10).Value = "APROBADO POR:"; ws.Cell(2, 10).Style.Font.Bold = true;
+        ws.Range(2, 11, 2, 12).Merge(); ws.Cell(2, 11).Value = enc.AprobadoPor;
 
-        ws.Cell(3, 2).Value = "VERSIÓN";
-        ws.Cell(3, 2).Style.Font.Bold = true;
+        ws.Cell(3, 2).Value = "VERSIÓN"; ws.Cell(3, 2).Style.Font.Bold = true;
         ws.Cell(3, 3).Value = enc.Version;
         ws.Range(3, 4, 3, 12).Merge();
-        ws.Cell(3, 4).Value =
-            $"Elaborado por: {enc.ElaboradoPorFirma}  |  " +
-            $"Revisado por: {enc.RevisadoPorFirma}  |  " +
-            $"Aprobado por: {enc.AprobadoPorFirma}";
+        ws.Cell(3, 4).Value = $"Elaborado por: {enc.ElaboradoPorFirma}  |  Revisado por: {enc.RevisadoPorFirma}  |  Aprobado por: {enc.AprobadoPorFirma}";
         ws.Cell(3, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
         ws.Cell(3, 4).Style.Font.Italic = true;
 
-        ws.Cell(4, 2).Value = "FECHA";
-        ws.Cell(4, 2).Style.Font.Bold = true;
+        ws.Cell(4, 2).Value = "FECHA"; ws.Cell(4, 2).Style.Font.Bold = true;
         ws.Cell(4, 3).Value = enc.Fecha;
         ws.Range(4, 4, 4, 12).Merge();
 
@@ -509,19 +410,16 @@ public class ExcelService
         ws.Range(1, 1, 4, 12).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
         ws.Range(1, 1, 4, 12).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
-        ws.Cell(5, 1).Value = "SÁBANA COMPLETA — MATRIZ DE RIESGOS Y CONTROLES (MRC) — ELECTRO ORIENTE S.A.";
+        ws.Cell(5, 1).Value = "SÁBANA COMPLETA – MATRIZ DE RIESGOS Y CONTROLES (MRC) – ELECTRO ORIENTE S.A.";
         ws.Range(5, 1, 5, 41).Merge();
-        ws.Cell(5, 1).Style.Font.Bold = true;
-        ws.Cell(5, 1).Style.Font.FontSize = 13;
+        ws.Cell(5, 1).Style.Font.Bold = true; ws.Cell(5, 1).Style.Font.FontSize = 13;
         ws.Cell(5, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#C00000");
         ws.Cell(5, 1).Style.Font.FontColor = XLColor.White;
         ws.Cell(5, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         ws.Cell(5, 1).Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
         ws.Row(5).Height = 20;
 
-        // ── Fila 6: grupos de secciones ──
         int cabFila = 6;
-
         void MergeGrupo(int c1, int c2, string titulo, string color, string fColor = "#FFFFFF")
         {
             ws.Range(cabFila, c1, cabFila, c2).Merge();
@@ -542,7 +440,6 @@ public class ExcelService
         MergeGrupo(36, 41, "INDICADORES (KRI)", "#0d6efd");
         ws.Row(cabFila).Height = 18;
 
-        // ── Fila 7: nombres de columnas ──
         cabFila = 7;
         var cabs = new[]
         {
@@ -570,9 +467,7 @@ public class ExcelService
         }
         ws.Row(cabFila).Height = 30;
 
-        // === DATOS: una fila por control ===
         int dataFila = 8;
-
         foreach (var f in filas)
         {
             var r = f.Riesgo;
@@ -583,7 +478,6 @@ public class ExcelService
             var esAE = nivR == "Alto" || nivR == "Extremo";
             var plan1 = r.PlanesAccion.FirstOrDefault();
             var kri1 = r.Indicadores.FirstOrDefault();
-
             var controles = r.Controles.ToList();
             int totalFilas = controles.Count > 0 ? controles.Count : 1;
             int filaInicio = dataFila;
@@ -591,11 +485,8 @@ public class ExcelService
             for (int ci = 0; ci < totalFilas; ci++)
             {
                 var ctrl = controles.Count > 0 ? controles[ci] : null;
-                bool esPrimera = ci == 0;
-
-                if (esPrimera)
+                if (ci == 0)
                 {
-                    // Datos Generales
                     ws.Cell(dataFila, 1).Value = r.CodigoProceso;
                     ws.Cell(dataFila, 2).Value = "Proceso";
                     ws.Cell(dataFila, 3).Value = r.GerenciaResponsable;
@@ -606,41 +497,23 @@ public class ExcelService
                     ws.Cell(dataFila, 8).Value = r.OrigenRiesgo;
                     ws.Cell(dataFila, 9).Value = r.FrecuenciaRiesgo;
                     ws.Cell(dataFila, 10).Value = r.TipoRiesgo;
-
-                    // Riesgo Inherente
                     ws.Cell(dataFila, 11).Value = r.ProbabilidadInherente;
                     ws.Cell(dataFila, 12).Value = r.ImpactoInherente;
-                    var cSevI = ws.Cell(dataFila, 13);
-                    cSevI.Value = sevI;
-                    cSevI.Style.Fill.BackgroundColor = GetXLColor(nivI);
-                    cSevI.Style.Font.FontColor = XLColor.White;
-                    cSevI.Style.Font.Bold = true;
-                    cSevI.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                    var cNivI = ws.Cell(dataFila, 14);
-                    cNivI.Value = nivI;
-                    cNivI.Style.Fill.BackgroundColor = GetXLColor(nivI);
-                    cNivI.Style.Font.FontColor = XLColor.White;
-                    cNivI.Style.Font.Bold = true;
-                    cNivI.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-
-                    // Riesgo Residual
+                    var cSevI = ws.Cell(dataFila, 13); cSevI.Value = sevI;
+                    cSevI.Style.Fill.BackgroundColor = GetXLColor(nivI); cSevI.Style.Font.FontColor = XLColor.White;
+                    cSevI.Style.Font.Bold = true; cSevI.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    var cNivI = ws.Cell(dataFila, 14); cNivI.Value = nivI;
+                    cNivI.Style.Fill.BackgroundColor = GetXLColor(nivI); cNivI.Style.Font.FontColor = XLColor.White;
+                    cNivI.Style.Font.Bold = true; cNivI.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                     ws.Cell(dataFila, 23).Value = r.ProbabilidadResidual;
                     ws.Cell(dataFila, 24).Value = r.ImpactoResidual;
-                    var cSevR = ws.Cell(dataFila, 25);
-                    cSevR.Value = sevR;
-                    cSevR.Style.Fill.BackgroundColor = GetXLColor(nivR);
-                    cSevR.Style.Font.FontColor = XLColor.White;
-                    cSevR.Style.Font.Bold = true;
-                    cSevR.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                    var cNivR = ws.Cell(dataFila, 26);
-                    cNivR.Value = nivR;
-                    cNivR.Style.Fill.BackgroundColor = GetXLColor(nivR);
-                    cNivR.Style.Font.FontColor = XLColor.White;
-                    cNivR.Style.Font.Bold = true;
-                    cNivR.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    var cSevR = ws.Cell(dataFila, 25); cSevR.Value = sevR;
+                    cSevR.Style.Fill.BackgroundColor = GetXLColor(nivR); cSevR.Style.Font.FontColor = XLColor.White;
+                    cSevR.Style.Font.Bold = true; cSevR.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    var cNivR = ws.Cell(dataFila, 26); cNivR.Value = nivR;
+                    cNivR.Style.Fill.BackgroundColor = GetXLColor(nivR); cNivR.Style.Font.FontColor = XLColor.White;
+                    cNivR.Style.Font.Bold = true; cNivR.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                     ws.Cell(dataFila, 27).Value = r.EstrategiaResidual;
-
-                    // Plan de Acción
                     ws.Cell(dataFila, 28).Value = esAE ? (plan1?.CodigoPlan ?? "") : "";
                     ws.Cell(dataFila, 29).Value = esAE ? (plan1?.DescripcionPlan ?? "") : "";
                     ws.Cell(dataFila, 30).Value = esAE ? (plan1?.AreaResponsable ?? "") : "";
@@ -648,17 +521,12 @@ public class ExcelService
                     ws.Cell(dataFila, 32).Value = esAE ? (plan1?.InicioPlan?.ToString("dd/MM/yyyy") ?? "") : "";
                     ws.Cell(dataFila, 33).Value = esAE ? (plan1?.EstadoPlan ?? "") : "";
                     ws.Cell(dataFila, 34).Value = esAE ? (plan1?.FinPlan?.ToString("dd/MM/yyyy") ?? "") : "";
-                    var cPlanNiv = ws.Cell(dataFila, 35);
                     if (esAE)
                     {
-                        cPlanNiv.Value = nivR;
-                        cPlanNiv.Style.Fill.BackgroundColor = GetXLColor(nivR);
-                        cPlanNiv.Style.Font.FontColor = XLColor.White;
-                        cPlanNiv.Style.Font.Bold = true;
-                        cPlanNiv.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                        var cPlanNiv = ws.Cell(dataFila, 35); cPlanNiv.Value = nivR;
+                        cPlanNiv.Style.Fill.BackgroundColor = GetXLColor(nivR); cPlanNiv.Style.Font.FontColor = XLColor.White;
+                        cPlanNiv.Style.Font.Bold = true; cPlanNiv.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                     }
-
-                    // Indicadores
                     ws.Cell(dataFila, 36).Value = esAE ? (kri1?.CodigoKRI ?? "") : "";
                     ws.Cell(dataFila, 37).Value = esAE ? (kri1?.DefinicionKRI ?? "") : "";
                     ws.Cell(dataFila, 38).Value = esAE ? (kri1?.Frecuencia ?? "") : "";
@@ -667,7 +535,6 @@ public class ExcelService
                     ws.Cell(dataFila, 41).Value = esAE ? (kri1?.ResponsableKRI ?? "") : "";
                 }
 
-                // Control — siempre en su propia celda
                 if (ctrl != null)
                 {
                     ws.Cell(dataFila, 15).Value = ctrl.CodigoControl;
@@ -685,37 +552,25 @@ public class ExcelService
                 rango.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
                 rango.Style.Alignment.WrapText = true;
                 rango.Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
-
                 dataFila++;
             }
 
-            // Merge para columnas que no son de Control
             if (totalFilas > 1)
             {
-                for (int c = 1; c <= 14; c++)
-                    ws.Range(filaInicio, c, dataFila - 1, c).Merge();
-                for (int c = 23; c <= 41; c++)
-                    ws.Range(filaInicio, c, dataFila - 1, c).Merge();
-
+                for (int c = 1; c <= 14; c++) ws.Range(filaInicio, c, dataFila - 1, c).Merge();
+                for (int c = 23; c <= 41; c++) ws.Range(filaInicio, c, dataFila - 1, c).Merge();
                 ws.Range(filaInicio, 1, dataFila - 1, 14).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
                 ws.Range(filaInicio, 23, dataFila - 1, 41).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             }
-
-            ws.Range(filaInicio, 1, dataFila - 1, 41)
-              .Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
+            ws.Range(filaInicio, 1, dataFila - 1, 41).Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
         }
 
         if (dataFila > 8)
-            ws.Range(8, 1, dataFila - 1, 41)
-              .Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
+            ws.Range(8, 1, dataFila - 1, 41).Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
 
         ws.Columns().AdjustToContents();
-        ws.Column(7).Width = 35;
-        ws.Column(16).Width = 35;
-        ws.Column(22).Width = 30;
-        ws.Column(29).Width = 30;
-        ws.Column(37).Width = 30;
-
+        ws.Column(7).Width = 35; ws.Column(16).Width = 35;
+        ws.Column(22).Width = 30; ws.Column(29).Width = 30; ws.Column(37).Width = 30;
         ws.SheetView.FreezeRows(7);
 
         using var ms = new MemoryStream();
@@ -723,9 +578,9 @@ public class ExcelService
         return ms.ToArray();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ───────────────────────────────────────────────────────────────────────
     // PRIVADOS
-    // ─────────────────────────────────────────────────────────────────────────
+    // ───────────────────────────────────────────────────────────────────────
     private void GenerarHojaHeatmap(XLWorkbook wb, List<Riesgo> riesgos, bool esInherente)
     {
         var nombre = esInherente ? "Riesgo Inherente" : "Riesgo Residual";
@@ -733,15 +588,11 @@ public class ExcelService
 
         ws.Cell(1, 1).Value = nombre.ToUpper();
         ws.Range(1, 1, 1, 6).Merge();
-        ws.Cell(1, 1).Style.Font.Bold = true;
-        ws.Cell(1, 1).Style.Font.FontSize = 14;
+        ws.Cell(1, 1).Style.Font.Bold = true; ws.Cell(1, 1).Style.Font.FontSize = 14;
         ws.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        ws.Cell(3, 1).Value = "Código Riesgo";
-        ws.Cell(3, 2).Value = "Probabilidad";
-        ws.Cell(3, 3).Value = "Impacto";
-        ws.Cell(3, 4).Value = "Severidad";
-        ws.Cell(3, 5).Value = "Nivel";
+        ws.Cell(3, 1).Value = "Código Riesgo"; ws.Cell(3, 2).Value = "Probabilidad";
+        ws.Cell(3, 3).Value = "Impacto"; ws.Cell(3, 4).Value = "Severidad"; ws.Cell(3, 5).Value = "Nivel";
         ws.Range(3, 1, 3, 5).Style.Font.Bold = true;
         ws.Range(3, 1, 3, 5).Style.Fill.BackgroundColor = XLColor.FromHtml("#C00000");
         ws.Range(3, 1, 3, 5).Style.Font.FontColor = XLColor.White;
@@ -753,24 +604,16 @@ public class ExcelService
             int imp = esInherente ? r.ImpactoInherente : r.ImpactoResidual;
             int sev = prob * imp;
             string niv = Riesgo.GetNivel(sev);
-
             ws.Cell(fila, 1).Value = r.CodigoRiesgo;
             ws.Cell(fila, 2).Value = prob;
             ws.Cell(fila, 3).Value = imp;
             ws.Cell(fila, 4).Value = sev;
-
-            var cn = ws.Cell(fila, 5);
-            cn.Value = niv;
-            cn.Style.Fill.BackgroundColor = GetXLColor(niv);
-            cn.Style.Font.FontColor = XLColor.White;
-            cn.Style.Font.Bold = true;
+            var cn = ws.Cell(fila, 5); cn.Value = niv;
+            cn.Style.Fill.BackgroundColor = GetXLColor(niv); cn.Style.Font.FontColor = XLColor.White; cn.Style.Font.Bold = true;
             fila++;
         }
 
-        int startRow = 3;
-        int startCol = 7;
-        int cellSize = 3;
-
+        int startRow = 3, startCol = 7, cellSize = 3;
         string[,] colores = {
             { "#28a745", "#ffc107", "#ffc107", "#fd7e14" },
             { "#28a745", "#ffc107", "#fd7e14", "#dc3545" },
@@ -787,7 +630,6 @@ public class ExcelService
         {
             int excelRow = startRow + (3 - row) * cellSize;
             ws.Cell(excelRow, startCol - 1).Value = (4 - row).ToString();
-
             for (int col = 0; col < 4; col++)
             {
                 int excelCol = startCol + col * cellSize;
@@ -796,14 +638,12 @@ public class ExcelService
                 rng.Style.Fill.BackgroundColor = XLColor.FromHtml(colores[row, col]);
                 rng.Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
                 rng.Style.Border.OutsideBorderColor = XLColor.White;
-
                 var riesgosEnCelda = riesgos.Where(r =>
                 {
                     int p = esInherente ? r.ProbabilidadInherente : r.ProbabilidadResidual;
                     int i2 = esInherente ? r.ImpactoInherente : r.ImpactoResidual;
                     return p == (col + 1) && i2 == (row + 1);
                 }).ToList();
-
                 if (riesgosEnCelda.Any())
                 {
                     rng.FirstCell().Value = string.Join("\n", riesgosEnCelda.Select(r => r.CodigoRiesgo));
@@ -822,20 +662,15 @@ public class ExcelService
             int excelCol = startCol + (i - 1) * cellSize;
             ws.Cell(startRow + 4 * cellSize, excelCol).Value = i.ToString();
             ws.Cell(startRow + 4 * cellSize, excelCol).Style.Font.Bold = true;
-            ws.Cell(startRow + 4 * cellSize, excelCol).Style.Alignment.Horizontal =
-                XLAlignmentHorizontalValues.Center;
+            ws.Cell(startRow + 4 * cellSize, excelCol).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         }
 
         ws.Cell(startRow + 4 * cellSize + 1, startCol).Value = "← Probabilidad →";
-        ws.Range(startRow + 4 * cellSize + 1, startCol,
-                 startRow + 4 * cellSize + 1, startCol + 4 * cellSize).Merge();
+        ws.Range(startRow + 4 * cellSize + 1, startCol, startRow + 4 * cellSize + 1, startCol + 4 * cellSize).Merge();
         ws.Cell(startRow + 4 * cellSize + 1, startCol).Style.Font.Bold = true;
-        ws.Cell(startRow + 4 * cellSize + 1, startCol).Style.Alignment.Horizontal =
-            XLAlignmentHorizontalValues.Center;
-
+        ws.Cell(startRow + 4 * cellSize + 1, startCol).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         ws.Cell(startRow - 1, startCol - 1).Value = "↑ Impacto ↓";
         ws.Cell(startRow - 1, startCol - 1).Style.Font.Bold = true;
-
         ws.Columns().AdjustToContents();
     }
 
@@ -847,9 +682,9 @@ public class ExcelService
         _ => XLColor.FromHtml("#dc3545")
     };
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 4. CARGA MASIVA EXCEL
-    // ─────────────────────────────────────────────────────────────────────────
+    // ───────────────────────────────────────────────────────────────────────
+    // 4. CARGA MASIVA EXCEL — LECTURA DEFENSIVA CORREGIDA
+    // ───────────────────────────────────────────────────────────────────────
     public byte[] ObtenerPlantillaCargaMasiva()
     {
         string rutaArchivo = @"D:\PROYECTO_GIR\EXTRAS\Carga_Masiva_V1.xlsm";
@@ -861,75 +696,162 @@ public class ExcelService
     public List<FilaCargaMasiva> LeerCargaMasivaExcel(Stream stream)
     {
         var filas = new List<FilaCargaMasiva>();
-        using var wb = new XLWorkbook(stream);
-        var ws = wb.Worksheets.FirstOrDefault(w => w.Name.Contains("MATRIZ")) ?? wb.Worksheets.First();
 
-        int startRow = 4;
-        for (int r = 1; r <= 10; r++)
+        using var wb = new XLWorkbook(stream);
+
+        // Seleccionar hoja: preferir la que contenga "MATRIZ" en el nombre
+        var ws = wb.Worksheets
+            .OrderByDescending(w => w.Name.ToUpperInvariant().Contains("MATRIZ"))
+            .FirstOrDefault() ?? wb.Worksheets.First();
+
+        int lastColUsed = ws.LastColumnUsed()?.ColumnNumber() ?? 50;
+        int lastRow = ws.LastRowUsed()?.RowNumber() ?? 4;
+
+        // ── Detectar fila de cabecera y columna base ──────────────────────
+        // El formato ELORSA tiene la cabecera en fila 2, col 2 = "COD"
+        // y los datos a partir de fila 4.
+        // Para ser robustos buscamos en las primeras 25 filas.
+        int startRow = 4;   // valor por defecto
+        int colOffset = 0;   // desplazamiento de columnas detectado
+
+        for (int r = 1; r <= Math.Min(25, lastRow); r++)
         {
-            var cellTxt = ws.Cell(r, 1).GetString().Trim().ToUpperInvariant();
-            if (cellTxt == "COD" || cellTxt == "CÓDIGO" || cellTxt == "CODIGO")
+            for (int c = 1; c <= Math.Min(5, lastColUsed); c++)
             {
-                startRow = r + 1;
-                if (ws.Cell(r + 1, 1).GetString().Contains("Aplica solo"))
-                    startRow = r + 2;
-                break;
+                var val = ws.Cell(r, c).GetString().Trim().ToUpperInvariant();
+                if (val is "COD" or "CÓDIGO" or "CODIGO")
+                {
+                    // col donde está COD menos 1 = offset (en el formato ELORSA col 2 → offset 1)
+                    colOffset = c - 1;
+                    startRow = r + 1;
+
+                    // Saltar fila de ejemplo si la siguiente está vacía o es instrucción
+                    if (startRow <= lastRow)
+                    {
+                        var next = ws.Cell(startRow, c).GetString().Trim().ToUpperInvariant();
+                        if (string.IsNullOrWhiteSpace(next)
+                            || next.StartsWith("APLICA") || next.StartsWith("EJEMPLO")
+                            || next.StartsWith("NOTA") || next.StartsWith("*"))
+                            startRow++;
+                    }
+                    goto BusquedaTerminada;
+                }
             }
         }
+    BusquedaTerminada:
 
-        int lastRow = ws.LastRowUsed()?.RowNumber() ?? startRow;
+        // ── Función defensiva de lectura con offset ───────────────────────
+        // col es la columna lógica del formato (sin offset).
+        // Si el archivo desplaza todo 1 columna a la derecha (offset=1),
+        // se suma automáticamente.
+        string Cel(int row, int col)
+        {
+            int realCol = col + colOffset;
+            if (realCol < 1 || realCol > lastColUsed) return "";
+            return ws.Cell(row, realCol).GetString().Trim();
+        }
+
+        // ── Mapeo de columnas lógicas del formato ELORSA ─────────────────
+        // Basado en inspección directa del archivo MATRIZ.xlsx:
+        //   Col lógica 1  = COD (código proceso)
+        //   Col lógica 2  = Nivel
+        //   Col lógica 3  = Gerencia Responsable
+        //   Col lógica 4  = Nombre del Proceso
+        //   Col lógica 5  = Subproceso
+        //   Col lógica 6  = Código del Riesgo
+        //   Col lógica 7  = Descripción del riesgo
+        //   Col lógica 8  = Procesos impactados
+        //   Col lógica 9  = FODA
+        //   Col lógica 10 = Grupos de Interés
+        //   Col lógica 11 = Origen del Riesgo
+        //   Col lógica 12 = Frecuencia del Riesgo
+        //   Col lógica 13 = Tipo de Riesgo
+        //   Col lógica 14 = Probabilidad Inherente
+        //   Col lógica 15 = Impacto Inherente
+        //   Col lógica 16 = Severidad Inherente (fórmula, ignorar)
+        //   Col lógica 17 = Nivel Inherente (fórmula, ignorar)
+        //   Col lógica 18 = Código del Control
+        //   Col lógica 19 = Descripción del control
+        //   Col lógica 20 = Área responsable del control
+        //   Col lógica 21 = Responsable del control
+        //   Col lógica 22 = Frecuencia del control
+        //   Col lógica 23 = Oportunidad del control
+        //   Col lógica 24 = Automatización del control
+        //   Col lógica 25 = Evidencia del control
+        //   Col lógica 26 = Probabilidad Residual
+        //   Col lógica 27 = Impacto Residual
+        //   Col lógica 28 = Severidad Residual (fórmula, ignorar)
+        //   Col lógica 29 = Nivel Residual (fórmula, ignorar)
+        //   Col lógica 30 = Estrategia de Respuesta
+        //   Col lógica 31 = Código Plan de Acción
+        //   Col lógica 32 = Descripción Plan de Acción
+        //   Col lógica 33 = Área responsable del plan
+        //   Col lógica 34 = Responsable del plan
+        //   Col lógica 35 = Inicio Plan de Acción
+        //   Col lógica 36 = Estado Plan de Acción
+        //   Col lógica 37 = Fin del plan
+        //   Col lógica 38 = Fecha prevista
+        //   Col lógica 39 = ¿El plan fue eficaz?
+        //   Col lógica 40 = Fecha de verificación
+
         var codigosVistosEnArchivo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         for (int r = startRow; r <= lastRow; r++)
         {
-            var codProceso = ws.Cell(r, 1).GetString().Trim();
-            var codRiesgo = ws.Cell(r, 6).GetString().Trim();
-            var descRiesgo = ws.Cell(r, 7).GetString().Trim();
+            var codProceso = Cel(r, 1);
+            var codRiesgo = Cel(r, 6);
+            var descRiesgo = Cel(r, 7);
 
-            if (string.IsNullOrWhiteSpace(codProceso) && string.IsNullOrWhiteSpace(codRiesgo) && string.IsNullOrWhiteSpace(descRiesgo))
+            // Saltar filas completamente vacías
+            if (string.IsNullOrWhiteSpace(codProceso)
+                && string.IsNullOrWhiteSpace(codRiesgo)
+                && string.IsNullOrWhiteSpace(descRiesgo))
                 continue;
 
             var f = new FilaCargaMasiva
             {
                 FilaNumero = r,
                 CodigoProceso = codProceso,
-                NivelProceso = ws.Cell(r, 2).GetString().Trim(),
-                GerenciaResponsable = ws.Cell(r, 3).GetString().Trim(),
-                NombreProceso = ws.Cell(r, 4).GetString().Trim(),
-                Subproceso = ws.Cell(r, 5).GetString().Trim(),
+                NivelProceso = Cel(r, 2),
+                GerenciaResponsable = Cel(r, 3),
+                NombreProceso = Cel(r, 4),
+                Subproceso = Cel(r, 5),
                 CodigoRiesgo = codRiesgo,
                 DescripcionRiesgo = descRiesgo,
-                ProcesosImpactados = ws.Cell(r, 8).GetString().Trim(),
-                Foda = ws.Cell(r, 9).GetString().Trim(),
-                GruposInteres = ws.Cell(r, 10).GetString().Trim(),
-                OrigenRiesgo = ws.Cell(r, 11).GetString().Trim(),
-                FrecuenciaRiesgo = ws.Cell(r, 12).GetString().Trim(),
-                TipoRiesgo = ws.Cell(r, 13).GetString().Trim(),
-                ProbabilidadInherente = ParseInt(ws.Cell(r, 14).GetString(), 1),
-                ImpactoInherente = ParseInt(ws.Cell(r, 15).GetString(), 1),
-                CodigoControl = ws.Cell(r, 18).GetString().Trim(),
-                DescripcionControl = ws.Cell(r, 19).GetString().Trim(),
-                AreaResponsableControl = ws.Cell(r, 20).GetString().Trim(),
-                ResponsableControl = ws.Cell(r, 21).GetString().Trim(),
-                FrecuenciaControl = ws.Cell(r, 22).GetString().Trim(),
-                OportunidadControl = ws.Cell(r, 23).GetString().Trim(),
-                AutomatizacionControl = ws.Cell(r, 24).GetString().Trim(),
-                EvidenciaControl = ws.Cell(r, 25).GetString().Trim(),
-                ProbabilidadResidual = ParseInt(ws.Cell(r, 26).GetString(), 1),
-                ImpactoResidual = ParseInt(ws.Cell(r, 27).GetString(), 1),
-                EstrategiaRespuesta = ws.Cell(r, 30).GetString().Trim(),
-                CodigoPlanAccion = ws.Cell(r, 31).GetString().Trim(),
-                DescripcionPlanAccion = ws.Cell(r, 32).GetString().Trim(),
-                AreaResponsablePlan = ws.Cell(r, 33).GetString().Trim(),
-                ResponsablePlan = ws.Cell(r, 34).GetString().Trim(),
-                InicioPlanAccion = ParseDate(ws.Cell(r, 35).GetString()),
-                EstadoPlanAccion = ws.Cell(r, 36).GetString().Trim(),
-                FinPlanAccion = ParseDate(ws.Cell(r, 37).GetString()),
-                FechaPrevista = ParseDate(ws.Cell(r, 38).GetString()),
-                PlanEficaz = ws.Cell(r, 39).GetString().Trim(),
-                FechaVerificacion = ParseDate(ws.Cell(r, 40).GetString())
+                ProcesosImpactados = Cel(r, 8),
+                Foda = Cel(r, 9),
+                GruposInteres = Cel(r, 10),
+                OrigenRiesgo = Cel(r, 11),
+                FrecuenciaRiesgo = Cel(r, 12),
+                TipoRiesgo = Cel(r, 13),
+                ProbabilidadInherente = ParseInt(Cel(r, 14), 1),
+                ImpactoInherente = ParseInt(Cel(r, 15), 1),
+                // col 16 y 17 son fórmulas (Severidad y Nivel inherente) → ignorar
+                CodigoControl = Cel(r, 18),
+                DescripcionControl = Cel(r, 19),
+                AreaResponsableControl = Cel(r, 20),
+                ResponsableControl = Cel(r, 21),
+                FrecuenciaControl = Cel(r, 22),
+                OportunidadControl = Cel(r, 23),
+                AutomatizacionControl = Cel(r, 24),
+                EvidenciaControl = Cel(r, 25),
+                ProbabilidadResidual = ParseInt(Cel(r, 26), 1),
+                ImpactoResidual = ParseInt(Cel(r, 27), 1),
+                // col 28 y 29 son fórmulas (Severidad y Nivel residual) → ignorar
+                EstrategiaRespuesta = Cel(r, 30),
+                CodigoPlanAccion = Cel(r, 31),
+                DescripcionPlanAccion = Cel(r, 32),
+                AreaResponsablePlan = Cel(r, 33),
+                ResponsablePlan = Cel(r, 34),
+                InicioPlanAccion = ParseDate(Cel(r, 35)),
+                EstadoPlanAccion = Cel(r, 36),
+                FinPlanAccion = ParseDate(Cel(r, 37)),
+                FechaPrevista = ParseDate(Cel(r, 38)),
+                PlanEficaz = Cel(r, 39),
+                FechaVerificacion = ParseDate(Cel(r, 40))
             };
 
+            // Detectar duplicados dentro del archivo
             if (!string.IsNullOrWhiteSpace(f.CodigoRiesgo))
             {
                 if (codigosVistosEnArchivo.Contains(f.CodigoRiesgo))
@@ -943,6 +865,7 @@ public class ExcelService
                 }
             }
 
+            // Marcar como inválido si no tiene código ni descripción
             if (string.IsNullOrWhiteSpace(f.CodigoRiesgo) && string.IsNullOrWhiteSpace(f.DescripcionRiesgo))
             {
                 f.EsValido = false;
@@ -998,7 +921,6 @@ public class ExcelService
         {
             var c1 = r.Controles.FirstOrDefault();
             var p1 = r.PlanesAccion.FirstOrDefault();
-
             ws.Cell(row, 1).Value = r.CodigoProceso;
             ws.Cell(row, 2).Value = "Proceso";
             ws.Cell(row, 3).Value = r.GerenciaResponsable;
@@ -1039,7 +961,6 @@ public class ExcelService
             ws.Cell(row, 38).Value = "";
             ws.Cell(row, 39).Value = "";
             ws.Cell(row, 40).Value = "";
-
             ws.Range(row, 1, row, 40).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
             row++;
         }

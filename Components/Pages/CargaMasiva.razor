@@ -87,7 +87,6 @@
                         </div>
                     }
                 </div>
-
                 <div class="col-md-3 mb-3">
                     <div class="custom-control custom-checkbox mt-4">
                         <input type="checkbox" class="custom-control-input" id="chkActualizar" @bind="ActualizarExistentes" />
@@ -96,7 +95,6 @@
                         </label>
                     </div>
                 </div>
-
                 <div class="col-md-3 mb-3 text-right">
                     <button class="btn btn-primary btn-block py-2 font-weight-bold" @onclick="InspeccionarArchivo" disabled="@(ArchivoSeleccionado == null || Procesando)">
                         @if (Procesando)
@@ -111,7 +109,6 @@
                     </button>
                 </div>
             </div>
-
             @if (!string.IsNullOrEmpty(MensajeEstado))
             {
                 <div class="alert alert-@TipoMensajeAlert py-2 mt-3 mb-0">
@@ -121,7 +118,7 @@
         </div>
     </div>
 
-    <!-- SECCIÓN 3: RESUMEN Y VISTA PREVIA -->
+    <!-- SECCIÓN 3: RESUMEN Y VISTA PREVIA INSTITUCIONAL -->
     @if (FilasInspeccionadas.Any())
     {
         <div class="card card-outline card-warning mb-4">
@@ -145,6 +142,7 @@
             </div>
 
             <div class="card-body p-3">
+
                 <!-- Badges Estadísticos -->
                 <div class="row mb-3">
                     <div class="col-md-2 col-6 mb-2">
@@ -203,56 +201,184 @@
                     </div>
                 </div>
 
-                <!-- Tabla de Inspección -->
-                <div class="table-responsive" style="max-height: 450px;">
-                    <table class="table table-sm table-striped table-hover border">
-                        <thead class="bg-primary text-white" style="position:sticky; top:0; z-index:5;">
+                <!-- ═══════════════════════════════════════════════════════════
+                     TABLA INSTITUCIONAL COMPLETA — FORMATO ELORSA
+                     ═══════════════════════════════════════════════════════════ -->
+                <div class="table-responsive" style="max-height: 520px; overflow: auto;">
+                    <table class="table table-sm table-bordered mb-0" style="font-size: 0.72rem; white-space: nowrap; min-width: 2800px;">
+
+                        <!-- ── FILA 1: GRUPOS DE SECCIÓN ── -->
+                        <thead>
                             <tr>
-                                <th># Fila</th>
-                                <th>Cód. Proceso</th>
-                                <th>Gerencia</th>
-                                <th>Cód. Riesgo</th>
-                                <th>Descripción Riesgo</th>
-                                <th>Sev. Inh.</th>
-                                <th>Control</th>
-                                <th>Sev. Res.</th>
-                                <th>Plan de Acción</th>
-                                <th>Validación Duplicados</th>
+                                <th rowspan="2" class="text-center align-middle" style="background:#1a3a5c; color:#fff; min-width:40px;">#</th>
+                                <!-- DATOS GENERALES (13 cols) -->
+                                <th colspan="13" class="text-center" style="background:#0062B8; color:#fff; border:2px solid #fff;">
+                                    DATOS GENERALES DEL RIESGO
+                                </th>
+                                <!-- RIESGO INHERENTE (4 cols) -->
+                                <th colspan="4" class="text-center" style="background:#6c757d; color:#fff; border:2px solid #fff;">
+                                    RIESGO INHERENTE
+                                </th>
+                                <!-- CONTROL (8 cols) -->
+                                <th colspan="8" class="text-center" style="background:#003B70; color:#fff; border:2px solid #fff;">
+                                    CONTROL
+                                </th>
+                                <!-- RIESGO RESIDUAL (4 cols) -->
+                                <th colspan="4" class="text-center" style="background:#004F94; color:#fff; border:2px solid #fff;">
+                                    RIESGO RESIDUAL
+                                </th>
+                                <!-- PLAN DE ACCIÓN (9 cols) -->
+                                <th colspan="9" class="text-center" style="background:#856404; color:#fff; border:2px solid #fff;">
+                                    PLAN DE ACCIÓN
+                                </th>
+                                <!-- INDICADORES (6 cols) -->
+                                <th colspan="6" class="text-center" style="background:#0062B8; color:#fff; border:2px solid #fff;">
+                                    INDICADORES
+                                </th>
+                                <!-- ESTADO -->
+                                <th rowspan="2" class="text-center align-middle" style="background:#155724; color:#fff; min-width:90px;">
+                                    Estado
+                                </th>
+                            </tr>
+
+                            <!-- ── FILA 2: NOMBRES DE COLUMNAS ── -->
+                            <tr style="background:#e9ecef; font-size:0.68rem;">
+                                <!-- Datos generales -->
+                                <th class="text-center" style="background:#cce0ff; min-width:55px;">COD</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:60px;">Nivel</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:150px;">Gerencia Resp.</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:160px;">Nombre Proceso</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:140px;">Subproceso</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:80px;">Cód. Riesgo</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:220px;">Descripción Riesgo</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:100px;">Proc. Impactados</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:70px;">FODA</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:100px;">Grupos Interés</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:70px;">Origen</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:80px;">Frecuencia</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:80px;">Tipo</th>
+                                <!-- Riesgo Inherente -->
+                                <th class="text-center" style="background:#dee2e6; min-width:50px;">Prob.</th>
+                                <th class="text-center" style="background:#dee2e6; min-width:55px;">Impacto</th>
+                                <th class="text-center" style="background:#dee2e6; min-width:55px;">Severidad</th>
+                                <th class="text-center" style="background:#dee2e6; min-width:65px;">Nivel</th>
+                                <!-- Control -->
+                                <th class="text-center" style="background:#c8d8f0; min-width:80px;">Cód. Control</th>
+                                <th class="text-center" style="background:#c8d8f0; min-width:200px;">Desc. Control</th>
+                                <th class="text-center" style="background:#c8d8f0; min-width:140px;">Área Control</th>
+                                <th class="text-center" style="background:#c8d8f0; min-width:140px;">Resp. Control</th>
+                                <th class="text-center" style="background:#c8d8f0; min-width:80px;">Frec. Control</th>
+                                <th class="text-center" style="background:#c8d8f0; min-width:80px;">Oportunidad</th>
+                                <th class="text-center" style="background:#c8d8f0; min-width:80px;">Automatiz.</th>
+                                <th class="text-center" style="background:#c8d8f0; min-width:140px;">Evidencia</th>
+                                <!-- Riesgo Residual -->
+                                <th class="text-center" style="background:#d0e4f7; min-width:50px;">Prob.</th>
+                                <th class="text-center" style="background:#d0e4f7; min-width:55px;">Impacto</th>
+                                <th class="text-center" style="background:#d0e4f7; min-width:55px;">Severidad</th>
+                                <th class="text-center" style="background:#d0e4f7; min-width:65px;">Nivel</th>
+                                <!-- Plan de Acción -->
+                                <th class="text-center" style="background:#fff3cd; min-width:90px;">Estrategia</th>
+                                <th class="text-center" style="background:#fff3cd; min-width:80px;">Cód. Plan</th>
+                                <th class="text-center" style="background:#fff3cd; min-width:200px;">Desc. Plan</th>
+                                <th class="text-center" style="background:#fff3cd; min-width:140px;">Área Plan</th>
+                                <th class="text-center" style="background:#fff3cd; min-width:140px;">Resp. Plan</th>
+                                <th class="text-center" style="background:#fff3cd; min-width:80px;">Inicio</th>
+                                <th class="text-center" style="background:#fff3cd; min-width:70px;">Estado</th>
+                                <th class="text-center" style="background:#fff3cd; min-width:80px;">Fin</th>
+                                <th class="text-center" style="background:#fff3cd; min-width:80px;">F. Prevista</th>
+                                <th class="text-center" style="background:#fff3cd; min-width:70px;">¿Eficaz?</th>
+                                <!-- Indicadores -->
+                                <th class="text-center" style="background:#cce0ff; min-width:80px;">Cód. KRI</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:160px;">Definición KRI</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:70px;">Frec. KRI</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:70px;">Meta KRI</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:70px;">KRI Actual</th>
+                                <th class="text-center" style="background:#cce0ff; min-width:130px;">Resp. KRI</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @foreach (var f in FilasInspeccionadas.Take(100))
+
+                        <!-- ── CUERPO DE DATOS ── -->
+                        <tbody style="font-size:0.70rem;">
+                            @foreach (var f in FilasInspeccionadas.Take(200))
                             {
-                                <tr>
-                                    <td><strong>@f.FilaNumero</strong></td>
-                                    <td><span class="badge badge-info">@f.CodigoProceso</span></td>
-                                    <td><small>@f.GerenciaResponsable</small></td>
-                                    <td><strong>@f.CodigoRiesgo</strong></td>
-                                    <td><small class="text-truncate d-inline-block" style="max-width: 250px;" title="@f.DescripcionRiesgo">@f.DescripcionRiesgo</small></td>
-                                    <td>
-                                        <span class="badge badge-@(f.NivelInherente=="Bajo"?"success":f.NivelInherente=="Moderado"?"warning":"danger")">
-                                            @f.SeveridadInherente (@f.NivelInherente)
-                                        </span>
+                                var sevI = f.ProbabilidadInherente * f.ImpactoInherente;
+                                var sevR = f.ProbabilidadResidual * f.ImpactoResidual;
+                                var nivI = GetNivel(sevI);
+                                var nivR = GetNivel(sevR);
+                                var colorI = GetColorNivel(nivI);
+                                var colorR = GetColorNivel(nivR);
+
+                                <tr class="@(f.EsDuplicadoEnArchivo ? "table-warning" : f.ExisteEnBaseDatos ? "table-info" : f.EsValido ? "" : "table-danger")">
+                                    <!-- # fila -->
+                                    <td class="text-center font-weight-bold">@f.FilaNumero</td>
+                                    <!-- Datos generales -->
+                                    <td class="text-center"><span class="badge badge-primary" style="font-size:0.65rem;">@f.CodigoProceso</span></td>
+                                    <td class="text-center">@f.NivelProceso</td>
+                                    <td title="@f.GerenciaResponsable" style="max-width:150px; overflow:hidden; text-overflow:ellipsis;">@f.GerenciaResponsable</td>
+                                    <td title="@f.NombreProceso" style="max-width:160px; overflow:hidden; text-overflow:ellipsis;">@f.NombreProceso</td>
+                                    <td title="@f.Subproceso" style="max-width:140px; overflow:hidden; text-overflow:ellipsis;">@f.Subproceso</td>
+                                    <td class="font-weight-bold text-primary" style="white-space:nowrap;">@f.CodigoRiesgo</td>
+                                    <td title="@f.DescripcionRiesgo" style="max-width:220px; overflow:hidden; text-overflow:ellipsis;">@f.DescripcionRiesgo</td>
+                                    <td title="@f.ProcesosImpactados" style="max-width:100px; overflow:hidden; text-overflow:ellipsis;">@f.ProcesosImpactados</td>
+                                    <td title="@f.Foda" style="max-width:70px; overflow:hidden; text-overflow:ellipsis;">@f.Foda</td>
+                                    <td title="@f.GruposInteres" style="max-width:100px; overflow:hidden; text-overflow:ellipsis;">@f.GruposInteres</td>
+                                    <td style="white-space:nowrap;">@f.OrigenRiesgo</td>
+                                    <td style="white-space:nowrap;">@f.FrecuenciaRiesgo</td>
+                                    <td style="white-space:nowrap;">@f.TipoRiesgo</td>
+                                    <!-- Riesgo Inherente -->
+                                    <td class="text-center">@f.ProbabilidadInherente</td>
+                                    <td class="text-center">@f.ImpactoInherente</td>
+                                    <td class="text-center font-weight-bold" style="color:@colorI;">@sevI</td>
+                                    <td class="text-center">
+                                        <span class="badge" style="background:@colorI; color:#fff; font-size:0.62rem;">@nivI</span>
                                     </td>
-                                    <td><small class="text-truncate d-inline-block" style="max-width: 180px;" title="@f.DescripcionControl">@(string.IsNullOrWhiteSpace(f.CodigoControl) ? "—" : f.CodigoControl)</small></td>
-                                    <td>
-                                        <span class="badge badge-@(f.NivelResidual=="Bajo"?"success":f.NivelResidual=="Moderado"?"warning":"danger")">
-                                            @f.SeveridadResidual (@f.NivelResidual)
-                                        </span>
+                                    <!-- Control -->
+                                    <td class="font-weight-bold" style="white-space:nowrap; color:#003B70;">@f.CodigoControl</td>
+                                    <td title="@f.DescripcionControl" style="max-width:200px; overflow:hidden; text-overflow:ellipsis;">@f.DescripcionControl</td>
+                                    <td title="@f.AreaResponsableControl" style="max-width:140px; overflow:hidden; text-overflow:ellipsis;">@f.AreaResponsableControl</td>
+                                    <td title="@f.ResponsableControl" style="max-width:140px; overflow:hidden; text-overflow:ellipsis;">@f.ResponsableControl</td>
+                                    <td style="white-space:nowrap;">@f.FrecuenciaControl</td>
+                                    <td style="white-space:nowrap;">@f.OportunidadControl</td>
+                                    <td style="white-space:nowrap;">@f.AutomatizacionControl</td>
+                                    <td title="@f.EvidenciaControl" style="max-width:140px; overflow:hidden; text-overflow:ellipsis;">@f.EvidenciaControl</td>
+                                    <!-- Riesgo Residual -->
+                                    <td class="text-center">@f.ProbabilidadResidual</td>
+                                    <td class="text-center">@f.ImpactoResidual</td>
+                                    <td class="text-center font-weight-bold" style="color:@colorR;">@sevR</td>
+                                    <td class="text-center">
+                                        <span class="badge" style="background:@colorR; color:#fff; font-size:0.62rem;">@nivR</span>
                                     </td>
-                                    <td><small class="text-truncate d-inline-block" style="max-width: 180px;" title="@f.DescripcionPlanAccion">@(string.IsNullOrWhiteSpace(f.CodigoPlanAccion) ? "—" : f.CodigoPlanAccion)</small></td>
-                                    <td>
+                                    <!-- Plan de Acción -->
+                                    <td style="white-space:nowrap;">@f.EstrategiaRespuesta</td>
+                                    <td style="white-space:nowrap; color:#856404; font-weight:600;">@f.CodigoPlanAccion</td>
+                                    <td title="@f.DescripcionPlanAccion" style="max-width:200px; overflow:hidden; text-overflow:ellipsis;">@f.DescripcionPlanAccion</td>
+                                    <td title="@f.AreaResponsablePlan" style="max-width:140px; overflow:hidden; text-overflow:ellipsis;">@f.AreaResponsablePlan</td>
+                                    <td title="@f.ResponsablePlan" style="max-width:140px; overflow:hidden; text-overflow:ellipsis;">@f.ResponsablePlan</td>
+                                    <td style="white-space:nowrap;">@(f.InicioPlanAccion?.ToString("dd/MM/yyyy") ?? "")</td>
+                                    <td style="white-space:nowrap;">@f.EstadoPlanAccion</td>
+                                    <td style="white-space:nowrap;">@(f.FinPlanAccion?.ToString("dd/MM/yyyy") ?? "")</td>
+                                    <td style="white-space:nowrap;">@(f.FechaPrevista?.ToString("dd/MM/yyyy") ?? "")</td>
+                                    <td class="text-center">@f.PlanEficaz</td>
+                                    <!-- Indicadores — FilaCargaMasiva no tiene KRI, se deja vacío -->
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <!-- Estado -->
+                                    <td class="text-center" style="white-space:nowrap;">
                                         @if (f.EsDuplicadoEnArchivo)
                                         {
-                                            <span class="badge badge-warning" title="El código de riesgo se repite en más de una fila del archivo Excel"><i class="fas fa-copy mr-1"></i>Dup. en Archivo</span>
+                                            <span class="badge badge-warning" title="Duplicado en el archivo"><i class="fas fa-copy mr-1"></i>Dup. Arch.</span>
                                         }
                                         else if (f.ExisteEnBaseDatos)
                                         {
-                                            <span class="badge badge-info" title="El código de riesgo ya existe en la base de datos"><i class="fas fa-database mr-1"></i>Existe en BD</span>
+                                            <span class="badge badge-info" title="Ya existe en BD"><i class="fas fa-database mr-1"></i>En BD</span>
                                         }
                                         else if (f.EsValido)
                                         {
-                                            <span class="badge badge-success"><i class="fas fa-plus-circle mr-1"></i>Nuevo Riesgo</span>
+                                            <span class="badge badge-success"><i class="fas fa-plus-circle mr-1"></i>Nuevo</span>
                                         }
                                         else
                                         {
@@ -264,10 +390,11 @@
                         </tbody>
                     </table>
                 </div>
-                @if (FilasInspeccionadas.Count > 100)
+
+                @if (FilasInspeccionadas.Count > 200)
                 {
                     <div class="text-center text-muted small mt-2">
-                        <em>Mostrando las primeras 100 filas de @FilasInspeccionadas.Count en la vista previa. Al confirmar se procesarán todas.</em>
+                        <em>Mostrando las primeras 200 filas de @FilasInspeccionadas.Count. Al confirmar se procesarán <strong>todas</strong>.</em>
                     </div>
                 }
             </div>
@@ -308,7 +435,6 @@
                         </div>
                     </div>
                 </div>
-
                 <h6 class="font-weight-bold text-dark mt-3"><i class="fas fa-list-alt mr-1"></i>Bitácora de Procesamiento:</h6>
                 <ul class="list-group list-group-flush border rounded small">
                     @foreach (var log in ResultadoImportacion.MensajesLog)
@@ -345,7 +471,8 @@
     {
         var bytes = ExcelSvc.ObtenerPlantillaCargaMasiva();
         var base64 = Convert.ToBase64String(bytes);
-        await JS.InvokeVoidAsync("saveAsFile", "Carga_Masiva_V1.xlsm", "application/vnd.ms-excel.sheet.macroEnabled.12", base64);
+        await JS.InvokeVoidAsync("saveAsFile", "Carga_Masiva_V1.xlsm",
+            "application/vnd.ms-excel.sheet.macroEnabled.12", base64);
     }
 
     async Task ExportarConsolidadoActual()
@@ -353,7 +480,9 @@
         var riesgos = await RiesgoSvc.GetTodosAsync();
         var bytes = ExcelSvc.GenerarConsolidadoCargaMasivaExcel(riesgos);
         var base64 = Convert.ToBase64String(bytes);
-        await JS.InvokeVoidAsync("saveAsFile", $"Matriz_Consolidada_GIR_{DateTime.Now:yyyyMMdd}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
+        await JS.InvokeVoidAsync("saveAsFile",
+            $"Matriz_Consolidada_GIR_{DateTime.Now:yyyyMMdd}.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
     }
 
     async Task InspeccionarArchivo()
@@ -381,7 +510,7 @@
             else
             {
                 TipoMensajeAlert = "success";
-                MensajeEstado = $"Inspección completada con éxito. Se identificaron {FilasInspeccionadas.Count} registros válidos listos para importar.";
+                MensajeEstado = $"Inspección completada. {FilasInspeccionadas.Count} registros detectados — listos para importar.";
             }
         }
         catch (Exception ex)
@@ -406,7 +535,9 @@
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var usuario = authState.User.Identity?.Name ?? "SuperAdmin";
 
-            ResultadoImportacion = await RiesgoSvc.ProcesarCargaMasivaAsync(FilasInspeccionadas, ActualizarExistentes, usuario);
+            ResultadoImportacion = await RiesgoSvc.ProcesarCargaMasivaAsync(
+                FilasInspeccionadas, ActualizarExistentes, usuario);
+
             FilasInspeccionadas.Clear();
             TipoMensajeAlert = "success";
             MensajeEstado = "¡Importación masiva completada con éxito en la base de datos!";
@@ -421,4 +552,22 @@
             Importando = false;
         }
     }
+
+    // ── Helpers para colores de nivel ────────────────────────────────────
+    static string GetNivel(int sev) => sev switch
+    {
+        <= 2  => "Bajo",
+        <= 6  => "Moderado",
+        <= 12 => "Alto",
+        _     => "Extremo"
+    };
+
+    static string GetColorNivel(string nivel) => nivel switch
+    {
+        "Bajo"     => "#28a745",
+        "Moderado" => "#ffc107",
+        "Alto"     => "#fd7e14",
+        _          => "#dc3545"
+    };
 }
+
