@@ -93,7 +93,6 @@
                         @(string.IsNullOrWhiteSpace(NombreDisplay) ? "Usuario" : NombreDisplay)
                     </span>
                     <div class="mt-1">
-                        @* Cargo: primero desde API, luego desde BD, luego Rol *@
                         @if (!string.IsNullOrWhiteSpace(CargoApi))
                         {
                             <span class="d-block text-truncate"
@@ -117,8 +116,6 @@
                                 @(UsuarioActual?.Rol ?? RolDisplay)
                             </span>
                         }
-
-                        @* Departamento/Gerencia desde BD *@
                         @if (!string.IsNullOrWhiteSpace(UsuarioActual?.Departamento) || !string.IsNullOrWhiteSpace(UsuarioActual?.Gerencia))
                         {
                             <span class="d-block text-truncate mt-1"
@@ -134,8 +131,9 @@
             <!-- MENU -->
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column"
-                    data-widget="treeview" role="menu">
+                    data-widget="treeview" role="menu" data-accordion="false">
 
+                    <!-- ── GIR ── -->
                     <li class="nav-header" style="color:rgba(255,255,255,0.6);">GIR</li>
 
                     <li class="nav-item">
@@ -173,61 +171,114 @@
                         </NavLink>
                     </li>
 
-                    <AuthorizeView Roles="SuperAdmin,Admin">
+                    <!-- ── SOLO ADMIN / SUPERADMIN ── -->
+                    <AuthorizeView Roles="SuperAdmin,Admin" Context="ctxAdmin">
                         <Authorized>
+
                             <li class="nav-item">
                                 <NavLink class="nav-link" href="/cumplimiento">
                                     <i class="nav-icon fas fa-scale-balanced"></i>
                                     <p>Cumplimiento</p>
                                 </NavLink>
                             </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/organizacion-gir">
-                                    <i class="nav-icon fas fa-sitemap"></i>
-                                    <p>Organización GIR</p>
-                                </NavLink>
-                            </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/usuarios">
-                                    <i class="nav-icon fas fa-users"></i>
-                                    <p>Usuarios GIR</p>
-                                </NavLink>
-                            </li>
+
                             <li class="nav-item">
                                 <NavLink class="nav-link" href="/auditoria-grc">
                                     <i class="nav-icon fas fa-clipboard-check"></i>
                                     <p>Auditoría GIR</p>
                                 </NavLink>
                             </li>
+
                             <li class="nav-item">
                                 <NavLink class="nav-link" href="/documentos-grc">
                                     <i class="nav-icon fas fa-folder-open"></i>
                                     <p>Documentos GIR</p>
                                 </NavLink>
                             </li>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/carga-masiva">
-                                    <i class="nav-icon fas fa-file-excel text-success"></i>
-                                    <p>Carga Masiva</p>
-                                </NavLink>
-                            </li>
+
                             <li class="nav-item">
                                 <NavLink class="nav-link" href="/seguridad-informacion">
                                     <i class="nav-icon fas fa-server"></i>
                                     <p>Seguridad Info.</p>
                                 </NavLink>
                             </li>
-                        </Authorized>
-                    </AuthorizeView>
 
-                    <AuthorizeView Roles="SuperAdmin">
-                        <Authorized>
-                            <li class="nav-item">
-                                <NavLink class="nav-link" href="/configuracion">
-                                    <i class="nav-icon fas fa-cogs"></i>
-                                    <p>Configuración GIR</p>
-                                </NavLink>
+                            <!-- ── ADMINISTRACIÓN ── -->
+                            <li class="nav-header" style="color:rgba(255,255,255,0.6);margin-top:6px;">
+                                ADMINISTRACIÓN
                             </li>
+
+                            <!-- DESPLEGABLE CONFIGURACIÓN -->
+                            <li class="nav-item has-treeview @(MenuConfigAbierto ? "menu-open" : "")">
+                                <a href="#"
+                                   class="nav-link @(MenuConfigAbierto ? "active" : "")"
+                                   style="@(MenuConfigAbierto ? "background:rgba(255,221,0,0.12);" : "")"
+                                   @onclick="ToggleMenuConfig"
+                                   @onclick:preventDefault>
+                                    <i class="nav-icon fas fa-cogs"
+                                       style="@(MenuConfigAbierto ? "color:#FFDD00;" : "")"></i>
+                                    <p>
+                                        Configuración
+                                        <i class="right fas fa-angle-left"
+                                           style="transition:transform 0.3s;@(MenuConfigAbierto ? "transform:rotate(-90deg);" : "")"></i>
+                                    </p>
+                                </a>
+
+                                <ul class="nav nav-treeview"
+                                    style="@(MenuConfigAbierto ? "display:block;background:rgba(0,0,0,0.15);" : "display:none;")">
+
+                                    <!-- Usuarios GIR -->
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/usuarios">
+                                            <i class="nav-icon fas fa-users"
+                                               style="color:#FFDD00;font-size:0.8rem;"></i>
+                                            <p>Usuarios GIR</p>
+                                        </NavLink>
+                                    </li>
+
+                                    <!-- Carga Masiva -->
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/carga-masiva">
+                                            <i class="nav-icon fas fa-file-excel"
+                                               style="color:#FFDD00;font-size:0.8rem;"></i>
+                                            <p>Carga Masiva</p>
+                                        </NavLink>
+                                    </li>
+
+                                    <!-- Organización GIR -->
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/organizacion-gir">
+                                            <i class="nav-icon fas fa-sitemap"
+                                               style="color:#FFDD00;font-size:0.8rem;"></i>
+                                            <p>Organización GIR</p>
+                                        </NavLink>
+                                    </li>
+
+                                    <!-- Indicadores -->
+                                    <li class="nav-item">
+                                        <NavLink class="nav-link" href="/indicadores">
+                                            <i class="nav-icon fas fa-tachometer-alt"
+                                               style="color:#FFDD00;font-size:0.8rem;"></i>
+                                            <p>Indicadores</p>
+                                        </NavLink>
+                                    </li>
+
+                                    <!-- Configuración GIR — solo SuperAdmin -->
+                                    <AuthorizeView Roles="SuperAdmin" Context="ctxSuperAdmin">
+                                        <Authorized>
+                                            <li class="nav-item">
+                                                <NavLink class="nav-link" href="/configuracion">
+                                                    <i class="nav-icon fas fa-sliders-h"
+                                                       style="color:#FFDD00;font-size:0.8rem;"></i>
+                                                    <p>Configuración GIR</p>
+                                                </NavLink>
+                                            </li>
+                                        </Authorized>
+                                    </AuthorizeView>
+
+                                </ul>
+                            </li>
+
                         </Authorized>
                     </AuthorizeView>
 
@@ -256,9 +307,10 @@
     private string RolDisplay = "Personal";
     private string InicialesDisplay = "";
     private string FotoDisplay = "";
-
-    // Cargo obtenido en tiempo real desde la API de personal ELORSA
     private string CargoApi = "";
+    private bool MenuConfigAbierto = false;
+
+    private void ToggleMenuConfig() => MenuConfigAbierto = !MenuConfigAbierto;
 
     protected override async Task OnInitializedAsync()
     {
@@ -281,22 +333,20 @@
                 RolDisplay = userClaims.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Personal";
 
                 if (!string.IsNullOrEmpty(userIdStr) && int.TryParse(userIdStr, out int userId))
-                {
                     UsuarioActual = await DbContext.Usuarios.FirstOrDefaultAsync(u => u.Id == userId);
-                }
 
                 if (UsuarioActual == null && !string.IsNullOrEmpty(email))
-                {
                     UsuarioActual = await DbContext.Usuarios
                         .FirstOrDefaultAsync(u => u.Correo == email || u.Username == email);
-                }
 
                 if (UsuarioActual != null)
                 {
-                    NombreDisplay = !string.IsNullOrWhiteSpace(UsuarioActual.Nombre) && UsuarioActual.Nombre != UsuarioActual.Correo
+                    NombreDisplay = !string.IsNullOrWhiteSpace(UsuarioActual.Nombre)
+                                    && UsuarioActual.Nombre != UsuarioActual.Correo
                         ? UsuarioActual.Nombre
-                        : (!string.IsNullOrWhiteSpace(UsuarioActual.Correo) ? UsuarioActual.Correo : userClaims.Identity.Name ?? "");
-
+                        : (!string.IsNullOrWhiteSpace(UsuarioActual.Correo)
+                            ? UsuarioActual.Correo
+                            : userClaims.Identity.Name ?? "");
                     FotoDisplay = UsuarioActual.FotoUrl ?? "";
                 }
                 else
@@ -311,7 +361,7 @@
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[MainLayout CargarDatosUsuario Error]: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[MainLayout] Error CargarDatos: {ex.Message}");
         }
     }
 
@@ -320,56 +370,30 @@
         try
         {
             if (string.IsNullOrWhiteSpace(NombreDisplay)) return;
-
-            // Estrategia: buscar por apellido paterno (primera palabra del nombre almacenado)
-            // El nombre en BD viene como "APELLIDO PATERNO APELLIDO MATERNO, NOMBRE"
-            // o como "NOMBRE APELLIDO" según cómo fue registrado
             var palabras = NombreDisplay.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (palabras.Length == 0) return;
 
-            // Intentar con la primera palabra (suele ser el apellido)
-            var terminoBusqueda = palabras[0];
-            var resultados = await PersonalSvc.BuscarAsync(terminoBusqueda, 20);
-
+            var resultados = await PersonalSvc.BuscarAsync(palabras[0], 20);
             if (!resultados.Any() && palabras.Length > 1)
-            {
-                // Si no encuentra, intentar con la segunda palabra
                 resultados = await PersonalSvc.BuscarAsync(palabras[1], 20);
-            }
-
             if (!resultados.Any()) return;
 
-            // Buscar la mejor coincidencia comparando el nombre completo
-            var nombreNormalizado = NombreDisplay.ToUpperInvariant().Replace(",", "").Replace("  ", " ").Trim();
-
-            // Coincidencia exacta primero
+            var nombreNorm = NombreDisplay.ToUpperInvariant().Replace(",", "").Replace("  ", " ").Trim();
             var exacto = resultados.FirstOrDefault(p =>
                 p.NombreCompleto.Replace(",", "").Replace("  ", " ")
-                    .Equals(nombreNormalizado, StringComparison.OrdinalIgnoreCase));
+                    .Equals(nombreNorm, StringComparison.OrdinalIgnoreCase));
+            if (exacto != null) { CargoApi = exacto.Cargo; return; }
 
-            if (exacto != null)
-            {
-                CargoApi = exacto.Cargo;
-                return;
-            }
-
-            // Coincidencia parcial: todos los apellidos y nombre están contenidos
-            var mejorCoincidencia = resultados.FirstOrDefault(p =>
+            var mejor = resultados.FirstOrDefault(p =>
             {
                 var nombreApi = $"{p.ApellidoPaterno} {p.ApellidoMaterno} {p.Nombre}".ToUpperInvariant();
-                return palabras.All(palabra =>
-                    nombreApi.Contains(palabra, StringComparison.OrdinalIgnoreCase));
+                return palabras.All(w => nombreApi.Contains(w, StringComparison.OrdinalIgnoreCase));
             });
-
-            if (mejorCoincidencia != null)
-            {
-                CargoApi = mejorCoincidencia.Cargo;
-            }
+            if (mejor != null) CargoApi = mejor.Cargo;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[MainLayout CargarCargoApi Error]: {ex.Message}");
-            // Si la API falla, no muestra nada — el sistema sigue funcionando
+            System.Diagnostics.Debug.WriteLine($"[MainLayout] Error CargarCargo: {ex.Message}");
         }
     }
 
@@ -377,8 +401,11 @@
     {
         if (string.IsNullOrWhiteSpace(nombre)) return "U";
         var partes = nombre.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (partes.Length == 1) return partes[0].Substring(0, Math.Min(2, partes[0].Length)).ToUpper();
+        if (partes.Length == 1)
+            return partes[0].Substring(0, Math.Min(2, partes[0].Length)).ToUpper();
         return $"{char.ToUpper(partes[0][0])}{char.ToUpper(partes[1][0])}";
     }
 }
+
+
 

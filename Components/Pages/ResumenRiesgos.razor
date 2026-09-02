@@ -5,6 +5,7 @@
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
 @inject ExcelService ExcelSvc
+@inject NavigationManager Nav
 
 <div class="content-header">
     <div class="container-fluid">
@@ -15,6 +16,7 @@
             <div class="col-sm-6">
                 <ol class="breadcrumb float-sm-right">
                     <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="/matriz">Registro de Matriz</a></li>
                     <li class="breadcrumb-item active">Resumen de Riesgos</li>
                 </ol>
             </div>
@@ -23,6 +25,15 @@
 </div>
 
 <div class="container-fluid">
+
+    <!-- BOTON VOLVER -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <button class="btn btn-secondary" @onclick='() => Nav.NavigateTo("/matriz")'>
+                <i class="fas fa-arrow-left mr-2"></i>Volver a Registro de Matriz
+            </button>
+        </div>
+    </div>
 
 @if (Cargando)
 {
@@ -33,10 +44,10 @@
 }
 else
 {
-    <!-- TOTALES SMALL BOXES (INTERACTIVAS PARA FILTRAR) -->
+    <!-- TOTALES SMALL BOXES -->
     <div class="row mb-3">
         <div class="col-md-2">
-            <div class="small-box bg-danger shadow-sm cursor-pointer @(NivelFiltro == "Extremo" ? "border border-white ring-2" : "")"
+            <div class="small-box bg-danger shadow-sm"
                  style="cursor:pointer; transition: transform 0.2s;"
                  @onclick='() => SeleccionarFiltroNivel("Extremo")'
                  title="Haga clic para filtrar solo procesos con Riesgos Extremos">
@@ -48,7 +59,7 @@ else
             </div>
         </div>
         <div class="col-md-2">
-            <div class="small-box shadow-sm cursor-pointer @(NivelFiltro == "Alto" ? "border border-white ring-2" : "")"
+            <div class="small-box shadow-sm"
                  style="background:#fd7e14; cursor:pointer; transition: transform 0.2s;"
                  @onclick='() => SeleccionarFiltroNivel("Alto")'
                  title="Haga clic para filtrar solo procesos con Riesgos Altos">
@@ -60,7 +71,7 @@ else
             </div>
         </div>
         <div class="col-md-2">
-            <div class="small-box bg-warning shadow-sm cursor-pointer @(NivelFiltro == "Moderado" ? "border border-white ring-2" : "")"
+            <div class="small-box bg-warning shadow-sm"
                  style="cursor:pointer; transition: transform 0.2s;"
                  @onclick='() => SeleccionarFiltroNivel("Moderado")'
                  title="Haga clic para filtrar solo procesos con Riesgos Moderados">
@@ -72,7 +83,7 @@ else
             </div>
         </div>
         <div class="col-md-2">
-            <div class="small-box bg-success shadow-sm cursor-pointer @(NivelFiltro == "Bajo" ? "border border-white ring-2" : "")"
+            <div class="small-box bg-success shadow-sm"
                  style="cursor:pointer; transition: transform 0.2s;"
                  @onclick='() => SeleccionarFiltroNivel("Bajo")'
                  title="Haga clic para filtrar solo procesos con Riesgos Bajos">
@@ -84,7 +95,7 @@ else
             </div>
         </div>
         <div class="col-md-2">
-            <div class="small-box bg-primary shadow-sm cursor-pointer @(NivelFiltro == "Todos" ? "border border-white ring-2" : "")"
+            <div class="small-box bg-primary shadow-sm"
                  style="cursor:pointer; transition: transform 0.2s;"
                  @onclick='() => SeleccionarFiltroNivel("Todos")'
                  title="Haga clic para mostrar todos los procesos">
@@ -108,7 +119,8 @@ else
 
     <!-- TABLA RESUMEN -->
     <div class="card card-outline card-primary">
-        <div class="card-header d-flex justify-content-between align-items-center" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
+        <div class="card-header d-flex justify-content-between align-items-center"
+             style="background:#0062B8;border-bottom:2px solid #FFDD00;">
             <h3 class="card-title text-white font-weight-bold mb-0">
                 <i class="fas fa-table mr-2"></i>
                 Nivel de Criticidad de Riesgo Residual — @FechaCorte
@@ -122,7 +134,8 @@ else
             <div>
                 @if (NivelFiltro != "Todos")
                 {
-                    <button class="btn btn-sm btn-outline-light mr-2 font-weight-bold" @onclick='() => SeleccionarFiltroNivel("Todos")'>
+                    <button class="btn btn-sm btn-outline-light mr-2 font-weight-bold"
+                            @onclick='() => SeleccionarFiltroNivel("Todos")'>
                         <i class="fas fa-undo mr-1"></i>Mostrar Todos los Procesos
                     </button>
                 }
@@ -144,10 +157,10 @@ else
                         <th rowspan="2" style="background:#FFDD00;color:#002D58;vertical-align:middle;text-align:center;">Total de Indicadores</th>
                     </tr>
                     <tr>
-                        <th style="background:#dc3545;color:white;text-align:center; @(NivelFiltro == "Extremo" ? "outline: 3px solid #000; font-size:0.95rem;" : "")">Extremo @(NivelFiltro=="Extremo"?"(Filtro)":"")</th>
-                        <th style="background:#fd7e14;color:white;text-align:center; @(NivelFiltro == "Alto" ? "outline: 3px solid #000; font-size:0.95rem;" : "")">Alto @(NivelFiltro=="Alto"?"(Filtro)":"")</th>
-                        <th style="background:#ffc107;color:#000;text-align:center; @(NivelFiltro == "Moderado" ? "outline: 3px solid #000; font-size:0.95rem;" : "")">Moderado @(NivelFiltro=="Moderado"?"(Filtro)":"")</th>
-                        <th style="background:#28a745;color:white;text-align:center; @(NivelFiltro == "Bajo" ? "outline: 3px solid #000; font-size:0.95rem;" : "")">Bajo @(NivelFiltro=="Bajo"?"(Filtro)":"")</th>
+                        <th style="background:#dc3545;color:white;text-align:center; @(NivelFiltro == "Extremo" ? "outline:3px solid #000;font-size:0.95rem;" : "")">Extremo @(NivelFiltro=="Extremo"?"(Filtro)":"")</th>
+                        <th style="background:#fd7e14;color:white;text-align:center; @(NivelFiltro == "Alto" ? "outline:3px solid #000;font-size:0.95rem;" : "")">Alto @(NivelFiltro=="Alto"?"(Filtro)":"")</th>
+                        <th style="background:#ffc107;color:#000;text-align:center; @(NivelFiltro == "Moderado" ? "outline:3px solid #000;font-size:0.95rem;" : "")">Moderado @(NivelFiltro=="Moderado"?"(Filtro)":"")</th>
+                        <th style="background:#28a745;color:white;text-align:center; @(NivelFiltro == "Bajo" ? "outline:3px solid #000;font-size:0.95rem;" : "")">Bajo @(NivelFiltro=="Bajo"?"(Filtro)":"")</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -224,11 +237,11 @@ else
 
     List<FilaResumen> FilasVisibles => NivelFiltro switch
     {
-        "Extremo" => FilasTodas.Where(f => f.Extremo > 0).ToList(),
-        "Alto" => FilasTodas.Where(f => f.Alto > 0).ToList(),
+        "Extremo"  => FilasTodas.Where(f => f.Extremo > 0).ToList(),
+        "Alto"     => FilasTodas.Where(f => f.Alto > 0).ToList(),
         "Moderado" => FilasTodas.Where(f => f.Moderado > 0).ToList(),
-        "Bajo" => FilasTodas.Where(f => f.Bajo > 0).ToList(),
-        _ => FilasTodas
+        "Bajo"     => FilasTodas.Where(f => f.Bajo > 0).ToList(),
+        _          => FilasTodas
     };
 
     List<string> MacroProcesosFiltrados
@@ -237,12 +250,7 @@ else
         {
             var list = new List<string>();
             foreach (var f in FilasVisibles)
-            {
-                if (!list.Contains(f.MacroProceso))
-                {
-                    list.Add(f.MacroProceso);
-                }
-            }
+                if (!list.Contains(f.MacroProceso)) list.Add(f.MacroProceso);
             return list;
         }
     }
@@ -254,10 +262,7 @@ else
             var dict = new Dictionary<string, List<FilaResumen>>();
             foreach (var f in FilasVisibles)
             {
-                if (!dict.ContainsKey(f.MacroProceso))
-                {
-                    dict[f.MacroProceso] = new List<FilaResumen>();
-                }
+                if (!dict.ContainsKey(f.MacroProceso)) dict[f.MacroProceso] = new List<FilaResumen>();
                 dict[f.MacroProceso].Add(f);
             }
             return dict;
@@ -309,9 +314,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         if (!string.IsNullOrWhiteSpace(Nivel))
-        {
             NivelFiltro = Nivel;
-        }
 
         var state = await AuthState.GetAuthenticationStateAsync();
         var idClaim = state.User.FindFirst("UserId")?.Value;
@@ -339,7 +342,7 @@ else
 
             FilasTodas.Add(new FilaResumen
             {
-                MacroProceso = macro,
+                MacroProceso  = macro,
                 CodigoProceso = m.CodigoProceso,
                 NombreProceso = $"{m.CodigoProceso} {m.NombreProceso}",
                 Extremo = ext, Alto = alt, Moderado = mod, Bajo = baj, Indicadores = ind
@@ -352,9 +355,7 @@ else
     protected override void OnParametersSet()
     {
         if (!string.IsNullOrWhiteSpace(Nivel))
-        {
             NivelFiltro = Nivel;
-        }
     }
 
     void SeleccionarFiltroNivel(string nivel)

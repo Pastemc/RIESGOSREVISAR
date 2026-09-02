@@ -23,6 +23,39 @@
     </div>
 </div>
 
+<style>
+    .mapa-card { border:2px solid #FFDD00; border-radius:10px; overflow:hidden; background:#f0f4f8; }
+    .mapa-header { background:#003B70; border-bottom:3px solid #FFDD00; padding:10px 16px; display:flex; align-items:center; }
+    .mapa-body { display:flex; align-items:stretch; }
+    .mapa-lateral { width:28px; min-width:28px; background:#1a3a5c; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .mapa-lateral span { color:#fff; font-size:0.55rem; font-weight:700; letter-spacing:2.5px; writing-mode:vertical-rl; text-orientation:mixed; white-space:nowrap; }
+    .mapa-lateral.izq span { transform:rotate(180deg); }
+    .mapa-centro { flex:1; padding:10px; display:flex; flex-direction:column; gap:8px; }
+    .macro-bloque { border-radius:8px; padding:10px 12px 12px; }
+    .macro-e { background:#0d1b2e; border:1px solid rgba(255,221,0,0.2); }
+    .macro-o { background:#0d1b2e; border:1px solid rgba(255,221,0,0.2); }
+    .macro-s { background:#0d2318; border:1px solid rgba(40,167,69,0.3); }
+    .macro-titulo { text-align:center; margin-bottom:10px; }
+    .macro-titulo .badge-titulo { font-weight:800; font-size:0.78rem; padding:4px 20px; border-radius:20px; letter-spacing:0.5px; display:inline-block; }
+    .badge-am { background:#FFDD00; color:#1a1a2e; }
+    .badge-vd { background:#28a745; color:#fff; }
+    .macro-grupos { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:flex-start; }
+    .grupo-box { background:#112244; border:1.5px solid #FFDD00; border-radius:7px; padding:7px; min-width:150px; max-width:200px; width:fit-content; }
+    .grupo-head { background:#003B70; border:1px solid rgba(255,221,0,0.6); border-radius:4px; padding:4px 6px; text-align:center; margin-bottom:5px; }
+    .grupo-head .gcod { color:#FFDD00; font-weight:800; font-size:0.7rem; display:block; line-height:1.1; }
+    .grupo-head .gnom { color:#ddd; font-size:0.55rem; font-weight:600; line-height:1.2; display:block; margin-top:1px; }
+    .sub-btn { display:block; width:100%; background:#EBF3FA; border:1px solid #0062B8; border-radius:4px; padding:5px 7px; margin-bottom:4px; text-align:center; cursor:pointer; transition:all 0.15s; }
+    .sub-btn:last-child { margin-bottom:0; }
+    .sub-btn:hover { background:#0062B8; transform:translateY(-1px); box-shadow:0 3px 8px rgba(0,98,184,0.4); }
+    .sub-btn:hover .scod, .sub-btn:hover .snom { color:#fff !important; }
+    .sub-btn:hover .sbadge { background:#FFDD00 !important; color:#003B70 !important; }
+    .scod { color:#0062B8; font-weight:800; font-size:0.65rem; display:block; line-height:1.1; }
+    .snom { color:#333; font-size:0.57rem; font-weight:500; line-height:1.2; display:block; margin-top:1px; }
+    .sbadge { display:inline-block; margin-top:3px; border-radius:10px; font-size:0.52rem; padding:1px 7px; font-weight:700; }
+    .sbadge.con { background:#0062B8; color:#fff; }
+    .sbadge.sin { background:rgba(0,98,184,0.12); color:#888; }
+</style>
+
 <div class="container-fluid">
 
 @if (!MostrarFormulario && !MostrarHeatmap && MatrizActual == null)
@@ -30,53 +63,74 @@
     <AuthorizeView Roles="SuperAdmin,Admin">
         <Authorized>
             <div class="row mb-3">
-                <div class="col-12 d-flex flex-wrap gap-2">
-                    <a href="/vista-detallada" class="btn btn-secondary mr-2">
-                        <i class="fas fa-file-alt mr-1"></i> Vista Detallada (Sábana)
-                    </a>
-                    <a href="/resumen-riesgos" class="btn btn-dark mr-2">
-                        <i class="fas fa-chart-bar mr-1"></i> Resumen de Riesgos
-                    </a>
+                <div class="col-12">
+                    <a href="/vista-detallada" class="btn btn-secondary mr-2"><i class="fas fa-file-alt mr-1"></i> Vista Detallada (Sabana)</a>
+                    <a href="/resumen-riesgos" class="btn btn-dark mr-2"><i class="fas fa-chart-bar mr-1"></i> Resumen de Riesgos</a>
                 </div>
             </div>
         </Authorized>
     </AuthorizeView>
 
-    <div class="card">
-        <div class="card-header" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
-            <h3 class="card-title text-white">
-                <i class="fas fa-layer-group mr-2"></i>Selecciona una Matriz de Proceso
-            </h3>
+    <div class="mapa-card mb-4">
+        <div class="mapa-header">
+            <h3 class="text-white mb-0" style="font-size:1rem;"><i class="fas fa-sitemap mr-2" style="color:#FFDD00;"></i>Mapa de Procesos</h3>
         </div>
-        <div class="card-body">
-            <div class="row">
-                @foreach (var m in Matrices)
+        <div class="mapa-body">
+
+            <div class="mapa-lateral izq">
+                <span>R E Q U E R I M I E N T O S &nbsp; D E &nbsp; U S U A R I O S</span>
+            </div>
+
+            <div class="mapa-centro">
+
+                @if (TieneMacro("E"))
                 {
-                    var color = m.Cerrada ? "#6c757d" : "#0062B8";
-                    var icon = m.Cerrada ? "fa-lock" : "fa-table";
-                    <div class="col-md-3 mb-3">
-                        <div class="card h-100 shadow-sm" style="border-left:4px solid @color;cursor:pointer;"
-                             @onclick="() => AbrirMatriz(m)">
-                            <div class="card-body p-3">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="font-weight-bold mb-1" style="color:@color;">@m.CodigoProceso</h6>
-                                        <p class="mb-1" style="font-size:0.8rem;">@m.NombreProceso</p>
-                                        <small class="text-muted">@m.Nombre</small>
-                                    </div>
-                                    <i class="fas @icon" style="color:@color;font-size:1.2rem;"></i>
-                                </div>
-                                <div class="mt-2">
-                                    @if (m.Cerrada)
-                                    { <span class="badge badge-secondary">Cerrada</span> }
-                                    else
-                                    { <span class="badge badge-success">Activa</span> }
-                                </div>
-                            </div>
+                    <div class="macro-bloque macro-e">
+                        <div class="macro-titulo"><span class="badge-titulo badge-am">PROCESOS ESTRATEGICOS</span></div>
+                        <div class="macro-grupos">
+                            @if (TieneGrupo("E1")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">E1</span><span class="gnom">GESTION DE EXCELENCIA OPERACIONAL</span></div>@RenderSubs("E1")</div> }
+                            @if (TieneGrupo("E2")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">E2</span><span class="gnom">GOBERNANZA</span></div>@RenderSubs("E2")</div> }
+                            @if (TieneGrupo("E3")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">E3</span><span class="gnom">PLANEAMIENTO</span></div>@RenderSubs("E3")</div> }
+                            @if (TieneGrupo("E4")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">E4</span><span class="gnom">REGULACION</span></div>@RenderSubs("E4")</div> }
+                            @if (TieneGrupo("E5")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">E5</span><span class="gnom">IMAGEN INSTITUCIONAL</span></div>@RenderSubs("E5")</div> }
                         </div>
                     </div>
                 }
+
+                @if (TieneMacro("O"))
+                {
+                    <div class="macro-bloque macro-o">
+                        <div class="macro-titulo"><span class="badge-titulo badge-am">PROCESOS OPERATIVOS</span></div>
+                        <div class="macro-grupos">
+                            @if (TieneGrupo("O1")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">O1</span><span class="gnom">COMERCIALIZACION DE ENERGIA ELECTRICA</span></div>@RenderSubs("O1")</div> }
+                            @if (TieneGrupo("O2")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">O2</span><span class="gnom">GESTION OPERACION Y MANTENIMIENTO DEL SISTEMA ELECTRICO</span></div>@RenderSubs("O2")</div> }
+                            @if (TieneGrupo("O3")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">O3</span><span class="gnom">GESTION DE CALIDAD OPERACIONAL</span></div>@RenderSubs("O3")</div> }
+                            @if (TieneGrupo("O4")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">O4</span><span class="gnom">GESTION DE PROYECTOS</span></div>@RenderSubs("O4")</div> }
+                        </div>
+                    </div>
+                }
+
+                @if (TieneMacro("S"))
+                {
+                    <div class="macro-bloque macro-s">
+                        <div class="macro-titulo"><span class="badge-titulo badge-vd">PROCESOS DE SOPORTE</span></div>
+                        <div class="macro-grupos">
+                            @if (TieneGrupo("S1")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">S1</span><span class="gnom">GESTION LEGAL</span></div>@RenderSubs("S1")</div> }
+                            @if (TieneGrupo("S2")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">S2</span><span class="gnom">GESTION FINANCIERA Y CONTABLE</span></div>@RenderSubs("S2")</div> }
+                            @if (TieneGrupo("S3")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">S3</span><span class="gnom">TIC</span></div>@RenderSubs("S3")</div> }
+                            @if (TieneGrupo("S4")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">S4</span><span class="gnom">GESTION LOGISTICA</span></div>@RenderSubs("S4")</div> }
+                            @if (TieneGrupo("S5")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">S5</span><span class="gnom">GESTION HUMANA</span></div>@RenderSubs("S5")</div> }
+                            @if (TieneGrupo("S6")){ <div class="grupo-box"><div class="grupo-head"><span class="gcod">S6</span><span class="gnom">GESTION DOCUMENTAL</span></div>@RenderSubs("S6")</div> }
+                        </div>
+                    </div>
+                }
+
             </div>
+
+            <div class="mapa-lateral">
+                <span>S A T I S F A C C I O N &nbsp; C L I E N T E S</span>
+            </div>
+
         </div>
     </div>
 }
@@ -85,26 +139,15 @@
 {
     <div class="card mb-3" style="border:2px solid #0062B8;">
         <div class="card-header d-flex justify-content-between align-items-center" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
-            <h5 class="text-white mb-0">
-                <i class="fas fa-heading mr-2"></i>Encabezado — @MatrizActual.Nombre
-            </h5>
+            <h5 class="text-white mb-0"><i class="fas fa-heading mr-2"></i>Encabezado - @MatrizActual.Nombre</h5>
             <div>
-                <button class="btn btn-secondary btn-sm mr-2" @onclick="VolverALista">
-                    <i class="fas fa-arrow-left mr-1"></i> Volver
-                </button>
+                <button class="btn btn-secondary btn-sm mr-2" @onclick="VolverALista"><i class="fas fa-arrow-left mr-1"></i> Volver al Mapa</button>
                 @if (EditandoEncabezado)
                 {
-                    <button class="btn btn-success btn-sm mr-2" @onclick="GuardarEncabezado">
-                        <i class="fas fa-save mr-1"></i> Guardar
-                    </button>
+                    <button class="btn btn-success btn-sm mr-2" @onclick="GuardarEncabezado"><i class="fas fa-save mr-1"></i> Guardar</button>
                     <button class="btn btn-light btn-sm" @onclick="()=>EditandoEncabezado=false">Cancelar</button>
                 }
-                else
-                {
-                    <button class="btn btn-light btn-sm" @onclick="()=>EditandoEncabezado=true">
-                        <i class="fas fa-edit mr-1"></i> Editar Encabezado
-                    </button>
-                }
+                else { <button class="btn btn-light btn-sm" @onclick="()=>EditandoEncabezado=true"><i class="fas fa-edit mr-1"></i> Editar Encabezado</button> }
             </div>
         </div>
         <div class="card-body p-2">
@@ -113,41 +156,29 @@
                 <div style="border:1px solid #ccc;font-size:0.82rem;">
                     <table style="width:100%;border-collapse:collapse;">
                         <tr>
-                            <td rowspan="4" style="width:120px;border:1px solid #ccc;padding:5px;text-align:center;">
-                                <img src="/logo.png" style="max-width:100px;max-height:60px;" onerror="this.style.display='none'" />
-                            </td>
+                            <td rowspan="4" style="width:120px;border:1px solid #ccc;padding:5px;text-align:center;"><img src="/logo.png" style="max-width:100px;max-height:60px;" onerror="this.style.display='none'" /></td>
                             <td style="border:1px solid #ccc;padding:3px;"><strong>FORMATO</strong></td>
                             <td colspan="3" style="border:1px solid #ccc;padding:3px;"></td>
                             <td colspan="3" style="border:1px solid #ccc;padding:3px;text-align:right;"><strong>MATRIZ DE RIESGOS Y CONTROLES (MRC)</strong></td>
                         </tr>
                         <tr>
-                            <td style="border:1px solid #ccc;padding:3px;"><strong>CÓDIGO</strong></td>
-                            <td style="border:1px solid #ccc;padding:3px;">@MatrizActual.Codigo</td>
-                            <td style="border:1px solid #ccc;padding:3px;"><strong>ELABORADO POR:</strong></td>
-                            <td style="border:1px solid #ccc;padding:3px;">@MatrizActual.ElaboradoPor</td>
-                            <td style="border:1px solid #ccc;padding:3px;"><strong>REVISADO POR:</strong></td>
-                            <td style="border:1px solid #ccc;padding:3px;">@MatrizActual.RevisadoPor</td>
-                            <td style="border:1px solid #ccc;padding:3px;"><strong>APROBADO POR:</strong></td>
-                            <td style="border:1px solid #ccc;padding:3px;">@MatrizActual.AprobadoPor</td>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>CODIGO</strong></td><td style="border:1px solid #ccc;padding:3px;">@MatrizActual.Codigo</td>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>ELABORADO POR:</strong></td><td style="border:1px solid #ccc;padding:3px;">@MatrizActual.ElaboradoPor</td>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>REVISADO POR:</strong></td><td style="border:1px solid #ccc;padding:3px;">@MatrizActual.RevisadoPor</td>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>APROBADO POR:</strong></td><td style="border:1px solid #ccc;padding:3px;">@MatrizActual.AprobadoPor</td>
                         </tr>
                         <tr>
-                            <td style="border:1px solid #ccc;padding:3px;"><strong>VERSIÓN</strong></td>
-                            <td style="border:1px solid #ccc;padding:3px;">@MatrizActual.Version</td>
-                            <td colspan="6" style="border:1px solid #ccc;padding:3px;text-align:right;font-size:0.75rem;">
-                                Elaborado por: @MatrizActual.ElaboradoPorFirma &nbsp;|&nbsp;
-                                Revisado por: @MatrizActual.RevisadoPorFirma &nbsp;|&nbsp;
-                                Aprobado por: @MatrizActual.AprobadoPorFirma
-                            </td>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>VERSION</strong></td><td style="border:1px solid #ccc;padding:3px;">@MatrizActual.Version</td>
+                            <td colspan="6" style="border:1px solid #ccc;padding:3px;text-align:right;font-size:0.75rem;">Elaborado: @MatrizActual.ElaboradoPorFirma | Revisado: @MatrizActual.RevisadoPorFirma | Aprobado: @MatrizActual.AprobadoPorFirma</td>
                         </tr>
                         <tr>
-                            <td style="border:1px solid #ccc;padding:3px;"><strong>FECHA</strong></td>
-                            <td style="border:1px solid #ccc;padding:3px;">@MatrizActual.Fecha</td>
+                            <td style="border:1px solid #ccc;padding:3px;"><strong>FECHA</strong></td><td style="border:1px solid #ccc;padding:3px;">@MatrizActual.Fecha</td>
                             <td colspan="6" style="border:1px solid #ccc;padding:3px;"></td>
                         </tr>
                         <tr>
-                            <td colspan="2" style="border:1px solid #ccc;padding:3px;"><strong>Código de Matriz:</strong> @MatrizActual.CodigoMatriz</td>
-                            <td colspan="2" style="border:1px solid #ccc;padding:3px;"><strong>Versión:</strong> @MatrizActual.VersionMatriz</td>
-                            <td colspan="2" style="border:1px solid #ccc;padding:3px;"><strong>Fecha Aprobación:</strong> @MatrizActual.FechaAprobacion</td>
+                            <td colspan="2" style="border:1px solid #ccc;padding:3px;"><strong>Codigo Matriz:</strong> @MatrizActual.CodigoMatriz</td>
+                            <td colspan="2" style="border:1px solid #ccc;padding:3px;"><strong>Version:</strong> @MatrizActual.VersionMatriz</td>
+                            <td colspan="2" style="border:1px solid #ccc;padding:3px;"><strong>Fecha Aprobacion:</strong> @MatrizActual.FechaAprobacion</td>
                             <td colspan="2" style="border:1px solid #ccc;padding:3px;"><strong>Nivel:</strong> @MatrizActual.MatrizNivel</td>
                         </tr>
                     </table>
@@ -156,99 +187,19 @@
             else
             {
                 <div class="row">
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label><strong>Código</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.Codigo"
-                                   @oninput="e => MatrizActual.Codigo = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label><strong>Versión</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.Version"
-                                   @oninput="e => MatrizActual.Version = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label><strong>Fecha</strong></label>
-                            <input type="date" class="form-control form-control-sm"
-                                   value="@TryFormatDate(MatrizActual.Fecha)"
-                                   @onchange="e => MatrizActual.Fecha = FormatDateDisplay(e.Value == null ? string.Empty : e.Value.ToString())" />
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label><strong>Código de Matriz</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.CodigoMatriz"
-                                   @oninput="e => MatrizActual.CodigoMatriz = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label><strong>Versión Matriz</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.VersionMatriz"
-                                   @oninput="e => MatrizActual.VersionMatriz = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label><strong>Fecha Aprobación</strong></label>
-                            <input type="date" class="form-control form-control-sm"
-                                   value="@TryFormatDate(MatrizActual.FechaAprobacion)"
-                                   @onchange="e => MatrizActual.FechaAprobacion = FormatDateDisplay(e.Value == null ? string.Empty : e.Value.ToString())" />
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label><strong>Nivel</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.MatrizNivel"
-                                   @oninput="e => MatrizActual.MatrizNivel = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label><strong>Elaborado Por</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.ElaboradoPor"
-                                   @oninput="e => MatrizActual.ElaboradoPor = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label><strong>Revisado Por</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.RevisadoPor"
-                                   @oninput="e => MatrizActual.RevisadoPor = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label><strong>Aprobado Por</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.AprobadoPor"
-                                   @oninput="e => MatrizActual.AprobadoPor = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label><strong>Firma Elaborado Por</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.ElaboradoPorFirma"
-                                   @oninput="e => MatrizActual.ElaboradoPorFirma = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label><strong>Firma Revisado Por</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.RevisadoPorFirma"
-                                   @oninput="e => MatrizActual.RevisadoPorFirma = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label><strong>Firma Aprobado Por</strong></label>
-                            <input class="form-control form-control-sm" value="@MatrizActual.AprobadoPorFirma"
-                                   @oninput="e => MatrizActual.AprobadoPorFirma = e.Value == null ? string.Empty : e.Value.ToString()" />
-                        </div>
-                    </div>
+                    <div class="col-md-3"><div class="form-group"><label><strong>Codigo</strong></label><input class="form-control form-control-sm" value="@MatrizActual.Codigo" @oninput="e => MatrizActual.Codigo = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                    <div class="col-md-2"><div class="form-group"><label><strong>Version</strong></label><input class="form-control form-control-sm" value="@MatrizActual.Version" @oninput="e => MatrizActual.Version = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                    <div class="col-md-2"><div class="form-group"><label><strong>Fecha</strong></label><input type="date" class="form-control form-control-sm" value="@TryFormatDate(MatrizActual.Fecha)" @onchange="e => MatrizActual.Fecha = FormatDateDisplay(e.Value == null ? string.Empty : e.Value.ToString())" /></div></div>
+                    <div class="col-md-3"><div class="form-group"><label><strong>Codigo Matriz</strong></label><input class="form-control form-control-sm" value="@MatrizActual.CodigoMatriz" @oninput="e => MatrizActual.CodigoMatriz = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                    <div class="col-md-2"><div class="form-group"><label><strong>Version Matriz</strong></label><input class="form-control form-control-sm" value="@MatrizActual.VersionMatriz" @oninput="e => MatrizActual.VersionMatriz = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                    <div class="col-md-3"><div class="form-group"><label><strong>Fecha Aprobacion</strong></label><input type="date" class="form-control form-control-sm" value="@TryFormatDate(MatrizActual.FechaAprobacion)" @onchange="e => MatrizActual.FechaAprobacion = FormatDateDisplay(e.Value == null ? string.Empty : e.Value.ToString())" /></div></div>
+                    <div class="col-md-3"><div class="form-group"><label><strong>Nivel</strong></label><input class="form-control form-control-sm" value="@MatrizActual.MatrizNivel" @oninput="e => MatrizActual.MatrizNivel = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                    <div class="col-md-6"><div class="form-group"><label><strong>Elaborado Por</strong></label><input class="form-control form-control-sm" value="@MatrizActual.ElaboradoPor" @oninput="e => MatrizActual.ElaboradoPor = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                    <div class="col-md-6"><div class="form-group"><label><strong>Revisado Por</strong></label><input class="form-control form-control-sm" value="@MatrizActual.RevisadoPor" @oninput="e => MatrizActual.RevisadoPor = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                    <div class="col-md-6"><div class="form-group"><label><strong>Aprobado Por</strong></label><input class="form-control form-control-sm" value="@MatrizActual.AprobadoPor" @oninput="e => MatrizActual.AprobadoPor = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                    <div class="col-md-4"><div class="form-group"><label><strong>Firma Elaborado</strong></label><input class="form-control form-control-sm" value="@MatrizActual.ElaboradoPorFirma" @oninput="e => MatrizActual.ElaboradoPorFirma = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                    <div class="col-md-4"><div class="form-group"><label><strong>Firma Revisado</strong></label><input class="form-control form-control-sm" value="@MatrizActual.RevisadoPorFirma" @oninput="e => MatrizActual.RevisadoPorFirma = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                    <div class="col-md-4"><div class="form-group"><label><strong>Firma Aprobado</strong></label><input class="form-control form-control-sm" value="@MatrizActual.AprobadoPorFirma" @oninput="e => MatrizActual.AprobadoPorFirma = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
                 </div>
             }
         </div>
@@ -256,35 +207,23 @@
 
     <div class="row mb-3">
         <div class="col-12">
-            <button class="btn btn-success mr-2" @onclick="NuevoRiesgo">
-                <i class="fas fa-plus mr-1"></i> Agregar Registro a Matriz
-            </button>
+            <button class="btn btn-success mr-2" @onclick="NuevoRiesgo"><i class="fas fa-plus mr-1"></i> Agregar Registro a Matriz</button>
             @if (ListaRiesgos.Any())
             {
-                <button class="btn btn-info mr-2" @onclick="MostrarMapasCalor">
-                    <i class="fas fa-chart-bar mr-1"></i> Ver Mapa de Calor
-                </button>
-                <button class="btn btn-warning mr-2" @onclick="DescargarExcel">
-                    <i class="fas fa-file-excel mr-1"></i> Descargar Excel
-                </button>
+                <button class="btn btn-info mr-2" @onclick="MostrarMapasCalor"><i class="fas fa-chart-bar mr-1"></i> Ver Mapa de Calor</button>
+                <button class="btn btn-warning mr-2" @onclick="DescargarExcel"><i class="fas fa-file-excel mr-1"></i> Descargar Excel</button>
             }
         </div>
     </div>
 
     <div class="card">
         <div class="card-header" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
-            <h3 class="card-title text-white">
-                <i class="fas fa-list mr-2"></i>
-                @MatrizActual.CodigoProceso — @MatrizActual.NombreProceso
-            </h3>
+            <h3 class="card-title text-white"><i class="fas fa-list mr-2"></i>@MatrizActual.CodigoProceso - @MatrizActual.NombreProceso</h3>
         </div>
         <div class="card-body table-responsive p-0">
             @if (!ListaRiesgos.Any())
             {
-                <div class="p-5 text-center text-muted">
-                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
-                    <p>No hay riesgos. Haz clic en <strong>Agregar Registro a Matriz</strong>.</p>
-                </div>
+                <div class="p-5 text-center text-muted"><i class="fas fa-inbox fa-3x mb-3 d-block"></i><p>No hay riesgos. Haz clic en <strong>Agregar Registro a Matriz</strong>.</p></div>
             }
             else
             {
@@ -295,23 +234,20 @@
                             <th colspan="3" style="background:#6c757d;color:white;">RIESGO INHERENTE</th>
                             <th colspan="8" style="background:#003B70;color:white;">CONTROL</th>
                             <th colspan="3" style="background:#004F94;color:white;">RIESGO RESIDUAL</th>
-                            <th colspan="9" style="background:#856404;color:white;">PLAN DE ACCIÓN</th>
+                            <th colspan="9" style="background:#856404;color:white;">PLAN DE ACCION</th>
                             <th colspan="6" style="background:#0062B8;color:white;">INDICADORES</th>
                             <th style="background:#198754;color:white;">ACC.</th>
                         </tr>
                         <tr style="background:#EBF3FA;color:#003B70;font-size:0.75rem;text-align:center;">
-                            <th>COD</th><th>Nivel</th><th>Gerencia Resp.</th><th>Nombre Proceso</th>
-                            <th>Subproceso</th><th>Cód. Riesgo</th><th>Descripción Riesgo</th>
-                            <th>Origen</th><th>Frecuencia</th><th>Tipo</th>
+                            <th>COD</th><th>Nivel</th><th>Gerencia Resp.</th><th>Nombre Proceso</th><th>Subproceso</th>
+                            <th>Cod. Riesgo</th><th>Descripcion Riesgo</th><th>Origen</th><th>Frecuencia</th><th>Tipo</th>
                             <th>Prob.</th><th>Impacto</th><th>Severidad</th>
-                            <th>Cód. Control</th><th>Desc. Control</th><th>Área Control</th>
-                            <th>Resp. Control</th><th>Frec. Control</th><th>Oportunidad</th>
-                            <th>Automatiz.</th><th>Evidencia</th>
+                            <th>Cod. Control</th><th>Desc. Control</th><th>Area Control</th><th>Resp. Control</th>
+                            <th>Frec. Control</th><th>Oportunidad</th><th>Automatiz.</th><th>Evidencia</th>
                             <th>Prob.</th><th>Impacto</th><th>Severidad</th>
-                            <th>Estrategia</th><th>Cód. Plan</th><th>Desc. Plan</th>
-                            <th>Área Plan</th><th>Resp. Plan</th><th>Inicio</th><th>Estado</th><th>Fin</th>
-                            <th>Cód. KRI</th><th>Definición KRI</th><th>Frecuencia</th>
-                            <th>Meta KRI</th><th>KRI Actual</th><th>Resp. KRI</th>
+                            <th>Estrategia</th><th>Cod. Plan</th><th>Desc. Plan</th><th>Area Plan</th>
+                            <th>Resp. Plan</th><th>Inicio</th><th>Estado</th><th>Fin</th>
+                            <th>Cod. KRI</th><th>Def. KRI</th><th>Frecuencia</th><th>Meta KRI</th><th>KRI Actual</th><th>Resp. KRI</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -320,30 +256,16 @@
                         {
                             var sevI = r.ProbabilidadInherente * r.ImpactoInherente;
                             var sevR = r.ProbabilidadResidual * r.ImpactoResidual;
-                            var nivI = Riesgo.GetNivel(sevI);
-                            var nivR = Riesgo.GetNivel(sevR);
-                            var colI = RiesgoService.GetColorNivel(nivI);
-                            var colR = RiesgoService.GetColorNivel(nivR);
-                            var plan1 = r.PlanesAccion.FirstOrDefault();
-                            var kri1 = r.Indicadores.FirstOrDefault();
+                            var nivI = Riesgo.GetNivel(sevI); var nivR = Riesgo.GetNivel(sevR);
+                            var colI = RiesgoService.GetColorNivel(nivI); var colR = RiesgoService.GetColorNivel(nivR);
+                            var plan1 = r.PlanesAccion.FirstOrDefault(); var kri1 = r.Indicadores.FirstOrDefault();
                             var esAE = nivR == "Alto" || nivR == "Extremo";
-
-                            // ── CLAVE DEL CAMBIO ──
-                            // Si el riesgo tiene controles, generamos una fila por cada control.
-                            // Las celdas de datos generales, riesgo inherente, residual, plan e
-                            // indicadores llevan rowspan = cantidad de controles para no repetirse.
-                            var controles = r.Controles.ToList();
-                            int totalFilas = controles.Count > 0 ? controles.Count : 1;
-
+                            var controles = r.Controles.ToList(); int totalFilas = controles.Count > 0 ? controles.Count : 1;
                             for (int ci = 0; ci < totalFilas; ci++)
                             {
-                                var ctrl = controles.Count > 0 ? controles[ci] : null;
-                                bool esPrimeraFila = ci == 0;
-
+                                var ctrl = controles.Count > 0 ? controles[ci] : null; bool esPF = ci == 0;
                                 <tr style="font-size:0.75rem;vertical-align:middle;">
-
-                                    @* ── DATOS GENERALES (solo en la primera fila con rowspan) ── *@
-                                    @if (esPrimeraFila)
+                                    @if (esPF)
                                     {
                                         <td rowspan="@totalFilas">@r.CodigoProceso</td>
                                         <td rowspan="@totalFilas">Proceso</td>
@@ -355,68 +277,43 @@
                                         <td rowspan="@totalFilas">@r.OrigenRiesgo</td>
                                         <td rowspan="@totalFilas">@r.FrecuenciaRiesgo</td>
                                         <td rowspan="@totalFilas">@r.TipoRiesgo</td>
-
-                                        @* ── RIESGO INHERENTE (solo en la primera fila) ── *@
                                         <td rowspan="@totalFilas" class="text-center">@r.ProbabilidadInherente</td>
                                         <td rowspan="@totalFilas" class="text-center">@r.ImpactoInherente</td>
-                                        <td rowspan="@totalFilas" class="text-center">
-                                            <span class="badge" style="background:@colI;color:white">@sevI - @nivI</span>
-                                        </td>
+                                        <td rowspan="@totalFilas" class="text-center"><span class="badge" style="background:@colI;color:white">@sevI - @nivI</span></td>
                                     }
-
-                                    @* ── CONTROL: una celda por fila, cada control en su propia fila ── *@
                                     @if (ctrl != null)
                                     {
                                         <td style="white-space:normal;min-width:70px;"><strong>@ctrl.CodigoControl</strong></td>
                                         <td style="max-width:180px;white-space:normal;">@ctrl.DescripcionControl</td>
                                         <td style="white-space:normal;min-width:90px;">@ctrl.AreaResponsable</td>
                                         <td style="white-space:normal;">@ctrl.ResponsablesControl</td>
-                                        <td>@ctrl.FrecuenciaControl</td>
-                                        <td>@ctrl.OportunidadControl</td>
+                                        <td>@ctrl.FrecuenciaControl</td><td>@ctrl.OportunidadControl</td>
                                         <td>@ctrl.AutomatizacionControl</td>
                                         <td style="max-width:150px;white-space:normal;">@ctrl.EvidenciaControl</td>
                                     }
-                                    else
-                                    {
-                                        <td><span class="text-muted">-</span></td>
-                                        <td><span class="text-muted">-</span></td>
-                                        <td><span class="text-muted">-</span></td>
-                                        <td><span class="text-muted">-</span></td>
-                                        <td><span class="text-muted">-</span></td>
-                                        <td><span class="text-muted">-</span></td>
-                                        <td><span class="text-muted">-</span></td>
-                                        <td><span class="text-muted">-</span></td>
-                                    }
-
-                                    @* ── RIESGO RESIDUAL, PLAN, INDICADORES, ACC (solo primera fila) ── *@
-                                    @if (esPrimeraFila)
+                                    else { <td colspan="8" class="text-center text-muted"><small>Sin control registrado</small></td> }
+                                    @if (esPF)
                                     {
                                         <td rowspan="@totalFilas" class="text-center">@r.ProbabilidadResidual</td>
                                         <td rowspan="@totalFilas" class="text-center">@r.ImpactoResidual</td>
-                                        <td rowspan="@totalFilas" class="text-center">
-                                            <span class="badge" style="background:@colR;color:white">@sevR - @nivR</span>
-                                        </td>
-                                        <td rowspan="@totalFilas">@(string.IsNullOrEmpty(r.EstrategiaResidual) ? "-" : r.EstrategiaResidual)</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.CodigoPlan ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas" style="max-width:100px;white-space:normal;">@(esAE ? (plan1?.DescripcionPlan ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.AreaResponsable ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.ResponsablePlan ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.InicioPlan?.ToString("dd/MM/yyyy") ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.EstadoPlan ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (plan1?.FinPlan?.ToString("dd/MM/yyyy") ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (kri1?.CodigoKRI ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas" style="max-width:100px;white-space:normal;">@(esAE ? (kri1?.DefinicionKRI ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (kri1?.Frecuencia ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (kri1?.MetaKRI ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (kri1?.KRIActual ?? "-") : "-")</td>
-                                        <td rowspan="@totalFilas">@(esAE ? (kri1?.ResponsableKRI ?? "-") : "-")</td>
+                                        <td rowspan="@totalFilas" class="text-center"><span class="badge" style="background:@colR;color:white">@sevR - @nivR</span></td>
+                                        <td rowspan="@totalFilas">@(string.IsNullOrEmpty(r.EstrategiaResidual)?"-":r.EstrategiaResidual)</td>
+                                        <td rowspan="@totalFilas">@(esAE?(plan1?.CodigoPlan??"-"):"-")</td>
+                                        <td rowspan="@totalFilas" style="max-width:100px;white-space:normal;">@(esAE?(plan1?.DescripcionPlan??"-"):"-")</td>
+                                        <td rowspan="@totalFilas">@(esAE?(plan1?.AreaResponsable??"-"):"-")</td>
+                                        <td rowspan="@totalFilas">@(esAE?(plan1?.ResponsablePlan??"-"):"-")</td>
+                                        <td rowspan="@totalFilas">@(esAE?(plan1?.InicioPlan?.ToString("dd/MM/yyyy")??"-"):"-")</td>
+                                        <td rowspan="@totalFilas">@(esAE?(plan1?.EstadoPlan??"-"):"-")</td>
+                                        <td rowspan="@totalFilas">@(esAE?(plan1?.FinPlan?.ToString("dd/MM/yyyy")??"-"):"-")</td>
+                                        <td rowspan="@totalFilas">@(esAE?(kri1?.CodigoKRI??"-"):"-")</td>
+                                        <td rowspan="@totalFilas" style="max-width:100px;white-space:normal;">@(esAE?(kri1?.DefinicionKRI??"-"):"-")</td>
+                                        <td rowspan="@totalFilas">@(esAE?(kri1?.Frecuencia??"-"):"-")</td>
+                                        <td rowspan="@totalFilas">@(esAE?(kri1?.MetaKRI??"-"):"-")</td>
+                                        <td rowspan="@totalFilas">@(esAE?(kri1?.KRIActual??"-"):"-")</td>
+                                        <td rowspan="@totalFilas">@(esAE?(kri1?.ResponsableKRI??"-"):"-")</td>
                                         <td rowspan="@totalFilas">
-                                            <button class="btn btn-xs btn-info mr-1" @onclick="() => EditarRiesgo(r)">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-xs btn-danger" @onclick="() => EliminarRiesgo(r.Id)">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
+                                            <button class="btn btn-xs btn-info mr-1" @onclick="() => EditarRiesgo(r)"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-xs btn-danger" @onclick="() => EliminarRiesgo(r.Id)"><i class="fas fa-trash"></i></button>
                                         </td>
                                     }
                                 </tr>
@@ -429,675 +326,155 @@
     </div>
 }
 
-@* ── MAPA DE CALOR ── *@
 @if (MostrarHeatmap && MatrizActual != null)
 {
-    <div class="row mb-3">
-        <div class="col-12">
-            <button class="btn btn-secondary" @onclick="()=>MostrarHeatmap=false">
-                <i class="fas fa-arrow-left mr-1"></i> Regresar
-            </button>
-        </div>
-    </div>
+    <div class="row mb-3"><div class="col-12"><button class="btn btn-secondary" @onclick="()=>MostrarHeatmap=false"><i class="fas fa-arrow-left mr-1"></i> Regresar</button></div></div>
     <div class="row">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header text-white" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
-                    <h5 class="mb-0"><i class="fas fa-chart-bar mr-2"></i>Riesgo Inherente — @MatrizActual.CodigoProceso</h5>
-                </div>
-                <div class="card-body p-2">@RenderHeatmap(true)</div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header text-white" style="background:#003B70;border-bottom:2px solid #FFDD00;">
-                    <h5 class="mb-0"><i class="fas fa-chart-bar mr-2"></i>Riesgo Residual — @MatrizActual.CodigoProceso</h5>
-                </div>
-                <div class="card-body p-2">@RenderHeatmap(false)</div>
-            </div>
-        </div>
+        <div class="col-md-6"><div class="card"><div class="card-header text-white" style="background:#0062B8;border-bottom:2px solid #FFDD00;"><h5 class="mb-0"><i class="fas fa-chart-bar mr-2"></i>Riesgo Inherente - @MatrizActual.CodigoProceso</h5></div><div class="card-body p-2">@RenderHeatmap(true)</div></div></div>
+        <div class="col-md-6"><div class="card"><div class="card-header text-white" style="background:#003B70;border-bottom:2px solid #FFDD00;"><h5 class="mb-0"><i class="fas fa-chart-bar mr-2"></i>Riesgo Residual - @MatrizActual.CodigoProceso</h5></div><div class="card-body p-2">@RenderHeatmap(false)</div></div></div>
     </div>
 }
 
-@* ── FORMULARIO (sin cambios) ── *@
 @if (MostrarFormulario)
 {
     <div class="card card-outline" style="border-top:3px solid #0062B8;">
         <div class="card-header">
-            <h3 class="card-title">
-                <i class="fas fa-edit mr-2"></i>
-                @(RiesgoActual.Id == 0 ? "Nuevo Registro" : "Editando: " + RiesgoActual.CodigoRiesgo)
-                @if (MatrizActual != null)
-                { <small class="ml-2 text-muted">— @MatrizActual.CodigoProceso @MatrizActual.NombreProceso</small> }
-            </h3>
-            <div class="card-tools">
-                <button class="btn btn-secondary btn-sm" @onclick="Cancelar">
-                    <i class="fas fa-times mr-1"></i> Cancelar
-                </button>
-            </div>
+            <h3 class="card-title"><i class="fas fa-edit mr-2"></i>@(RiesgoActual.Id == 0 ? "Nuevo Registro" : "Editando: " + RiesgoActual.CodigoRiesgo)@if (MatrizActual != null){<small class="ml-2 text-muted">- @MatrizActual.CodigoProceso @MatrizActual.NombreProceso</small>}</h3>
+            <div class="card-tools"><button class="btn btn-secondary btn-sm" @onclick="Cancelar"><i class="fas fa-times mr-1"></i> Cancelar</button></div>
         </div>
         <div class="card-body p-0">
             <ul class="nav nav-tabs nav-fill" style="background:#f8f9fa;border-bottom:2px solid #0062B8;">
-                <li class="nav-item">
-                    <a class="nav-link @(TabActivo==1?"active font-weight-bold":"")"
-                       style="@(TabActivo==1?"border-bottom:3px solid #0062B8;color:#0062B8;":"")"
-                       href="#" @onclick="()=>TabActivo=1" @onclick:preventDefault>
-                        <i class="fas fa-info-circle mr-1"></i>DATOS GENERALES
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link @(TabActivo==2?"active font-weight-bold":"")"
-                       style="@(TabActivo==2?"border-bottom:3px solid #0062B8;color:#0062B8;":"")"
-                       href="#" @onclick="()=>TabActivo=2" @onclick:preventDefault>
-                        <i class="fas fa-chart-bar mr-1"></i>RIESGO INHERENTE
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link @(TabActivo==3?"active font-weight-bold":"")"
-                       style="@(TabActivo==3?"border-bottom:3px solid #0062B8;color:#0062B8;":"")"
-                       href="#" @onclick="()=>TabActivo=3" @onclick:preventDefault>
-                        <i class="fas fa-shield-alt mr-1"></i>CONTROL
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link @(TabActivo==4?"active font-weight-bold":"")"
-                       style="@(TabActivo==4?"border-bottom:3px solid #0062B8;color:#0062B8;":"")"
-                       href="#" @onclick="()=>TabActivo=4" @onclick:preventDefault>
-                        <i class="fas fa-chart-line mr-1"></i>RIESGO RESIDUAL
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link @(TabActivo==5?"active font-weight-bold":"")"
-                       style="@(TabActivo==5?"border-bottom:3px solid #0062B8;color:#0062B8;":"")"
-                       href="#" @onclick="()=>TabActivo=5" @onclick:preventDefault>
-                        <i class="fas fa-tasks mr-1"></i>PLAN DE ACCIÓN
-                        @if (!PuedeVerPlanIndicadores) { <small class="ml-1">(solo estrategia)</small> }
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link @(TabActivo==6?"active font-weight-bold":"") @(!PuedeVerPlanIndicadores?"text-muted":"")"
-                       style="@(TabActivo==6?"border-bottom:3px solid #0062B8;color:#0062B8;":"")"
-                       href="#" @onclick="IrTab6" @onclick:preventDefault>
-                        <i class="fas fa-tachometer-alt mr-1"></i>INDICADORES
-                        @if (!PuedeVerPlanIndicadores) { <small class="ml-1">(N/A)</small> }
-                    </a>
-                </li>
+                <li class="nav-item"><a class="nav-link @(TabActivo==1?"active font-weight-bold":"")" style="@(TabActivo==1?"border-bottom:3px solid #0062B8;color:#0062B8;":"")" href="#" @onclick="()=>TabActivo=1" @onclick:preventDefault><i class="fas fa-info-circle mr-1"></i>DATOS GENERALES</a></li>
+                <li class="nav-item"><a class="nav-link @(TabActivo==2?"active font-weight-bold":"")" style="@(TabActivo==2?"border-bottom:3px solid #0062B8;color:#0062B8;":"")" href="#" @onclick="()=>TabActivo=2" @onclick:preventDefault><i class="fas fa-chart-bar mr-1"></i>RIESGO INHERENTE</a></li>
+                <li class="nav-item"><a class="nav-link @(TabActivo==3?"active font-weight-bold":"")" style="@(TabActivo==3?"border-bottom:3px solid #0062B8;color:#0062B8;":"")" href="#" @onclick="()=>TabActivo=3" @onclick:preventDefault><i class="fas fa-shield-alt mr-1"></i>CONTROL</a></li>
+                <li class="nav-item"><a class="nav-link @(TabActivo==4?"active font-weight-bold":"")" style="@(TabActivo==4?"border-bottom:3px solid #0062B8;color:#0062B8;":"")" href="#" @onclick="()=>TabActivo=4" @onclick:preventDefault><i class="fas fa-chart-line mr-1"></i>RIESGO RESIDUAL</a></li>
+                <li class="nav-item"><a class="nav-link @(TabActivo==5?"active font-weight-bold":"")" style="@(TabActivo==5?"border-bottom:3px solid #0062B8;color:#0062B8;":"")" href="#" @onclick="()=>TabActivo=5" @onclick:preventDefault><i class="fas fa-tasks mr-1"></i>PLAN DE ACCION@if (!PuedeVerPlanIndicadores){<small class="ml-1">(solo estrategia)</small>}</a></li>
+                <li class="nav-item"><a class="nav-link @(TabActivo==6?"active font-weight-bold":"") @(!PuedeVerPlanIndicadores?"text-muted":"")" style="@(TabActivo==6?"border-bottom:3px solid #0062B8;color:#0062B8;":"")" href="#" @onclick="IrTab6" @onclick:preventDefault><i class="fas fa-tachometer-alt mr-1"></i>INDICADORES@if (!PuedeVerPlanIndicadores){<small class="ml-1">(N/A)</small>}</a></li>
             </ul>
-
             <div class="p-4">
-                @if (!string.IsNullOrEmpty(MsgGuardar))
-                {
-                    <div class="alert alert-@(GuardarOk?"success":"danger")">
-                        <i class="fas fa-@(GuardarOk?"check":"exclamation")-circle mr-2"></i>@MsgGuardar
-                    </div>
-                }
-
+                @if (!string.IsNullOrEmpty(MsgGuardar)){<div class="alert alert-@(GuardarOk?"success":"danger")"><i class="fas fa-@(GuardarOk?"check":"exclamation")-circle mr-2"></i>@MsgGuardar</div>}
                 @if (TabActivo == 1)
                 {
-                    <div class="card">
-                        <div class="card-header text-white" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
-                            <h5 class="mb-0"><i class="fas fa-info-circle mr-2"></i>DATOS GENERALES DEL RIESGO</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label><strong>COD (Código del Proceso)</strong></label>
-                                        <input class="form-control bg-light font-weight-bold"
-                                               value="@RiesgoActual.CodigoProceso" readonly />
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label><strong>Nivel</strong></label>
-                                        <input class="form-control bg-light" value="Proceso" readonly />
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label><strong>Gerencia Responsable</strong></label>
-                                        <select class="form-control" @onchange="e => RiesgoActual.GerenciaResponsable = e.Value == null ? string.Empty : e.Value.ToString()">
-                                            <option value="">-- Selecciona --</option>
-                                            @foreach (var area in AreasActivas)
-                                            {
-                                                <option value="@area.Nombre" selected="@(RiesgoActual.GerenciaResponsable == area.Nombre)">@area.Categoria - @area.Nombre</option>
-                                            }
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label><strong>Código del Riesgo</strong></label>
-                                        <input class="form-control bg-light" value="@RiesgoActual.CodigoRiesgo"
-                                               readonly placeholder="Auto-generado" />
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label><strong>Nombre del Proceso</strong></label>
-                                        <input class="form-control bg-light" value="@RiesgoActual.NombreProceso" readonly />
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label><strong>Subproceso</strong></label>
-                                        <input class="form-control" list="subprocesos-matriz" value="@RiesgoActual.Subproceso"
-                                               @oninput="e => RiesgoActual.Subproceso = e.Value == null ? string.Empty : e.Value.ToString()" />
-                                        <datalist id="subprocesos-matriz">
-                                            @foreach (var sub in SubprocesosDisponibles)
-                                            {
-                                                <option value="@sub.Nombre">@sub.Codigo - @sub.Nombre</option>
-                                            }
-                                        </datalist>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label><strong>Origen del Riesgo</strong></label>
-                                        <select class="form-control" @onchange="e => RiesgoActual.OrigenRiesgo = e.Value == null ? string.Empty : e.Value.ToString()">
-                                            <option value="">-- Selecciona --</option>
-                                            @foreach (var opcion in OpcionesParametro("OrigenRiesgo"))
-                                            {
-                                                <option value="@opcion" selected="@(RiesgoActual.OrigenRiesgo == opcion)">@opcion</option>
-                                            }
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label><strong>Frecuencia del Riesgo</strong></label>
-                                        <select class="form-control" @onchange="e => RiesgoActual.FrecuenciaRiesgo = e.Value == null ? string.Empty : e.Value.ToString()">
-                                            <option value="">-- Selecciona --</option>
-                                            @foreach (var opcion in OpcionesParametro("FrecuenciaRiesgo"))
-                                            {
-                                                <option value="@opcion" selected="@(RiesgoActual.FrecuenciaRiesgo == opcion)">@opcion</option>
-                                            }
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label><strong>Tipo de Riesgo</strong></label>
-                                        <select class="form-control" @onchange="e => RiesgoActual.TipoRiesgo = e.Value == null ? string.Empty : e.Value.ToString()">
-                                            <option value="">-- Selecciona --</option>
-                                            @foreach (var opcion in OpcionesParametro("TipoRiesgo"))
-                                            {
-                                                <option value="@opcion" selected="@(RiesgoActual.TipoRiesgo == opcion)">@opcion</option>
-                                            }
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <div class="form-group">
-                                        <label><strong>Descripción del Riesgo</strong></label>
-                                        <textarea class="form-control" rows="3"
-                                                  @oninput="e => RiesgoActual.DescripcionRiesgo = e.Value == null ? string.Empty : e.Value.ToString()">@RiesgoActual.DescripcionRiesgo</textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer text-right">
-                            <button class="btn btn-danger" @onclick="GuardarDatosGenerales">
-                                <i class="fas fa-save mr-1"></i> Guardar y Continuar <i class="fas fa-arrow-right ml-1"></i>
-                            </button>
-                        </div>
-                    </div>
+                    <div class="card"><div class="card-header text-white" style="background:#0062B8;border-bottom:2px solid #FFDD00;"><h5 class="mb-0"><i class="fas fa-info-circle mr-2"></i>DATOS GENERALES DEL RIESGO</h5></div>
+                    <div class="card-body"><div class="row">
+                        <div class="col-md-3"><div class="form-group"><label><strong>COD</strong></label><input class="form-control bg-light font-weight-bold" value="@RiesgoActual.CodigoProceso" readonly /></div></div>
+                        <div class="col-md-2"><div class="form-group"><label><strong>Nivel</strong></label><input class="form-control bg-light" value="Proceso" readonly /></div></div>
+                        <div class="col-md-4"><div class="form-group"><label><strong>Gerencia Responsable</strong></label><select class="form-control" @onchange="e => RiesgoActual.GerenciaResponsable = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var area in AreasActivas){<option value="@area.Nombre" selected="@(RiesgoActual.GerenciaResponsable == area.Nombre)">@area.Categoria - @area.Nombre</option>}</select></div></div>
+                        <div class="col-md-3"><div class="form-group"><label><strong>Codigo del Riesgo</strong></label><input class="form-control bg-light" value="@RiesgoActual.CodigoRiesgo" readonly placeholder="Auto-generado" /></div></div>
+                        <div class="col-md-6"><div class="form-group"><label><strong>Nombre del Proceso</strong></label><input class="form-control bg-light" value="@RiesgoActual.NombreProceso" readonly /></div></div>
+                        <div class="col-md-6"><div class="form-group"><label><strong>Subproceso</strong></label><input class="form-control" list="subprocesos-matriz" value="@RiesgoActual.Subproceso" @oninput="e => RiesgoActual.Subproceso = e.Value == null ? string.Empty : e.Value.ToString()" /><datalist id="subprocesos-matriz">@foreach (var sub in SubprocesosDisponibles){<option value="@sub.Nombre">@sub.Codigo - @sub.Nombre</option>}</datalist></div></div>
+                        <div class="col-md-4"><div class="form-group"><label><strong>Origen del Riesgo</strong></label><select class="form-control" @onchange="e => RiesgoActual.OrigenRiesgo = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var op in OpcionesParametro("OrigenRiesgo")){<option value="@op" selected="@(RiesgoActual.OrigenRiesgo==op)">@op</option>}</select></div></div>
+                        <div class="col-md-4"><div class="form-group"><label><strong>Frecuencia del Riesgo</strong></label><select class="form-control" @onchange="e => RiesgoActual.FrecuenciaRiesgo = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var op in OpcionesParametro("FrecuenciaRiesgo")){<option value="@op" selected="@(RiesgoActual.FrecuenciaRiesgo==op)">@op</option>}</select></div></div>
+                        <div class="col-md-4"><div class="form-group"><label><strong>Tipo de Riesgo</strong></label><select class="form-control" @onchange="e => RiesgoActual.TipoRiesgo = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var op in OpcionesParametro("TipoRiesgo")){<option value="@op" selected="@(RiesgoActual.TipoRiesgo==op)">@op</option>}</select></div></div>
+                        <div class="col-12"><div class="form-group"><label><strong>Descripcion del Riesgo</strong></label><textarea class="form-control" rows="3" @oninput="e => RiesgoActual.DescripcionRiesgo = e.Value == null ? string.Empty : e.Value.ToString()">@RiesgoActual.DescripcionRiesgo</textarea></div></div>
+                    </div></div>
+                    <div class="card-footer text-right"><button class="btn btn-danger" @onclick="GuardarDatosGenerales"><i class="fas fa-save mr-1"></i> Guardar y Continuar <i class="fas fa-arrow-right ml-1"></i></button></div></div>
                 }
-
                 @if (TabActivo == 2)
                 {
-                    <div class="card">
-                        <div class="card-header text-white" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
-                            <h5 class="mb-0"><i class="fas fa-chart-bar mr-2"></i>EVALUACIÓN DE RIESGO INHERENTE</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row justify-content-center">
-                                <div class="col-md-3">
-                                    <div class="form-group text-center">
-                                        <label><strong>Probabilidad (1-4)</strong></label>
-                                        <select class="form-control form-control-lg text-center" @onchange="OnProbInherenteChange">
-                                            <option value="1" selected="@(RiesgoActual.ProbabilidadInherente==1)">1 - Bajo</option>
-                                            <option value="2" selected="@(RiesgoActual.ProbabilidadInherente==2)">2 - Moderado</option>
-                                            <option value="3" selected="@(RiesgoActual.ProbabilidadInherente==3)">3 - Alto</option>
-                                            <option value="4" selected="@(RiesgoActual.ProbabilidadInherente==4)">4 - Extremo</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group text-center">
-                                        <label><strong>Impacto (1-4)</strong></label>
-                                        <select class="form-control form-control-lg text-center" @onchange="OnImpInherenteChange">
-                                            <option value="1" selected="@(RiesgoActual.ImpactoInherente==1)">1 - Bajo</option>
-                                            <option value="2" selected="@(RiesgoActual.ImpactoInherente==2)">2 - Moderado</option>
-                                            <option value="3" selected="@(RiesgoActual.ImpactoInherente==3)">3 - Alto</option>
-                                            <option value="4" selected="@(RiesgoActual.ImpactoInherente==4)">4 - Extremo</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group text-center">
-                                        <label><strong>Severidad</strong></label>
-                                        <div class="p-3 rounded text-white text-center" style="background:@ColorInherente;font-size:2rem;font-weight:bold;">
-                                            @SeveridadInherente<br/>
-                                            <small style="font-size:1rem;">@NivelInherente</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer d-flex justify-content-between">
-                            <button class="btn btn-secondary" @onclick="()=>TabActivo=1"><i class="fas fa-arrow-left mr-1"></i> Anterior</button>
-                            <button class="btn btn-primary" @onclick="GuardarInherente"><i class="fas fa-save mr-1"></i> Guardar y Continuar <i class="fas fa-arrow-right ml-1"></i></button>
-                        </div>
-                    </div>
+                    <div class="card"><div class="card-header text-white" style="background:#0062B8;border-bottom:2px solid #FFDD00;"><h5 class="mb-0"><i class="fas fa-chart-bar mr-2"></i>EVALUACION DE RIESGO INHERENTE</h5></div>
+                    <div class="card-body"><div class="row justify-content-center">
+                        <div class="col-md-3"><div class="form-group text-center"><label><strong>Probabilidad (1-4)</strong></label><select class="form-control form-control-lg text-center" @onchange="OnProbInherenteChange"><option value="1" selected="@(RiesgoActual.ProbabilidadInherente==1)">1 - Bajo</option><option value="2" selected="@(RiesgoActual.ProbabilidadInherente==2)">2 - Moderado</option><option value="3" selected="@(RiesgoActual.ProbabilidadInherente==3)">3 - Alto</option><option value="4" selected="@(RiesgoActual.ProbabilidadInherente==4)">4 - Extremo</option></select></div></div>
+                        <div class="col-md-3"><div class="form-group text-center"><label><strong>Impacto (1-4)</strong></label><select class="form-control form-control-lg text-center" @onchange="OnImpInherenteChange"><option value="1" selected="@(RiesgoActual.ImpactoInherente==1)">1 - Bajo</option><option value="2" selected="@(RiesgoActual.ImpactoInherente==2)">2 - Moderado</option><option value="3" selected="@(RiesgoActual.ImpactoInherente==3)">3 - Alto</option><option value="4" selected="@(RiesgoActual.ImpactoInherente==4)">4 - Extremo</option></select></div></div>
+                        <div class="col-md-3"><div class="form-group text-center"><label><strong>Severidad</strong></label><div class="p-3 rounded text-white text-center" style="background:@ColorInherente;font-size:2rem;font-weight:bold;">@SeveridadInherente<br/><small style="font-size:1rem;">@NivelInherente</small></div></div></div>
+                    </div></div>
+                    <div class="card-footer d-flex justify-content-between"><button class="btn btn-secondary" @onclick="()=>TabActivo=1"><i class="fas fa-arrow-left mr-1"></i> Anterior</button><button class="btn btn-primary" @onclick="GuardarInherente"><i class="fas fa-save mr-1"></i> Guardar y Continuar <i class="fas fa-arrow-right ml-1"></i></button></div></div>
                 }
-
                 @if (TabActivo == 3)
                 {
                     <div class="card">
-                        <div class="card-header text-white" style="background:#0062B8;border-bottom:2px solid #FFDD00;">
-                            <h5 class="mb-0"><i class="fas fa-shield-alt mr-2"></i>CONTROL</h5>
-                            <small class="text-white-50">
-                                Controles existentes: <strong>@NumeroControlBase</strong>.
-                                Próximo: <strong>@(RiesgoActual.CodigoProceso + ".C" + (NumeroControlBase + Controles.Count + 1).ToString("D2"))</strong>
-                            </small>
-                        </div>
+                        <div class="card-header text-white" style="background:#0062B8;border-bottom:2px solid #FFDD00;"><h5 class="mb-0"><i class="fas fa-shield-alt mr-2"></i>CONTROL</h5><small class="text-white-50">Existentes: <strong>@NumeroControlBase</strong>. Proximo: <strong>@(RiesgoActual.CodigoProceso + ".C" + (NumeroControlBase + Controles.Count + 1).ToString("D2"))</strong></small></div>
                         <div class="card-body">
-                            <div class="mb-3">
-                                <button class="btn btn-success" @onclick="AgregarControl">
-                                    <i class="fas fa-plus mr-1"></i> Agregar Control
-                                </button>
-                            </div>
-                            @if (!Controles.Any())
-                            { <div class="alert alert-info"><i class="fas fa-info-circle mr-2"></i>No hay controles. Haz clic en Agregar Control.</div> }
+                            <div class="mb-3"><button class="btn btn-success" @onclick="AgregarControl"><i class="fas fa-plus mr-1"></i> Agregar Control</button></div>
+                            @if (!Controles.Any()){<div class="alert alert-info"><i class="fas fa-info-circle mr-2"></i>No hay controles.</div>}
                             @for (int ci = 0; ci < Controles.Count; ci++)
                             {
-                                var idx = ci;
-                                var ctrl = Controles[idx];
-                                <div class="card mb-3" style="border:1px solid #0062B8;">
-                                    <div class="card-header d-flex justify-content-between align-items-center" style="background:#EBF3FA;">
-                                        <strong style="color:#0062B8;">Control #@(idx+1) — @ctrl.CodigoControl</strong>
-                                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarControlLocal(idx)"><i class="fas fa-trash mr-1"></i> Eliminar</button>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-md-2">
-                                                <div class="form-group">
-                                                    <label><strong>Código</strong></label>
-                                                    <input class="form-control bg-light font-weight-bold" value="@ctrl.CodigoControl" readonly />
-                                                </div>
-                                            </div>
-                                            <div class="col-md-10">
-                                                <div class="form-group">
-                                                    <label><strong>Descripción del Control</strong></label>
-                                                    <textarea class="form-control" rows="4"
-                                                              @oninput="e => ctrl.DescripcionControl = e.Value == null ? string.Empty : e.Value.ToString()">@ctrl.DescripcionControl</textarea>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label><strong>Área del Responsable</strong></label>
-                                                    <select class="form-control" @onchange="e => ctrl.AreaResponsable = e.Value == null ? string.Empty : e.Value.ToString()">
-                                                        <option value="">-- Selecciona --</option>
-                                                        @foreach (var area in AreasActivas)
-                                                        {
-                                                            <option value="@area.Nombre" selected="@(ctrl.AreaResponsable == area.Nombre)">@area.Categoria - @area.Nombre</option>
-                                                        }
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label><strong>Responsable del Control</strong></label>
-                                                    <textarea class="form-control" rows="3"
-                                                              @oninput="e => ctrl.ResponsablesControl = e.Value == null ? string.Empty : e.Value.ToString()">@ctrl.ResponsablesControl</textarea>
-                                                    <datalist id="responsables-control">
-                                                        @foreach (var resp in ResponsablesActivos)
-                                                        {
-                                                            <option value="@resp.Nombre">@resp.Cargo</option>
-                                                        }
-                                                    </datalist>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label><strong>Frecuencia del Control</strong></label>
-                                                    <select class="form-control" @onchange="e => ctrl.FrecuenciaControl = e.Value == null ? string.Empty : e.Value.ToString()">
-                                                        <option value="">-- Selecciona --</option>
-                                                        @foreach (var opcion in OpcionesParametro("FrecuenciaControl"))
-                                                        {
-                                                            <option value="@opcion" selected="@(ctrl.FrecuenciaControl == opcion)">@opcion</option>
-                                                        }
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label><strong>Oportunidad del Control</strong></label>
-                                                    <select class="form-control" @onchange="e => ctrl.OportunidadControl = e.Value == null ? string.Empty : e.Value.ToString()">
-                                                        <option value="">-- Selecciona --</option>
-                                                        @foreach (var opcion in OpcionesParametro("OportunidadControl"))
-                                                        {
-                                                            <option value="@opcion" selected="@(ctrl.OportunidadControl == opcion)">@opcion</option>
-                                                        }
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label><strong>Automatización del Control</strong></label>
-                                                    <select class="form-control" @onchange="e => ctrl.AutomatizacionControl = e.Value == null ? string.Empty : e.Value.ToString()">
-                                                        <option value="">-- Selecciona --</option>
-                                                        @foreach (var opcion in OpcionesParametro("AutomatizacionControl"))
-                                                        {
-                                                            <option value="@opcion" selected="@(ctrl.AutomatizacionControl == opcion)">@opcion</option>
-                                                        }
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label><strong>Evidencia del Control</strong></label>
-                                                    <textarea class="form-control" rows="4"
-                                                              @oninput="e => ctrl.EvidenciaControl = e.Value == null ? string.Empty : e.Value.ToString()">@ctrl.EvidenciaControl</textarea>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                var idx = ci; var ctrl = Controles[idx];
+                                <div class="card mb-3" style="border:1px solid #0062B8;"><div class="card-header d-flex justify-content-between align-items-center" style="background:#EBF3FA;"><strong style="color:#0062B8;">Control #@(idx+1) - @ctrl.CodigoControl</strong><button class="btn btn-sm btn-danger" @onclick="() => EliminarControlLocal(idx)"><i class="fas fa-trash mr-1"></i> Eliminar</button></div>
+                                <div class="card-body"><div class="row">
+                                    <div class="col-md-2"><div class="form-group"><label><strong>Codigo</strong></label><input class="form-control bg-light font-weight-bold" value="@ctrl.CodigoControl" readonly /></div></div>
+                                    <div class="col-md-10"><div class="form-group"><label><strong>Descripcion del Control</strong></label><textarea class="form-control" rows="4" @oninput="e => ctrl.DescripcionControl = e.Value == null ? string.Empty : e.Value.ToString()">@ctrl.DescripcionControl</textarea></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Area del Responsable</strong></label><select class="form-control" @onchange="e => ctrl.AreaResponsable = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var area in AreasActivas){<option value="@area.Nombre" selected="@(ctrl.AreaResponsable==area.Nombre)">@area.Categoria - @area.Nombre</option>}</select></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Responsable del Control</strong></label><textarea class="form-control" rows="3" @oninput="e => ctrl.ResponsablesControl = e.Value == null ? string.Empty : e.Value.ToString()">@ctrl.ResponsablesControl</textarea></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Frecuencia del Control</strong></label><select class="form-control" @onchange="e => ctrl.FrecuenciaControl = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var op in OpcionesParametro("FrecuenciaControl")){<option value="@op" selected="@(ctrl.FrecuenciaControl==op)">@op</option>}</select></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Oportunidad del Control</strong></label><select class="form-control" @onchange="e => ctrl.OportunidadControl = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var op in OpcionesParametro("OportunidadControl")){<option value="@op" selected="@(ctrl.OportunidadControl==op)">@op</option>}</select></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Automatizacion del Control</strong></label><select class="form-control" @onchange="e => ctrl.AutomatizacionControl = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var op in OpcionesParametro("AutomatizacionControl")){<option value="@op" selected="@(ctrl.AutomatizacionControl==op)">@op</option>}</select></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Evidencia del Control</strong></label><textarea class="form-control" rows="4" @oninput="e => ctrl.EvidenciaControl = e.Value == null ? string.Empty : e.Value.ToString()">@ctrl.EvidenciaControl</textarea></div></div>
+                                </div></div></div>
                             }
                         </div>
-                        <div class="card-footer d-flex justify-content-between">
-                            <button class="btn btn-secondary" @onclick="()=>TabActivo=2"><i class="fas fa-arrow-left mr-1"></i> Anterior</button>
-                            <button class="btn btn-danger" @onclick="GuardarControles"><i class="fas fa-save mr-1"></i> Guardar y Continuar <i class="fas fa-arrow-right ml-1"></i></button>
-                        </div>
+                        <div class="card-footer d-flex justify-content-between"><button class="btn btn-secondary" @onclick="()=>TabActivo=2"><i class="fas fa-arrow-left mr-1"></i> Anterior</button><button class="btn btn-danger" @onclick="GuardarControles"><i class="fas fa-save mr-1"></i> Guardar y Continuar <i class="fas fa-arrow-right ml-1"></i></button></div>
                     </div>
                 }
-
                 @if (TabActivo == 4)
                 {
-                    <div class="card">
-                        <div class="card-header text-white" style="background:#6c757d;">
-                            <h5 class="mb-0"><i class="fas fa-chart-line mr-2"></i>EVALUACIÓN DE RIESGO RESIDUAL</h5>
+                    <div class="card"><div class="card-header text-white" style="background:#6c757d;"><h5 class="mb-0"><i class="fas fa-chart-line mr-2"></i>EVALUACION DE RIESGO RESIDUAL</h5></div>
+                    <div class="card-body">
+                        <div class="row justify-content-center">
+                            <div class="col-md-3"><div class="form-group text-center"><label><strong>Probabilidad (1-4)</strong></label><select class="form-control form-control-lg text-center" @onchange="OnProbResidualChange"><option value="1" selected="@(RiesgoActual.ProbabilidadResidual==1)">1 - Bajo</option><option value="2" selected="@(RiesgoActual.ProbabilidadResidual==2)">2 - Moderado</option><option value="3" selected="@(RiesgoActual.ProbabilidadResidual==3)">3 - Alto</option><option value="4" selected="@(RiesgoActual.ProbabilidadResidual==4)">4 - Extremo</option></select></div></div>
+                            <div class="col-md-3"><div class="form-group text-center"><label><strong>Impacto (1-4)</strong></label><select class="form-control form-control-lg text-center" @onchange="OnImpResidualChange"><option value="1" selected="@(RiesgoActual.ImpactoResidual==1)">1 - Bajo</option><option value="2" selected="@(RiesgoActual.ImpactoResidual==2)">2 - Moderado</option><option value="3" selected="@(RiesgoActual.ImpactoResidual==3)">3 - Alto</option><option value="4" selected="@(RiesgoActual.ImpactoResidual==4)">4 - Extremo</option></select></div></div>
+                            <div class="col-md-3"><div class="form-group text-center"><label><strong>Severidad</strong></label><div class="p-3 rounded text-white text-center" style="background:@ColorResidual;font-size:2rem;font-weight:bold;">@SeveridadResidual<br/><small style="font-size:1rem;">@NivelResidual</small></div></div></div>
                         </div>
-                        <div class="card-body">
-                            <div class="row justify-content-center">
-                                <div class="col-md-3">
-                                    <div class="form-group text-center">
-                                        <label><strong>Probabilidad (1-4)</strong></label>
-                                        <select class="form-control form-control-lg text-center" @onchange="OnProbResidualChange">
-                                            <option value="1" selected="@(RiesgoActual.ProbabilidadResidual==1)">1 - Bajo</option>
-                                            <option value="2" selected="@(RiesgoActual.ProbabilidadResidual==2)">2 - Moderado</option>
-                                            <option value="3" selected="@(RiesgoActual.ProbabilidadResidual==3)">3 - Alto</option>
-                                            <option value="4" selected="@(RiesgoActual.ProbabilidadResidual==4)">4 - Extremo</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group text-center">
-                                        <label><strong>Impacto (1-4)</strong></label>
-                                        <select class="form-control form-control-lg text-center" @onchange="OnImpResidualChange">
-                                            <option value="1" selected="@(RiesgoActual.ImpactoResidual==1)">1 - Bajo</option>
-                                            <option value="2" selected="@(RiesgoActual.ImpactoResidual==2)">2 - Moderado</option>
-                                            <option value="3" selected="@(RiesgoActual.ImpactoResidual==3)">3 - Alto</option>
-                                            <option value="4" selected="@(RiesgoActual.ImpactoResidual==4)">4 - Extremo</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group text-center">
-                                        <label><strong>Severidad</strong></label>
-                                        <div class="p-3 rounded text-white text-center" style="background:@ColorResidual;font-size:2rem;font-weight:bold;">
-                                            @SeveridadResidual<br/>
-                                            <small style="font-size:1rem;">@NivelResidual</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row justify-content-center mt-4">
-                                <div class="col-md-5">
-                                    <div class="card" style="border:2px solid #495057;">
-                                        <div class="card-header text-white" style="background:#495057;">
-                                            <h6 class="mb-0"><strong>Estrategia de Respuesta</strong></h6>
-                                            <small class="text-white-50">Obligatoria para todos los niveles</small>
-                                        </div>
-                                        <div class="card-body">
-                                            <select class="form-control form-control-lg" @onchange="e => RiesgoActual.EstrategiaResidual = e.Value == null ? string.Empty : e.Value.ToString()">
-                                                <option value="">-- Selecciona estrategia --</option>
-                                                @foreach (var opcion in OpcionesParametro("EstrategiaTratamiento"))
-                                                {
-                                                    <option value="@opcion" selected="@(RiesgoActual.EstrategiaResidual == opcion)">@opcion</option>
-                                                }
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-5">
-                                    @if (!PuedeVerPlanIndicadores)
-                                    { <div class="alert alert-success mt-2"><i class="fas fa-check-circle mr-2"></i>Nivel <strong>@NivelResidual</strong>: Plan e Indicadores no aplican.</div> }
-                                    else
-                                    { <div class="alert alert-warning mt-2"><i class="fas fa-exclamation-triangle mr-2"></i>Nivel <strong>@NivelResidual</strong>: Completa Plan e Indicadores.</div> }
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer d-flex justify-content-between">
-                            <button class="btn btn-secondary" @onclick="()=>TabActivo=3"><i class="fas fa-arrow-left mr-1"></i> Anterior</button>
-                            <div>
-                                <button class="btn btn-danger mr-2" @onclick="GuardarResidual"><i class="fas fa-save mr-1"></i> Guardar y Continuar <i class="fas fa-arrow-right ml-1"></i></button>
-                                @if (!PuedeVerPlanIndicadores)
-                                { <button class="btn btn-success" @onclick="FinalizarSinPlan"><i class="fas fa-check-circle mr-1"></i> Finalizar</button> }
-                            </div>
+                        <div class="row justify-content-center mt-4">
+                            <div class="col-md-5"><div class="card" style="border:2px solid #495057;"><div class="card-header text-white" style="background:#495057;"><h6 class="mb-0"><strong>Estrategia de Respuesta</strong></h6></div><div class="card-body"><select class="form-control form-control-lg" @onchange="e => RiesgoActual.EstrategiaResidual = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona estrategia --</option>@foreach (var op in OpcionesParametro("EstrategiaTratamiento")){<option value="@op" selected="@(RiesgoActual.EstrategiaResidual==op)">@op</option>}</select></div></div></div>
+                            <div class="col-md-5">@if (!PuedeVerPlanIndicadores){<div class="alert alert-success mt-2"><i class="fas fa-check-circle mr-2"></i>Nivel <strong>@NivelResidual</strong>: Plan e Indicadores no aplican.</div>}else{<div class="alert alert-warning mt-2"><i class="fas fa-exclamation-triangle mr-2"></i>Nivel <strong>@NivelResidual</strong>: Completa Plan e Indicadores.</div>}</div>
                         </div>
                     </div>
+                    <div class="card-footer d-flex justify-content-between"><button class="btn btn-secondary" @onclick="()=>TabActivo=3"><i class="fas fa-arrow-left mr-1"></i> Anterior</button><div><button class="btn btn-danger mr-2" @onclick="GuardarResidual"><i class="fas fa-save mr-1"></i> Guardar y Continuar <i class="fas fa-arrow-right ml-1"></i></button>@if (!PuedeVerPlanIndicadores){<button class="btn btn-success" @onclick="FinalizarSinPlan"><i class="fas fa-check-circle mr-1"></i> Finalizar</button>}</div></div></div>
                 }
-
                 @if (TabActivo == 5)
                 {
-                    <div class="card">
-                        <div class="card-header text-white" style="background:#856404;">
-                            <h5 class="mb-0"><i class="fas fa-tasks mr-2"></i>PLAN DE ACCIÓN
-                                @if (!PuedeVerPlanIndicadores) { <small class="ml-2">(Solo estrategia)</small> }
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            @if (!PuedeVerPlanIndicadores)
+                    <div class="card"><div class="card-header text-white" style="background:#856404;"><h5 class="mb-0"><i class="fas fa-tasks mr-2"></i>PLAN DE ACCION</h5></div>
+                    <div class="card-body">
+                        @if (!PuedeVerPlanIndicadores){<div class="alert alert-info">Para nivel <strong>@NivelResidual</strong>, solo aplica la estrategia.</div><div class="card" style="border:2px solid #856404;max-width:400px;"><div class="card-header" style="background:#856404;color:white;"><strong>Estrategia seleccionada</strong></div><div class="card-body text-center"><h4>@(string.IsNullOrEmpty(RiesgoActual.EstrategiaResidual)?"No seleccionada":RiesgoActual.EstrategiaResidual)</h4></div></div>}
+                        else
+                        {
+                            <div class="mb-3"><button class="btn btn-success" @onclick="AgregarPlan"><i class="fas fa-plus mr-1"></i> Agregar Plan</button></div>
+                            @if (!Planes.Any()){<div class="alert alert-warning">No hay planes.</div>}
+                            @for (int pi = 0; pi < Planes.Count; pi++)
                             {
-                                <div class="alert alert-info">Para nivel <strong>@NivelResidual</strong>, solo aplica la estrategia.</div>
-                                <div class="card" style="border:2px solid #856404;max-width:400px;">
-                                    <div class="card-header" style="background:#856404;color:white;"><strong>Estrategia seleccionada</strong></div>
-                                    <div class="card-body text-center">
-                                        <h4>@(string.IsNullOrEmpty(RiesgoActual.EstrategiaResidual) ? "No seleccionada" : RiesgoActual.EstrategiaResidual)</h4>
-                                    </div>
-                                </div>
+                                var pidx = pi; var plan = Planes[pidx];
+                                <div class="card mb-3" style="border:1px solid #ffc107;"><div class="card-header d-flex justify-content-between align-items-center" style="background:#fff3cd;"><strong style="color:#856404;">Plan #@(pidx+1) - @plan.CodigoPlan</strong><button class="btn btn-sm btn-danger" @onclick="() => EliminarPlanLocal(pidx)"><i class="fas fa-trash"></i></button></div>
+                                <div class="card-body"><div class="row">
+                                    <div class="col-md-2"><div class="form-group"><label><strong>Codigo</strong></label><input class="form-control bg-light" value="@plan.CodigoPlan" readonly /></div></div>
+                                    <div class="col-md-3"><div class="form-group"><label><strong>Estrategia</strong></label><input class="form-control bg-light" value="@RiesgoActual.EstrategiaResidual" readonly /></div></div>
+                                    <div class="col-md-3"><div class="form-group"><label><strong>Estado</strong></label><select class="form-control" @onchange="e => plan.EstadoPlan = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var op in OpcionesParametro("EstadoPlan")){<option value="@op" selected="@(plan.EstadoPlan==op)">@op</option>}</select></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Area del Responsable</strong></label><select class="form-control" @onchange="e => plan.AreaResponsable = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var area in AreasActivas){<option value="@area.Nombre" selected="@(plan.AreaResponsable==area.Nombre)">@area.Categoria - @area.Nombre</option>}</select></div></div>
+                                    <div class="col-12"><div class="form-group"><label><strong>Descripcion</strong></label><textarea class="form-control" rows="2" @oninput="e => plan.DescripcionPlan = e.Value == null ? string.Empty : e.Value.ToString()">@plan.DescripcionPlan</textarea></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Responsable</strong></label><input class="form-control" list="resp-plan" value="@plan.ResponsablePlan" @oninput="e => plan.ResponsablePlan = e.Value == null ? string.Empty : e.Value.ToString()" /><datalist id="resp-plan">@foreach (var resp in ResponsablesActivos){<option value="@resp.Nombre">@resp.Cargo</option>}</datalist></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Inicio</strong></label><input type="date" class="form-control" value="@(plan.InicioPlan.HasValue?plan.InicioPlan.Value.ToString("yyyy-MM-dd"):string.Empty)" @onchange="e => plan.InicioPlan = DateTime.TryParse(e.Value==null?string.Empty:e.Value.ToString(),out var d1)?d1:(DateTime?)null" /></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Fin</strong></label><input type="date" class="form-control" value="@(plan.FinPlan.HasValue?plan.FinPlan.Value.ToString("yyyy-MM-dd"):string.Empty)" @onchange="e => plan.FinPlan = DateTime.TryParse(e.Value==null?string.Empty:e.Value.ToString(),out var d2)?d2:(DateTime?)null" /></div></div>
+                                </div></div></div>
                             }
-                            else
-                            {
-                                <div class="mb-3">
-                                    <button class="btn btn-success" @onclick="AgregarPlan"><i class="fas fa-plus mr-1"></i> Agregar Plan</button>
-                                </div>
-                                @if (!Planes.Any()) { <div class="alert alert-warning">No hay planes.</div> }
-                                @for (int pi = 0; pi < Planes.Count; pi++)
-                                {
-                                    var pidx = pi;
-                                    var plan = Planes[pidx];
-                                    <div class="card mb-3" style="border:1px solid #ffc107;">
-                                        <div class="card-header d-flex justify-content-between align-items-center" style="background:#fff3cd;">
-                                            <strong style="color:#856404;">Plan #@(pidx+1) — @plan.CodigoPlan</strong>
-                                            <button class="btn btn-sm btn-danger" @onclick="() => EliminarPlanLocal(pidx)"><i class="fas fa-trash"></i></button>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-2">
-                                                    <div class="form-group">
-                                                        <label><strong>Código</strong></label>
-                                                        <input class="form-control bg-light" value="@plan.CodigoPlan" readonly />
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <div class="form-group">
-                                                        <label><strong>Estrategia</strong></label>
-                                                        <input class="form-control bg-light" value="@RiesgoActual.EstrategiaResidual" readonly />
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <div class="form-group">
-                                                        <label><strong>Estado</strong></label>
-                                                        <select class="form-control" @onchange="e => plan.EstadoPlan = e.Value == null ? string.Empty : e.Value.ToString()">
-                                                            <option value="">-- Selecciona --</option>
-                                                            @foreach (var opcion in OpcionesParametro("EstadoPlan"))
-                                                            {
-                                                                <option value="@opcion" selected="@(plan.EstadoPlan == opcion)">@opcion</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="form-group">
-                                                        <label><strong>Área del Responsable</strong></label>
-                                                        <select class="form-control" @onchange="e => plan.AreaResponsable = e.Value == null ? string.Empty : e.Value.ToString()">
-                                                            <option value="">-- Selecciona --</option>
-                                                            @foreach (var area in AreasActivas)
-                                                            {
-                                                                <option value="@area.Nombre" selected="@(plan.AreaResponsable == area.Nombre)">@area.Categoria - @area.Nombre</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="col-12">
-                                                    <div class="form-group">
-                                                        <label><strong>Descripción</strong></label>
-                                                        <textarea class="form-control" rows="2" @oninput="e => plan.DescripcionPlan = e.Value == null ? string.Empty : e.Value.ToString()">@plan.DescripcionPlan</textarea>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="form-group">
-                                                        <label><strong>Responsable</strong></label>
-                                                        <input class="form-control" list="responsables-plan" value="@plan.ResponsablePlan" @oninput="e => plan.ResponsablePlan = e.Value == null ? string.Empty : e.Value.ToString()" />
-                                                        <datalist id="responsables-plan">
-                                                            @foreach (var resp in ResponsablesActivos)
-                                                            {
-                                                                <option value="@resp.Nombre">@resp.Cargo</option>
-                                                            }
-                                                        </datalist>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="form-group">
-                                                        <label><strong>Inicio</strong></label>
-                                                        <input type="date" class="form-control"
-                                                               value="@(plan.InicioPlan.HasValue ? plan.InicioPlan.Value.ToString("yyyy-MM-dd") : string.Empty)"
-                                                               @onchange="e => plan.InicioPlan = DateTime.TryParse(e.Value == null ? string.Empty : e.Value.ToString(), out var d1) ? d1 : (DateTime?)null" />
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="form-group">
-                                                        <label><strong>Fin</strong></label>
-                                                        <input type="date" class="form-control"
-                                                               value="@(plan.FinPlan.HasValue ? plan.FinPlan.Value.ToString("yyyy-MM-dd") : string.Empty)"
-                                                               @onchange="e => plan.FinPlan = DateTime.TryParse(e.Value == null ? string.Empty : e.Value.ToString(), out var d2) ? d2 : (DateTime?)null" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                            }
-                        </div>
-                        <div class="card-footer d-flex justify-content-between">
-                            <button class="btn btn-secondary" @onclick="()=>TabActivo=4"><i class="fas fa-arrow-left mr-1"></i> Anterior</button>
-                            @if (PuedeVerPlanIndicadores)
-                            { <button class="btn btn-danger" @onclick="GuardarPlanes"><i class="fas fa-save mr-1"></i> Guardar y Continuar <i class="fas fa-arrow-right ml-1"></i></button> }
-                        </div>
+                        }
                     </div>
+                    <div class="card-footer d-flex justify-content-between"><button class="btn btn-secondary" @onclick="()=>TabActivo=4"><i class="fas fa-arrow-left mr-1"></i> Anterior</button>@if (PuedeVerPlanIndicadores){<button class="btn btn-danger" @onclick="GuardarPlanes"><i class="fas fa-save mr-1"></i> Guardar y Continuar <i class="fas fa-arrow-right ml-1"></i></button>}</div></div>
                 }
-
                 @if (TabActivo == 6)
                 {
-                    <div class="card">
-                        <div class="card-header text-white" style="background:#0d6efd;">
-                            <h5 class="mb-0"><i class="fas fa-tachometer-alt mr-2"></i>INDICADORES (KRI)</h5>
-                        </div>
-                        <div class="card-body">
-                            @if (!PuedeVerPlanIndicadores)
-                            { <div class="alert alert-info">Indicadores no aplican para nivel <strong>@NivelResidual</strong>.</div> }
-                            else
+                    <div class="card"><div class="card-header text-white" style="background:#0d6efd;"><h5 class="mb-0"><i class="fas fa-tachometer-alt mr-2"></i>INDICADORES (KRI)</h5></div>
+                    <div class="card-body">
+                        @if (!PuedeVerPlanIndicadores){<div class="alert alert-info">Indicadores no aplican para nivel <strong>@NivelResidual</strong>.</div>}
+                        else
+                        {
+                            <div class="mb-3"><button class="btn btn-success" @onclick="AgregarIndicador"><i class="fas fa-plus mr-1"></i> Agregar KRI</button></div>
+                            @if (!Indicadores.Any()){<div class="alert alert-warning">No hay indicadores.</div>}
+                            @for (int ii = 0; ii < Indicadores.Count; ii++)
                             {
-                                <div class="mb-3">
-                                    <button class="btn btn-success" @onclick="AgregarIndicador"><i class="fas fa-plus mr-1"></i> Agregar KRI</button>
-                                </div>
-                                @if (!Indicadores.Any()) { <div class="alert alert-warning">No hay indicadores.</div> }
-                                @for (int ii = 0; ii < Indicadores.Count; ii++)
-                                {
-                                    var iidx = ii;
-                                    var ind = Indicadores[iidx];
-                                    <div class="card mb-3" style="border:1px solid #0d6efd;">
-                                        <div class="card-header d-flex justify-content-between align-items-center" style="background:#cfe2ff;">
-                                            <strong style="color:#0d6efd;">KRI #@(iidx+1) — @ind.CodigoKRI</strong>
-                                            <button class="btn btn-sm btn-danger" @onclick="() => EliminarIndicadorLocal(iidx)"><i class="fas fa-trash"></i></button>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-2">
-                                                    <div class="form-group">
-                                                        <label><strong>Código KRI</strong></label>
-                                                        <input class="form-control bg-light" value="@ind.CodigoKRI" readonly />
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="form-group">
-                                                        <label><strong>Definición del KRI</strong></label>
-                                                        <textarea class="form-control" rows="2" @oninput="e => ind.DefinicionKRI = e.Value == null ? string.Empty : e.Value.ToString()">@ind.DefinicionKRI</textarea>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="form-group">
-                                                        <label><strong>Frecuencia</strong></label>
-                                                        <select class="form-control" @onchange="e => ind.Frecuencia = e.Value == null ? string.Empty : e.Value.ToString()">
-                                                            <option value="">-- Selecciona --</option>
-                                                            @foreach (var opcion in OpcionesParametro("FrecuenciaControl"))
-                                                            {
-                                                                <option value="@opcion" selected="@(ind.Frecuencia == opcion)">@opcion</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="form-group">
-                                                        <label><strong>Meta del KRI</strong></label>
-                                                        <input class="form-control" value="@ind.MetaKRI" @oninput="e => ind.MetaKRI = e.Value == null ? string.Empty : e.Value.ToString()" />
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="form-group">
-                                                        <label><strong>KRI Actual</strong></label>
-                                                        <input class="form-control" value="@ind.KRIActual" @oninput="e => ind.KRIActual = e.Value == null ? string.Empty : e.Value.ToString()" />
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="form-group">
-                                                        <label><strong>Responsable</strong></label>
-                                                        <input class="form-control" list="responsables-kri" value="@ind.ResponsableKRI" @oninput="e => ind.ResponsableKRI = e.Value == null ? string.Empty : e.Value.ToString()" />
-                                                        <datalist id="responsables-kri">
-                                                            @foreach (var resp in ResponsablesActivos)
-                                                            {
-                                                                <option value="@resp.Nombre">@resp.Cargo</option>
-                                                            }
-                                                        </datalist>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
+                                var iidx = ii; var ind = Indicadores[iidx];
+                                <div class="card mb-3" style="border:1px solid #0d6efd;"><div class="card-header d-flex justify-content-between align-items-center" style="background:#cfe2ff;"><strong style="color:#0d6efd;">KRI #@(iidx+1) - @ind.CodigoKRI</strong><button class="btn btn-sm btn-danger" @onclick="() => EliminarIndicadorLocal(iidx)"><i class="fas fa-trash"></i></button></div>
+                                <div class="card-body"><div class="row">
+                                    <div class="col-md-2"><div class="form-group"><label><strong>Codigo KRI</strong></label><input class="form-control bg-light" value="@ind.CodigoKRI" readonly /></div></div>
+                                    <div class="col-md-6"><div class="form-group"><label><strong>Definicion del KRI</strong></label><textarea class="form-control" rows="2" @oninput="e => ind.DefinicionKRI = e.Value == null ? string.Empty : e.Value.ToString()">@ind.DefinicionKRI</textarea></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Frecuencia</strong></label><select class="form-control" @onchange="e => ind.Frecuencia = e.Value == null ? string.Empty : e.Value.ToString()"><option value="">-- Selecciona --</option>@foreach (var op in OpcionesParametro("FrecuenciaControl")){<option value="@op" selected="@(ind.Frecuencia==op)">@op</option>}</select></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Meta del KRI</strong></label><input class="form-control" value="@ind.MetaKRI" @oninput="e => ind.MetaKRI = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>KRI Actual</strong></label><input class="form-control" value="@ind.KRIActual" @oninput="e => ind.KRIActual = e.Value == null ? string.Empty : e.Value.ToString()" /></div></div>
+                                    <div class="col-md-4"><div class="form-group"><label><strong>Responsable</strong></label><input class="form-control" list="resp-kri" value="@ind.ResponsableKRI" @oninput="e => ind.ResponsableKRI = e.Value == null ? string.Empty : e.Value.ToString()" /><datalist id="resp-kri">@foreach (var resp in ResponsablesActivos){<option value="@resp.Nombre">@resp.Cargo</option>}</datalist></div></div>
+                                </div></div></div>
                             }
-                        </div>
-                        <div class="card-footer d-flex justify-content-between">
-                            <button class="btn btn-secondary" @onclick="()=>TabActivo=5"><i class="fas fa-arrow-left mr-1"></i> Anterior</button>
-                            <button class="btn btn-success btn-lg" @onclick="GuardarTodo">
-                                <i class="fas fa-check-circle mr-1"></i> FINALIZAR Y GUARDAR
-                            </button>
-                        </div>
+                        }
                     </div>
+                    <div class="card-footer d-flex justify-content-between"><button class="btn btn-secondary" @onclick="()=>TabActivo=5"><i class="fas fa-arrow-left mr-1"></i> Anterior</button><button class="btn btn-success btn-lg" @onclick="GuardarTodo"><i class="fas fa-check-circle mr-1"></i> FINALIZAR Y GUARDAR</button></div></div>
                 }
             </div>
         </div>
@@ -1116,6 +493,7 @@
     List<MaestroProceso> ProcesosMaestros = new();
     List<MaestroResponsable> ResponsablesMaestros = new();
     List<MaestroParametro> ParametrosMaestros = new();
+    Dictionary<int, int> ConteoRiesgos = new();
 
     Riesgo RiesgoActual = new();
     MatrizGrupo? MatrizActual = null;
@@ -1131,45 +509,59 @@
     int SeveridadInherente => RiesgoActual.ProbabilidadInherente * RiesgoActual.ImpactoInherente;
     string NivelInherente => Riesgo.GetNivel(SeveridadInherente);
     string ColorInherente => RiesgoService.GetColorNivel(NivelInherente);
-
     int SeveridadResidual => RiesgoActual.ProbabilidadResidual * RiesgoActual.ImpactoResidual;
     string NivelResidual => Riesgo.GetNivel(SeveridadResidual);
     string ColorResidual => RiesgoService.GetColorNivel(NivelResidual);
-
     bool PuedeVerPlanIndicadores => NivelResidual == "Alto" || NivelResidual == "Extremo";
+
     IEnumerable<MaestroArea> AreasActivas => AreasMaestras.Where(a => a.Activo).OrderBy(a => a.Categoria).ThenBy(a => a.Orden).ThenBy(a => a.Nombre);
     IEnumerable<MaestroResponsable> ResponsablesActivos => ResponsablesMaestros.Where(r => r.Activo).OrderBy(r => r.Nombre);
     IEnumerable<MaestroProceso> SubprocesosDisponibles => ProcesosMaestros
         .Where(p => p.Activo && p.Nivel == "Subproceso")
-        .Where(p => MatrizActual == null ||
-            (p.Padre != null && p.Padre.Codigo == MatrizActual.CodigoProceso) ||
-            p.Codigo.StartsWith(MatrizActual.CodigoProceso + ".", StringComparison.OrdinalIgnoreCase))
-        .OrderBy(p => p.Orden)
-        .ThenBy(p => p.Codigo);
+        .Where(p => MatrizActual == null || (p.Padre != null && p.Padre.Codigo == MatrizActual.CodigoProceso) || p.Codigo.StartsWith(MatrizActual.CodigoProceso + ".", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(p => p.Orden).ThenBy(p => p.Codigo);
+
+    // ── Helpers del Mapa ─────────────────────────────────────────────────
+    bool TieneMacro(string prefijo) =>
+        Matrices.Any(m => !string.IsNullOrWhiteSpace(m.CodigoProceso) &&
+            m.CodigoProceso.TrimStart().StartsWith(prefijo, StringComparison.OrdinalIgnoreCase));
+
+    bool TieneGrupo(string grupo) =>
+        Matrices.Any(m => !string.IsNullOrWhiteSpace(m.CodigoProceso) &&
+            (m.CodigoProceso.StartsWith(grupo + ".", StringComparison.OrdinalIgnoreCase) ||
+             m.CodigoProceso.Equals(grupo, StringComparison.OrdinalIgnoreCase)));
+
+    RenderFragment RenderSubs(string grupo) => builder =>
+    {
+        var subs = Matrices
+            .Where(m => m.CodigoProceso.StartsWith(grupo + ".", StringComparison.OrdinalIgnoreCase) ||
+                        m.CodigoProceso.Equals(grupo, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(m => m.CodigoProceso).ToList();
+        int sq = 10;
+        foreach (var m in subs)
+        {
+            ConteoRiesgos.TryGetValue(m.Id, out var cnt);
+            string nom = (m.NombreProceso ?? m.Nombre ?? "");
+            if (nom.Length > 32) nom = nom[..32] + "...";
+            builder.OpenElement(sq++, "button");
+            builder.AddAttribute(sq++, "class", "sub-btn");
+            builder.AddAttribute(sq++, "title", m.NombreProceso ?? m.Nombre ?? "");
+            builder.AddAttribute(sq++, "onclick", EventCallback.Factory.Create(this, () => AbrirMatriz(m)));
+            builder.OpenElement(sq++, "span"); builder.AddAttribute(sq++, "class", "scod"); builder.AddContent(sq++, m.CodigoProceso); builder.CloseElement();
+            builder.OpenElement(sq++, "span"); builder.AddAttribute(sq++, "class", "snom"); builder.AddContent(sq++, nom); builder.CloseElement();
+            builder.OpenElement(sq++, "span"); builder.AddAttribute(sq++, "class", cnt > 0 ? "sbadge con" : "sbadge sin"); builder.AddContent(sq++, cnt > 0 ? $"{cnt} riesgo{(cnt==1?"":"s")}" : "Sin riesgos"); builder.CloseElement();
+            builder.CloseElement();
+        }
+    };
 
     void IrTab6() { if (PuedeVerPlanIndicadores) TabActivo = 6; }
-
     void OnProbInherenteChange(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var v)) RiesgoActual.ProbabilidadInherente = v; StateHasChanged(); }
     void OnImpInherenteChange(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var v)) RiesgoActual.ImpactoInherente = v; StateHasChanged(); }
     void OnProbResidualChange(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var v)) RiesgoActual.ProbabilidadResidual = v; StateHasChanged(); }
     void OnImpResidualChange(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var v)) RiesgoActual.ImpactoResidual = v; StateHasChanged(); }
 
-    string TryFormatDate(string fecha)
-    {
-        if (string.IsNullOrEmpty(fecha)) return string.Empty;
-        if (DateTime.TryParse(fecha, out var d)) return d.ToString("yyyy-MM-dd");
-        if (DateTime.TryParseExact(fecha, "dd/MM/yyyy",
-            System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.None, out var d2))
-            return d2.ToString("yyyy-MM-dd");
-        return string.Empty;
-    }
-
-    string FormatDateDisplay(string isoDate)
-    {
-        if (DateTime.TryParse(isoDate, out var d)) return d.ToString("dd/MM/yyyy");
-        return isoDate;
-    }
+    string TryFormatDate(string f) { if (string.IsNullOrEmpty(f)) return string.Empty; if (DateTime.TryParse(f, out var d)) return d.ToString("yyyy-MM-dd"); if (DateTime.TryParseExact(f, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d2)) return d2.ToString("yyyy-MM-dd"); return string.Empty; }
+    string FormatDateDisplay(string s) { if (DateTime.TryParse(s, out var d)) return d.ToString("dd/MM/yyyy"); return s; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -1179,6 +571,14 @@
         var rol = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Personal";
         Matrices = await RiesgoSvc.GetMatricesPorUsuarioAsync(UsuarioId, rol);
         await CargarMaestrosCaptura();
+        await CargarConteos();
+    }
+
+    async Task CargarConteos()
+    {
+        using var db = DbFactory.CreateDbContext();
+        var c = await db.Riesgos.Where(r => r.MatrizGrupoId.HasValue).GroupBy(r => r.MatrizGrupoId!.Value).Select(g => new { Id = g.Key, N = g.Count() }).ToListAsync();
+        ConteoRiesgos = c.ToDictionary(x => x.Id, x => x.N);
     }
 
     async Task CargarMaestrosCaptura()
@@ -1191,373 +591,48 @@
 
     IEnumerable<string> OpcionesParametro(string grupo)
     {
-        var opciones = ParametrosMaestros
-            .Where(p => p.Grupo == grupo && p.Activo)
-            .OrderBy(p => p.Orden)
-            .ThenBy(p => p.Valor)
-            .Select(p => p.Valor)
-            .Distinct()
-            .ToList();
-
-        if (opciones.Any()) return opciones;
-
-        return grupo switch
-        {
-            "OrigenRiesgo" => new[] { "Interno", "Externo", "Ambos" },
-            "FrecuenciaRiesgo" => new[] { "No Recurrente", "Recurrente" },
-            "TipoRiesgo" => new[] { "Estratégico", "Operacional", "Tecnologías de la información", "Reporte", "Cumplimiento" },
-            "FrecuenciaControl" => new[] { "Diaria", "Semanal", "Mensual", "Bimestral", "Trimestral", "Semestral", "Anual", "Cada vez que suceda" },
-            "OportunidadControl" => new[] { "Correctivo", "Preventivo", "Detectivo" },
-            "AutomatizacionControl" => new[] { "Manual", "Semiautomático", "Automático" },
-            "EstadoPlan" => new[] { "Concluido", "En proceso", "No iniciado" },
-            "EstrategiaTratamiento" => new[] { "Evitar", "Reducir o mitigar", "Transferir", "Retener o Aceptar", "Eliminar" },
-            _ => Array.Empty<string>()
-        };
+        var ops = ParametrosMaestros.Where(p => p.Grupo == grupo && p.Activo).OrderBy(p => p.Orden).ThenBy(p => p.Valor).Select(p => p.Valor).Distinct().ToList();
+        if (ops.Any()) return ops;
+        return grupo switch { "OrigenRiesgo" => new[]{"Interno","Externo","Ambos"}, "FrecuenciaRiesgo" => new[]{"No Recurrente","Recurrente"}, "TipoRiesgo" => new[]{"Estrategico","Operacional","Tecnologias de la informacion","Reporte","Cumplimiento"}, "FrecuenciaControl" => new[]{"Diaria","Semanal","Mensual","Bimestral","Trimestral","Semestral","Anual","Cada vez que suceda"}, "OportunidadControl" => new[]{"Correctivo","Preventivo","Detectivo"}, "AutomatizacionControl" => new[]{"Manual","Semiautomatico","Automatico"}, "EstadoPlan" => new[]{"Concluido","En proceso","No iniciado"}, "EstrategiaTratamiento" => new[]{"Evitar","Reducir o mitigar","Transferir","Retener o Aceptar","Eliminar"}, _ => Array.Empty<string>() };
     }
 
-    void AplicarMaestroProcesoActual()
-    {
-        if (MatrizActual == null) return;
-        var proceso = ProcesosMaestros.FirstOrDefault(p => p.Codigo == MatrizActual.CodigoProceso);
-        if (proceso == null) return;
-        if (string.IsNullOrWhiteSpace(RiesgoActual.GerenciaResponsable))
-        {
-            RiesgoActual.GerenciaResponsable = proceso.AreaResponsable?.Nombre
-                ?? proceso.AreaResponsableDefault
-                ?? string.Empty;
-        }
-    }
-
-    async Task AbrirMatriz(MatrizGrupo m)
-    {
-        MatrizActual = m;
-        MostrarFormulario = false;
-        MostrarHeatmap = false;
-        EditandoEncabezado = false;
-        ListaRiesgos = await RiesgoSvc.GetRiesgosPorMatrizAsync(m.Id);
-    }
-
-    void VolverALista()
-    {
-        MatrizActual = null;
-        MostrarFormulario = false;
-        MostrarHeatmap = false;
-        ListaRiesgos = new();
-    }
-
-    async Task GuardarEncabezado()
-    {
-        if (MatrizActual != null)
-        {
-            await RiesgoSvc.GuardarMatrizGrupoAsync(MatrizActual);
-            EditandoEncabezado = false;
-        }
-    }
-
-    async Task DescargarExcel()
-    {
-        if (MatrizActual == null || !ListaRiesgos.Any()) return;
-        var bytes = ExcelSvc.GenerarMatrizExcel(ListaRiesgos, MatrizActual);
-        var b64 = Convert.ToBase64String(bytes);
-        var fileName = $"MRC_{MatrizActual.CodigoProceso}.xlsx";
-        await JS.InvokeVoidAsync("downloadFile", b64, fileName,
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    }
-
+    void AplicarMaestroProcesoActual() { if (MatrizActual == null) return; var p = ProcesosMaestros.FirstOrDefault(x => x.Codigo == MatrizActual.CodigoProceso); if (p == null) return; if (string.IsNullOrWhiteSpace(RiesgoActual.GerenciaResponsable)) RiesgoActual.GerenciaResponsable = p.AreaResponsable?.Nombre ?? p.AreaResponsableDefault ?? string.Empty; }
+    async Task AbrirMatriz(MatrizGrupo m) { MatrizActual = m; MostrarFormulario = false; MostrarHeatmap = false; EditandoEncabezado = false; ListaRiesgos = await RiesgoSvc.GetRiesgosPorMatrizAsync(m.Id); }
+    void VolverALista() { MatrizActual = null; MostrarFormulario = false; MostrarHeatmap = false; ListaRiesgos = new(); }
+    async Task GuardarEncabezado() { if (MatrizActual != null) { await RiesgoSvc.GuardarMatrizGrupoAsync(MatrizActual); EditandoEncabezado = false; } }
+    async Task DescargarExcel() { if (MatrizActual == null || !ListaRiesgos.Any()) return; var bytes = ExcelSvc.GenerarMatrizExcel(ListaRiesgos, MatrizActual); var b64 = Convert.ToBase64String(bytes); await JS.InvokeVoidAsync("downloadFile", b64, $"MRC_{MatrizActual.CodigoProceso}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); }
     void MostrarMapasCalor() { MostrarHeatmap = true; MostrarFormulario = false; }
 
-    RenderFragment RenderHeatmap(bool esInherente) => builder =>
+    RenderFragment RenderHeatmap(bool esI) => builder =>
     {
-        int size = 380;
-        int margin = 45;
-        double cellSize = (size - margin) / 4.0;
-
-        builder.OpenElement(0, "svg");
-        builder.AddAttribute(1, "width", size + 40);
-        builder.AddAttribute(2, "height", size + 60);
-        builder.AddAttribute(3, "style", "font-family:Arial;font-size:11px;");
-
-        string[,] colores = {
-            {"#28a745","#ffc107","#ffc107","#fd7e14"},
-            {"#28a745","#ffc107","#fd7e14","#dc3545"},
-            {"#ffc107","#fd7e14","#dc3545","#dc3545"},
-            {"#fd7e14","#dc3545","#dc3545","#dc3545"}
-        };
-
-        int seq = 10;
-        for (int row = 0; row < 4; row++)
-        {
-            for (int col = 0; col < 4; col++)
-            {
-                double x = margin + col * cellSize;
-                double y = margin + (3 - row) * cellSize;
-                builder.OpenElement(seq++, "rect");
-                builder.AddAttribute(seq++, "x", x.ToString("F0"));
-                builder.AddAttribute(seq++, "y", y.ToString("F0"));
-                builder.AddAttribute(seq++, "width", cellSize.ToString("F0"));
-                builder.AddAttribute(seq++, "height", cellSize.ToString("F0"));
-                builder.AddAttribute(seq++, "fill", colores[row, col]);
-                builder.AddAttribute(seq++, "stroke", "white");
-                builder.AddAttribute(seq++, "stroke-width", "2");
-                builder.CloseElement();
-            }
-        }
-
-        for (int i = 1; i <= 4; i++)
-        {
-            double xPos = margin + (i - 0.5) * cellSize;
-            builder.OpenElement(seq++, "text");
-            builder.AddAttribute(seq++, "x", xPos.ToString("F0"));
-            builder.AddAttribute(seq++, "y", (size - margin + 18).ToString("F0"));
-            builder.AddAttribute(seq++, "text-anchor", "middle");
-            builder.AddAttribute(seq++, "font-weight", "bold");
-            builder.AddContent(seq++, i.ToString());
-            builder.CloseElement();
-
-            double yPos = margin + (4 - i + 0.5) * cellSize;
-            builder.OpenElement(seq++, "text");
-            builder.AddAttribute(seq++, "x", (margin - 12).ToString("F0"));
-            builder.AddAttribute(seq++, "y", yPos.ToString("F0"));
-            builder.AddAttribute(seq++, "text-anchor", "middle");
-            builder.AddAttribute(seq++, "dominant-baseline", "middle");
-            builder.AddAttribute(seq++, "font-weight", "bold");
-            builder.AddContent(seq++, i.ToString());
-            builder.CloseElement();
-        }
-
-        builder.OpenElement(seq++, "text");
-        builder.AddAttribute(seq++, "x", ((size + margin) / 2).ToString("F0"));
-        builder.AddAttribute(seq++, "y", (size - margin + 38).ToString("F0"));
-        builder.AddAttribute(seq++, "text-anchor", "middle");
-        builder.AddAttribute(seq++, "font-weight", "bold");
-        builder.AddContent(seq++, "Probabilidad");
-        builder.CloseElement();
-
-        builder.OpenElement(seq++, "text");
-        builder.AddAttribute(seq++, "x", "12");
-        builder.AddAttribute(seq++, "y", (size / 2).ToString("F0"));
-        builder.AddAttribute(seq++, "text-anchor", "middle");
-        builder.AddAttribute(seq++, "transform", $"rotate(-90, 12, {size / 2})");
-        builder.AddAttribute(seq++, "font-weight", "bold");
-        builder.AddContent(seq++, "Impacto");
-        builder.CloseElement();
-
-        foreach (var r in ListaRiesgos)
-        {
-            int prob = esInherente ? r.ProbabilidadInherente : r.ProbabilidadResidual;
-            int imp = esInherente ? r.ImpactoInherente : r.ImpactoResidual;
-            double px = margin + (prob - 1 + 0.5) * cellSize;
-            double py = margin + (4 - imp + 0.5) * cellSize;
-
-            builder.OpenElement(seq++, "circle");
-            builder.AddAttribute(seq++, "cx", px.ToString("F0"));
-            builder.AddAttribute(seq++, "cy", py.ToString("F0"));
-            builder.AddAttribute(seq++, "r", "8");
-            builder.AddAttribute(seq++, "fill", "#1a1a2e");
-            builder.AddAttribute(seq++, "stroke", "white");
-            builder.AddAttribute(seq++, "stroke-width", "1.5");
-            builder.CloseElement();
-
-            builder.OpenElement(seq++, "text");
-            builder.AddAttribute(seq++, "x", (px + 10).ToString("F0"));
-            builder.AddAttribute(seq++, "y", (py + 4).ToString("F0"));
-            builder.AddAttribute(seq++, "font-size", "9");
-            builder.AddAttribute(seq++, "fill", "#1a1a2e");
-            builder.AddAttribute(seq++, "font-weight", "bold");
-            builder.AddContent(seq++, r.CodigoRiesgo);
-            builder.CloseElement();
-        }
-
+        int size = 380; int margin = 45; double cs = (size - margin) / 4.0;
+        builder.OpenElement(0, "svg"); builder.AddAttribute(1, "width", size+40); builder.AddAttribute(2, "height", size+60); builder.AddAttribute(3, "style", "font-family:Arial;font-size:11px;");
+        string[,] col = {{"#28a745","#ffc107","#ffc107","#fd7e14"},{"#28a745","#ffc107","#fd7e14","#dc3545"},{"#ffc107","#fd7e14","#dc3545","#dc3545"},{"#fd7e14","#dc3545","#dc3545","#dc3545"}};
+        int sq = 10;
+        for (int row=0;row<4;row++) for (int c2=0;c2<4;c2++) { double x=margin+c2*cs; double y=margin+(3-row)*cs; builder.OpenElement(sq++,"rect"); builder.AddAttribute(sq++,"x",x.ToString("F0")); builder.AddAttribute(sq++,"y",y.ToString("F0")); builder.AddAttribute(sq++,"width",cs.ToString("F0")); builder.AddAttribute(sq++,"height",cs.ToString("F0")); builder.AddAttribute(sq++,"fill",col[row,c2]); builder.AddAttribute(sq++,"stroke","white"); builder.AddAttribute(sq++,"stroke-width","2"); builder.CloseElement(); }
+        for (int i=1;i<=4;i++) { double xp=margin+(i-0.5)*cs; builder.OpenElement(sq++,"text"); builder.AddAttribute(sq++,"x",xp.ToString("F0")); builder.AddAttribute(sq++,"y",(size-margin+18).ToString("F0")); builder.AddAttribute(sq++,"text-anchor","middle"); builder.AddAttribute(sq++,"font-weight","bold"); builder.AddContent(sq++,i.ToString()); builder.CloseElement(); double yp=margin+(4-i+0.5)*cs; builder.OpenElement(sq++,"text"); builder.AddAttribute(sq++,"x",(margin-12).ToString("F0")); builder.AddAttribute(sq++,"y",yp.ToString("F0")); builder.AddAttribute(sq++,"text-anchor","middle"); builder.AddAttribute(sq++,"dominant-baseline","middle"); builder.AddAttribute(sq++,"font-weight","bold"); builder.AddContent(sq++,i.ToString()); builder.CloseElement(); }
+        builder.OpenElement(sq++,"text"); builder.AddAttribute(sq++,"x",((size+margin)/2).ToString("F0")); builder.AddAttribute(sq++,"y",(size-margin+38).ToString("F0")); builder.AddAttribute(sq++,"text-anchor","middle"); builder.AddAttribute(sq++,"font-weight","bold"); builder.AddContent(sq++,"Probabilidad"); builder.CloseElement();
+        builder.OpenElement(sq++,"text"); builder.AddAttribute(sq++,"x","12"); builder.AddAttribute(sq++,"y",(size/2).ToString("F0")); builder.AddAttribute(sq++,"text-anchor","middle"); builder.AddAttribute(sq++,"transform",$"rotate(-90,12,{size/2})"); builder.AddAttribute(sq++,"font-weight","bold"); builder.AddContent(sq++,"Impacto"); builder.CloseElement();
+        foreach (var r in ListaRiesgos) { int prob=esI?r.ProbabilidadInherente:r.ProbabilidadResidual; int imp=esI?r.ImpactoInherente:r.ImpactoResidual; double px=margin+(prob-1+0.5)*cs; double py=margin+(4-imp+0.5)*cs; builder.OpenElement(sq++,"circle"); builder.AddAttribute(sq++,"cx",px.ToString("F0")); builder.AddAttribute(sq++,"cy",py.ToString("F0")); builder.AddAttribute(sq++,"r","8"); builder.AddAttribute(sq++,"fill","#1a1a2e"); builder.AddAttribute(sq++,"stroke","white"); builder.AddAttribute(sq++,"stroke-width","1.5"); builder.CloseElement(); builder.OpenElement(sq++,"text"); builder.AddAttribute(sq++,"x",(px+10).ToString("F0")); builder.AddAttribute(sq++,"y",(py+4).ToString("F0")); builder.AddAttribute(sq++,"font-size","9"); builder.AddAttribute(sq++,"fill","#1a1a2e"); builder.AddAttribute(sq++,"font-weight","bold"); builder.AddContent(sq++,r.CodigoRiesgo); builder.CloseElement(); }
         builder.CloseElement();
     };
 
-    async Task NuevoRiesgo()
-    {
-        if (MatrizActual == null) return;
-        RiesgoActual = new Riesgo
-        {
-            UsuarioId = UsuarioId,
-            MatrizGrupoId = MatrizActual.Id,
-            CodigoProceso = MatrizActual.CodigoProceso,
-            NombreProceso = MatrizActual.NombreProceso
-        };
-        AplicarMaestroProcesoActual();
-        Controles = new();
-        Planes = new();
-        Indicadores = new();
-        NumeroControlBase = await RiesgoSvc.ContarControlesExistentesAsync(MatrizActual.CodigoProceso, 0);
-        TabActivo = 1;
-        MsgGuardar = string.Empty;
-        MostrarFormulario = true;
-    }
-
-    void EditarRiesgo(Riesgo r)
-    {
-        RiesgoActual = r;
-        Controles = r.Controles.ToList();
-        Planes = r.PlanesAccion.ToList();
-        Indicadores = r.Indicadores.ToList();
-        TabActivo = 1;
-        MsgGuardar = string.Empty;
-        MostrarFormulario = true;
-    }
-
-    async Task EliminarRiesgo(int id)
-    {
-        await RiesgoSvc.EliminarAsync(id);
-        if (MatrizActual != null)
-            ListaRiesgos = await RiesgoSvc.GetRiesgosPorMatrizAsync(MatrizActual.Id);
-    }
-
-    void Cancelar() { MostrarFormulario = false; MsgGuardar = string.Empty; }
-
-    async Task GuardarDatosGenerales()
-    {
-        if (MatrizActual == null) return;
-        if (string.IsNullOrEmpty(RiesgoActual.DescripcionRiesgo))
-        {
-            MsgGuardar = "La Descripción del Riesgo es obligatoria.";
-            GuardarOk = false;
-            return;
-        }
-        RiesgoActual.CodigoProceso = MatrizActual.CodigoProceso;
-        RiesgoActual.NombreProceso = MatrizActual.NombreProceso;
-        RiesgoActual.MatrizGrupoId = MatrizActual.Id;
-        if (RiesgoActual.Id == 0)
-            RiesgoActual.CodigoRiesgo = await RiesgoSvc.GenerarCodigoRiesgoAsync(MatrizActual.CodigoProceso);
-        await RiesgoSvc.GuardarRiesgoAsync(RiesgoActual);
-        NumeroControlBase = await RiesgoSvc.ContarControlesExistentesAsync(MatrizActual.CodigoProceso, RiesgoActual.Id);
-        MsgGuardar = "Datos Generales guardados.";
-        GuardarOk = true;
-        TabActivo = 2;
-    }
-
-    async Task GuardarInherente()
-    {
-        await RiesgoSvc.GuardarRiesgoAsync(RiesgoActual);
-        MsgGuardar = "Evaluación Inherente guardada.";
-        GuardarOk = true;
-        TabActivo = 3;
-    }
-
-    void AgregarControl()
-    {
-        if (MatrizActual == null) return;
-        var numGlobal = NumeroControlBase + Controles.Count + 1;
-        Controles.Add(new RiesgoControl
-        {
-            RiesgoId = RiesgoActual.Id,
-            CodigoControl = MatrizActual.CodigoProceso + ".C" + numGlobal.ToString("D2")
-        });
-    }
-
+    async Task NuevoRiesgo() { if (MatrizActual==null) return; RiesgoActual = new Riesgo{UsuarioId=UsuarioId,MatrizGrupoId=MatrizActual.Id,CodigoProceso=MatrizActual.CodigoProceso,NombreProceso=MatrizActual.NombreProceso}; AplicarMaestroProcesoActual(); Controles=new(); Planes=new(); Indicadores=new(); NumeroControlBase=await RiesgoSvc.ContarControlesExistentesAsync(MatrizActual.CodigoProceso,0); TabActivo=1; MsgGuardar=string.Empty; MostrarFormulario=true; }
+    void EditarRiesgo(Riesgo r) { RiesgoActual=r; Controles=r.Controles.ToList(); Planes=r.PlanesAccion.ToList(); Indicadores=r.Indicadores.ToList(); TabActivo=1; MsgGuardar=string.Empty; MostrarFormulario=true; }
+    async Task EliminarRiesgo(int id) { await RiesgoSvc.EliminarAsync(id); if (MatrizActual!=null) ListaRiesgos=await RiesgoSvc.GetRiesgosPorMatrizAsync(MatrizActual.Id); }
+    void Cancelar() { MostrarFormulario=false; MsgGuardar=string.Empty; }
+    async Task GuardarDatosGenerales() { if (MatrizActual==null) return; if (string.IsNullOrEmpty(RiesgoActual.DescripcionRiesgo)){MsgGuardar="La Descripcion del Riesgo es obligatoria.";GuardarOk=false;return;} RiesgoActual.CodigoProceso=MatrizActual.CodigoProceso; RiesgoActual.NombreProceso=MatrizActual.NombreProceso; RiesgoActual.MatrizGrupoId=MatrizActual.Id; if (RiesgoActual.Id==0) RiesgoActual.CodigoRiesgo=await RiesgoSvc.GenerarCodigoRiesgoAsync(MatrizActual.CodigoProceso); await RiesgoSvc.GuardarRiesgoAsync(RiesgoActual); NumeroControlBase=await RiesgoSvc.ContarControlesExistentesAsync(MatrizActual.CodigoProceso,RiesgoActual.Id); MsgGuardar="Datos Generales guardados."; GuardarOk=true; TabActivo=2; }
+    async Task GuardarInherente() { await RiesgoSvc.GuardarRiesgoAsync(RiesgoActual); MsgGuardar="Evaluacion Inherente guardada."; GuardarOk=true; TabActivo=3; }
+    void AgregarControl() { if (MatrizActual==null) return; var n=NumeroControlBase+Controles.Count+1; Controles.Add(new RiesgoControl{RiesgoId=RiesgoActual.Id,CodigoControl=MatrizActual.CodigoProceso+".C"+n.ToString("D2")}); }
     void EliminarControlLocal(int idx) => Controles.RemoveAt(idx);
-
-    async Task GuardarControles()
-    {
-        if (MatrizActual == null) return;
-        var existentes = await RiesgoSvc.GetByIdAsync(RiesgoActual.Id);
-        if (existentes != null)
-            foreach (var c in existentes.Controles.ToList())
-                await RiesgoSvc.EliminarControlAsync(c.Id);
-
-        var baseNum = await RiesgoSvc.ContarControlesExistentesAsync(MatrizActual.CodigoProceso, RiesgoActual.Id);
-        for (int i = 0; i < Controles.Count; i++)
-        {
-            Controles[i].RiesgoId = RiesgoActual.Id;
-            Controles[i].Id = 0;
-            Controles[i].CodigoControl = MatrizActual.CodigoProceso + ".C" + (baseNum + i + 1).ToString("D2");
-            await RiesgoSvc.GuardarControlAsync(Controles[i]);
-        }
-        NumeroControlBase = baseNum;
-        MsgGuardar = "Controles guardados.";
-        GuardarOk = true;
-        TabActivo = 4;
-    }
-
-    async Task GuardarResidual()
-    {
-        await RiesgoSvc.GuardarRiesgoAsync(RiesgoActual);
-        MsgGuardar = "Evaluación Residual guardada.";
-        GuardarOk = true;
-        TabActivo = 5;
-    }
-
-    async Task FinalizarSinPlan()
-    {
-        await RiesgoSvc.GuardarRiesgoAsync(RiesgoActual);
-        MsgGuardar = "Registro completado.";
-        GuardarOk = true;
-        if (MatrizActual != null)
-            ListaRiesgos = await RiesgoSvc.GetRiesgosPorMatrizAsync(MatrizActual.Id);
-        await Task.Delay(1200);
-        MostrarFormulario = false;
-    }
-
-    void AgregarPlan()
-    {
-        var num = Planes.Count + 1;
-        Planes.Add(new PlanAccion
-        {
-            RiesgoId = RiesgoActual.Id,
-            CodigoPlan = RiesgoActual.CodigoRiesgo + ".PA" + num.ToString("D2"),
-            EstrategiaRespuesta = RiesgoActual.EstrategiaResidual
-        });
-    }
-
+    async Task GuardarControles() { if (MatrizActual==null) return; var ex=await RiesgoSvc.GetByIdAsync(RiesgoActual.Id); if (ex!=null) foreach (var c in ex.Controles.ToList()) await RiesgoSvc.EliminarControlAsync(c.Id); var bn=await RiesgoSvc.ContarControlesExistentesAsync(MatrizActual.CodigoProceso,RiesgoActual.Id); for (int i=0;i<Controles.Count;i++){Controles[i].RiesgoId=RiesgoActual.Id;Controles[i].Id=0;Controles[i].CodigoControl=MatrizActual.CodigoProceso+".C"+(bn+i+1).ToString("D2");await RiesgoSvc.GuardarControlAsync(Controles[i]);} NumeroControlBase=bn; MsgGuardar="Controles guardados."; GuardarOk=true; TabActivo=4; }
+    async Task GuardarResidual() { await RiesgoSvc.GuardarRiesgoAsync(RiesgoActual); MsgGuardar="Evaluacion Residual guardada."; GuardarOk=true; TabActivo=5; }
+    async Task FinalizarSinPlan() { await RiesgoSvc.GuardarRiesgoAsync(RiesgoActual); MsgGuardar="Registro completado."; GuardarOk=true; if (MatrizActual!=null) ListaRiesgos=await RiesgoSvc.GetRiesgosPorMatrizAsync(MatrizActual.Id); await Task.Delay(1200); MostrarFormulario=false; }
+    void AgregarPlan() { var n=Planes.Count+1; Planes.Add(new PlanAccion{RiesgoId=RiesgoActual.Id,CodigoPlan=RiesgoActual.CodigoRiesgo+".PA"+n.ToString("D2"),EstrategiaRespuesta=RiesgoActual.EstrategiaResidual}); }
     void EliminarPlanLocal(int idx) => Planes.RemoveAt(idx);
-
-    async Task GuardarPlanes()
-    {
-        var existentes = await RiesgoSvc.GetByIdAsync(RiesgoActual.Id);
-        if (existentes != null)
-            foreach (var p in existentes.PlanesAccion.ToList())
-                await RiesgoSvc.EliminarPlanAsync(p.Id);
-
-        for (int i = 0; i < Planes.Count; i++)
-        {
-            Planes[i].RiesgoId = RiesgoActual.Id;
-            Planes[i].Id = 0;
-            Planes[i].CodigoPlan = RiesgoActual.CodigoRiesgo + ".PA" + (i + 1).ToString("D2");
-            Planes[i].EstrategiaRespuesta = RiesgoActual.EstrategiaResidual;
-            await RiesgoSvc.GuardarPlanAsync(Planes[i]);
-        }
-        MsgGuardar = "Planes guardados.";
-        GuardarOk = true;
-        TabActivo = 6;
-    }
-
-    void AgregarIndicador()
-    {
-        var num = Indicadores.Count + 1;
-        Indicadores.Add(new Indicador
-        {
-            RiesgoId = RiesgoActual.Id,
-            CodigoKRI = RiesgoActual.CodigoRiesgo + ".KRI" + num.ToString("D2")
-        });
-    }
-
+    async Task GuardarPlanes() { var ex=await RiesgoSvc.GetByIdAsync(RiesgoActual.Id); if (ex!=null) foreach (var p in ex.PlanesAccion.ToList()) await RiesgoSvc.EliminarPlanAsync(p.Id); for (int i=0;i<Planes.Count;i++){Planes[i].RiesgoId=RiesgoActual.Id;Planes[i].Id=0;Planes[i].CodigoPlan=RiesgoActual.CodigoRiesgo+".PA"+(i+1).ToString("D2");Planes[i].EstrategiaRespuesta=RiesgoActual.EstrategiaResidual;await RiesgoSvc.GuardarPlanAsync(Planes[i]);} MsgGuardar="Planes guardados."; GuardarOk=true; TabActivo=6; }
+    void AgregarIndicador() { var n=Indicadores.Count+1; Indicadores.Add(new Indicador{RiesgoId=RiesgoActual.Id,CodigoKRI=RiesgoActual.CodigoRiesgo+".KRI"+n.ToString("D2")}); }
     void EliminarIndicadorLocal(int idx) => Indicadores.RemoveAt(idx);
-
-    async Task GuardarTodo()
-    {
-        var existentes = await RiesgoSvc.GetByIdAsync(RiesgoActual.Id);
-        if (existentes != null)
-            foreach (var ind in existentes.Indicadores.ToList())
-                await RiesgoSvc.EliminarIndicadorAsync(ind.Id);
-
-        for (int i = 0; i < Indicadores.Count; i++)
-        {
-            Indicadores[i].RiesgoId = RiesgoActual.Id;
-            Indicadores[i].Id = 0;
-            Indicadores[i].CodigoKRI = RiesgoActual.CodigoRiesgo + ".KRI" + (i + 1).ToString("D2");
-            await RiesgoSvc.GuardarIndicadorAsync(Indicadores[i]);
-        }
-        MsgGuardar = "Registro completo guardado.";
-        GuardarOk = true;
-        if (MatrizActual != null)
-            ListaRiesgos = await RiesgoSvc.GetRiesgosPorMatrizAsync(MatrizActual.Id);
-        await Task.Delay(1200);
-        MostrarFormulario = false;
-    }
+    async Task GuardarTodo() { var ex=await RiesgoSvc.GetByIdAsync(RiesgoActual.Id); if (ex!=null) foreach (var ind in ex.Indicadores.ToList()) await RiesgoSvc.EliminarIndicadorAsync(ind.Id); for (int i=0;i<Indicadores.Count;i++){Indicadores[i].RiesgoId=RiesgoActual.Id;Indicadores[i].Id=0;Indicadores[i].CodigoKRI=RiesgoActual.CodigoRiesgo+".KRI"+(i+1).ToString("D2");await RiesgoSvc.GuardarIndicadorAsync(Indicadores[i]);} MsgGuardar="Registro completo guardado."; GuardarOk=true; if (MatrizActual!=null) ListaRiesgos=await RiesgoSvc.GetRiesgosPorMatrizAsync(MatrizActual.Id); await Task.Delay(1200); MostrarFormulario=false; }
 }
+
