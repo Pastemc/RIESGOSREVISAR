@@ -9,7 +9,6 @@ using RiesgosElor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Permitir conexiones desde cualquier IP de la red local
 builder.WebHost.UseUrls("http://0.0.0.0:5000", "http://0.0.0.0:5266");
 
 if (builder.Environment.IsDevelopment())
@@ -40,31 +39,41 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 builder.Services.AddScoped<AppDbContext>(sp =>
     sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
-// ─── HTTP CLIENT ──────────────────────────────────────────────────────────────
+// ─── HTTP CLIENT GENERICO ─────────────────────────────────────────────────────
 builder.Services.AddHttpClient();
 
-// ─── SERVICIOS DE APLICACIÓN ──────────────────────────────────────────────────
+// ─── SERVICIOS DE APLICACION ──────────────────────────────────────────────────
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<RiesgoService>();
 builder.Services.AddScoped<ExcelService>();
 builder.Services.AddScoped<GrcService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<PeriodoRiesgoService>();
 
-// ─── API PERSONAL ELORSA (Singleton: caché compartido entre todas las sesiones) ─
-builder.Services.AddHttpClient<PersonalCargoService>(client =>
+// ─── API PERSONAL ELORSA ──────────────────────────────────────────────────────
+// HttpClient nombrado con SSL permisivo para llamar la API HTTPS de ELORSA
+// desde un servidor HTTP interno (red local).
+builder.Services.AddHttpClient("PersonalCargoClient", client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(15);
+    client.Timeout = TimeSpan.FromSeconds(20);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback =
+        HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
 });
-builder.Services.AddSingleton<PersonalCargoService>(sp =>
+
+// Scoped en lugar de Singleton para evitar conflictos de registro
+builder.Services.AddScoped<PersonalCargoService>(sp =>
 {
     var factory = sp.GetRequiredService<IHttpClientFactory>();
-    var http = factory.CreateClient(nameof(PersonalCargoService));
+    var http = factory.CreateClient("PersonalCargoClient");
     var logger = sp.GetRequiredService<ILogger<PersonalCargoService>>();
     return new PersonalCargoService(http, logger);
 });
 
-// ─── AUTENTICACIÓN Y AUTORIZACIÓN ─────────────────────────────────────────────
+// ─── AUTENTICACION Y AUTORIZACION ─────────────────────────────────────────────
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opt =>
     {
@@ -84,16 +93,12 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    try
-    {
-        db.Database.Migrate();
-    }
-    catch
-    {
-        db.Database.EnsureCreated();
-    }
+    try { db.Database.Migrate(); }
+    catch { db.Database.EnsureCreated(); }
+
     var auth = scope.ServiceProvider.GetRequiredService<AuthService>();
     await auth.SeedAsync();
+
     var riesgoSvc = scope.ServiceProvider.GetRequiredService<RiesgoService>();
     await riesgoSvc.SeedMatricesAsync();
 }
@@ -126,7 +131,9 @@ app.MapPost("/do-login", async (HttpContext ctx, AuthService authSvc) =>
         string encU = Convert.ToBase64String(Encoding.UTF8.GetBytes(correo));
         string encP = Convert.ToBase64String(Encoding.UTF8.GetBytes(password));
         string encN = Convert.ToBase64String(Encoding.UTF8.GetBytes(res.Nombre));
-        return Results.Redirect($"/login?first_time=1&u={Uri.EscapeDataString(encU)}&p={Uri.EscapeDataString(encP)}&name={Uri.EscapeDataString(encN)}");
+        return Results.Redirect(
+            $"/login?first_time=1&u={Uri.EscapeDataString(encU)}" +
+            $"&p={Uri.EscapeDataString(encP)}&name={Uri.EscapeDataString(encN)}");
     }
 
     var user = res.User;
@@ -135,9 +142,9 @@ app.MapPost("/do-login", async (HttpContext ctx, AuthService authSvc) =>
 
     var claims = new List<System.Security.Claims.Claim>
     {
-        new(System.Security.Claims.ClaimTypes.Name, user.Nombre),
+        new(System.Security.Claims.ClaimTypes.Name,  user.Nombre),
         new(System.Security.Claims.ClaimTypes.Email, user.Correo),
-        new(System.Security.Claims.ClaimTypes.Role, user.Rol),
+        new(System.Security.Claims.ClaimTypes.Role,  user.Rol),
         new("UserId", user.Id.ToString())
     };
 
@@ -168,8 +175,10 @@ app.MapPost("/do-solicitar-acceso", async (HttpContext ctx, AuthService authSvc)
 
     try
     {
-        if (!string.IsNullOrEmpty(usuarioEnc)) usuario = Encoding.UTF8.GetString(Convert.FromBase64String(usuarioEnc));
-        if (!string.IsNullOrEmpty(passEnc)) pass = Encoding.UTF8.GetString(Convert.FromBase64String(passEnc));
+        if (!string.IsNullOrEmpty(usuarioEnc))
+            usuario = Encoding.UTF8.GetString(Convert.FromBase64String(usuarioEnc));
+        if (!string.IsNullOrEmpty(passEnc))
+            pass = Encoding.UTF8.GetString(Convert.FromBase64String(passEnc));
     }
     catch { }
 

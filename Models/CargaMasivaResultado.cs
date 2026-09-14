@@ -19,12 +19,16 @@ public class FilaCargaMasiva
     public string OrigenRiesgo { get; set; } = "Interno";
     public string FrecuenciaRiesgo { get; set; } = "Recurrente";
     public string TipoRiesgo { get; set; } = "Operacional";
+
+    // ── Inherente ────────────────────────────────────────────────────────────
     public int ProbabilidadInherente { get; set; } = 1;
     public int ImpactoInherente { get; set; } = 1;
     public int SeveridadInherente => ProbabilidadInherente * ImpactoInherente;
-    public string NivelInherente => Riesgo.GetNivel(SeveridadInherente);
 
-    // Control
+    // Usa tabla FONAFE con 2 parámetros — correcto
+    public string NivelInherente => Riesgo.GetNivel(ProbabilidadInherente, ImpactoInherente);
+
+    // ── Control ──────────────────────────────────────────────────────────────
     public string CodigoControl { get; set; } = "";
     public string DescripcionControl { get; set; } = "";
     public string AreaResponsableControl { get; set; } = "";
@@ -34,14 +38,19 @@ public class FilaCargaMasiva
     public string AutomatizacionControl { get; set; } = "Manual";
     public string EvidenciaControl { get; set; } = "";
 
-    // Residual
+    // ── Residual ─────────────────────────────────────────────────────────────
     public int ProbabilidadResidual { get; set; } = 1;
     public int ImpactoResidual { get; set; } = 1;
     public int SeveridadResidual => ProbabilidadResidual * ImpactoResidual;
-    public string NivelResidual => Riesgo.GetNivel(SeveridadResidual);
+
+    // Usa tabla FONAFE con 2 parámetros — correcto
+    // ANTES: Riesgo.GetNivel(SeveridadResidual) → tabla simple → BUG para sev=6
+    // AHORA: Riesgo.GetNivel(prob, imp)         → tabla FONAFE → correcto
+    public string NivelResidual => Riesgo.GetNivel(ProbabilidadResidual, ImpactoResidual);
+
     public string EstrategiaRespuesta { get; set; } = "Retener";
 
-    // Plan de Acción
+    // ── Plan de Acción ───────────────────────────────────────────────────────
     public string CodigoPlanAccion { get; set; } = "";
     public string DescripcionPlanAccion { get; set; } = "";
     public string AreaResponsablePlan { get; set; } = "";
@@ -53,12 +62,22 @@ public class FilaCargaMasiva
     public string PlanEficaz { get; set; } = "";
     public DateTime? FechaVerificacion { get; set; }
 
-    // Validaciones y Duplicados
+    // ── KRI (Indicadores Claves de Riesgo) ──────────────────────────────────
+    // Una celda puede tener múltiples KRI separados por salto de línea.
+    // Se almacenan como string crudo; ProcesarCargaMasivaAsync los divide.
+    public string CodigoKRI { get; set; } = "";
+    public string DefinicionKRI { get; set; } = "";
+    public string FrecuenciaKRI { get; set; } = "";
+    public string MetaKRI { get; set; } = "";
+    public string KRIActual { get; set; } = "";
+    public string ResponsableKRI { get; set; } = "";
+
+    // ── Validación y duplicados ──────────────────────────────────────────────
     public bool EsValido { get; set; } = true;
     public string MensajeValidacion { get; set; } = "";
     public bool EsDuplicadoEnArchivo { get; set; } = false;
     public bool ExisteEnBaseDatos { get; set; } = false;
-    public string EstadoDuplicado { get; set; } = "Nuevo"; // Nuevo | Duplicado en Archivo | Existe en BD
+    public string EstadoDuplicado { get; set; } = "Nuevo";
 }
 
 public class ResultadoCargaMasiva

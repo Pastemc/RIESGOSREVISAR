@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using RiesgosElor.Models;
 
 namespace RiesgosElor.Data;
@@ -31,6 +31,10 @@ public class AppDbContext : DbContext
     public DbSet<MaestroResponsable> MaestroResponsables { get; set; }
     public DbSet<BitacoraDepartamentoGerencia> BitacoraDepartamentoGerencias { get; set; }
     public DbSet<BitacoraUsuario> BitacorasUsuario { get; set; }
+
+    // ── Gestión de Períodos de Riesgo ──────────────────────────────────
+    public DbSet<PeriodoRiesgo> PeriodosRiesgo { get; set; }
+    public DbSet<BitacoraPeriodoRiesgo> BitacoraPeriodoRiesgo { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -125,5 +129,20 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(e => e.RiesgoControlId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // ── PeriodoRiesgo ──────────────────────────────────────────────
+        modelBuilder.Entity<PeriodoRiesgo>(e =>
+        {
+            e.ToTable("PeriodosRiesgo");
+            e.HasMany(p => p.Bitacora)
+             .WithOne(b => b.Periodo)
+             .HasForeignKey(b => b.PeriodoId)
+             .OnDelete(DeleteBehavior.Restrict); // preservar bitácora al eliminar período
+        });
+
+        modelBuilder.Entity<BitacoraPeriodoRiesgo>(e =>
+        {
+            e.ToTable("BitacoraPeriodoRiesgo");
+        });
     }
 }

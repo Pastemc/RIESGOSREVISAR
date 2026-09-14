@@ -1,0 +1,915 @@
+@page "/periodo-riesgo"
+@layout MainLayout
+@attribute [Authorize(Roles = "SuperAdmin")]
+@inject PeriodoRiesgoService PeriodoSvc
+@inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
+
+@using MPeriodo = RiesgosElor.Models.PeriodoRiesgo
+@using MBitacora = RiesgosElor.Models.BitacoraPeriodoRiesgo
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-7">
+                <h1 class="m-0">
+                    <i class="fas fa-calendar-alt mr-2" style="color:#FFDD00;"></i>
+                    Gestión de Periodos de Riesgo
+                </h1>
+                <small class="text-muted">Apertura, edición, cierre y bitácora de periodos — ELORSA</small>
+            </div>
+            <div class="col-sm-5">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="/configuracion">Configuración</a></li>
+                    <li class="breadcrumb-item active">Periodo de Riesgo</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+
+    @if (Cargando)
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-spinner fa-spin fa-3x" style="color:#0062B8;"></i>
+            <p class="mt-3 text-muted">Cargando periodos...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row mb-4">
+            <div class="col-md-3 col-6 mb-2">
+                <div class="info-box shadow-sm mb-0" style="border-left:4px solid #28a745;">
+                    <span class="info-box-icon" style="background:#28a745;">
+                        <i class="fas fa-play-circle text-white"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Periodo Activo</span>
+                        <span class="info-box-number">@(PeriodoActivo != null ? "1" : "0")</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <div class="info-box shadow-sm mb-0" style="border-left:4px solid #0062B8;">
+                    <span class="info-box-icon" style="background:#0062B8;">
+                        <i class="fas fa-history text-white"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Periodos Cerrados</span>
+                        <span class="info-box-number">@Periodos.Count(p => p.Estado == "Cerrado")</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <div class="info-box shadow-sm mb-0" style="border-left:4px solid #ffc107;">
+                    <span class="info-box-icon" style="background:#ffc107;">
+                        <i class="fas fa-calendar-check text-dark"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Total Periodos</span>
+                        <span class="info-box-number">@Periodos.Count(p => p.Estado != "Eliminado")</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                @{
+                    var diasR = PeriodoActivo != null
+                        ? Math.Max(0, (int)(PeriodoActivo.FechaCierre - DateTime.Now).TotalDays)
+                        : 0;
+                }
+                <div class="info-box shadow-sm mb-0" style="border-left:4px solid #dc3545;">
+                    <span class="info-box-icon" style="background:#dc3545;">
+                        <i class="fas fa-hourglass-half text-white"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Dias Restantes</span>
+                        <span class="info-box-number">@(PeriodoActivo != null ? diasR.ToString() : "—")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(MsgExito))
+        {
+            <div class="alert alert-success alert-dismissible shadow-sm mb-3">
+                <i class="fas fa-check-circle mr-2"></i>@MsgExito
+                <button type="button" class="close" @onclick="() => MsgExito = string.Empty">x</button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(MsgError))
+        {
+            <div class="alert alert-danger alert-dismissible shadow-sm mb-3">
+                <i class="fas fa-exclamation-circle mr-2"></i>@MsgError
+                <button type="button" class="close" @onclick="() => MsgError = string.Empty">x</button>
+            </div>
+        }
+
+        @if (PeriodoActivo != null)
+        {
+            var durTotal  = (PeriodoActivo.FechaCierre - PeriodoActivo.FechaInicio).TotalDays;
+            var durPasada = (DateTime.Now - PeriodoActivo.FechaInicio).TotalDays;
+            var pct       = durTotal > 0 ? (int)Math.Clamp(durPasada / durTotal * 100, 0, 100) : 0;
+            var colorPct  = pct < 33 ? "#28a745" : pct < 66 ? "#ffc107" : "#fd7e14";
+
+            <div class="card shadow-sm mb-4" style="border-top:4px solid #28a745;">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap"
+                     style="background:#155724;color:#fff;gap:8px;">
+                    <h4 class="mb-0 font-weight-bold">
+                        <i class="fas fa-play-circle mr-2"></i>
+                        Periodo Activo — @PeriodoActivo.NombrePeriodo
+                    </h4>
+                    <div style="white-space:nowrap;">
+                        <span class="badge badge-success mr-1" style="font-size:.82rem;padding:5px 10px;">
+                            <i class="fas fa-circle mr-1" style="font-size:.55rem;"></i>ACTIVO
+                        </span>
+                        <button class="btn btn-sm btn-warning mr-1 font-weight-bold"
+                                @onclick="() => AbrirModalEditar(PeriodoActivo)">
+                            <i class="fas fa-edit mr-1"></i>Editar
+                        </button>
+                        <button class="btn btn-sm btn-danger font-weight-bold"
+                                @onclick="() => AbrirModalCerrar(PeriodoActivo)">
+                            <i class="fas fa-lock mr-1"></i>Cerrar
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-md-2 col-6 mb-2 border-right">
+                            <div class="text-muted small">Tipo</div>
+                            <div class="font-weight-bold" style="color:#003B70;">@PeriodoActivo.Tipo</div>
+                        </div>
+                        <div class="col-md-2 col-6 mb-2 border-right">
+                            <div class="text-muted small">Frecuencia</div>
+                            <div class="font-weight-bold" style="color:#003B70;">@PeriodoActivo.Frecuencia</div>
+                        </div>
+                        <div class="col-md-2 col-6 mb-2 border-right">
+                            <div class="text-muted small">Inicio</div>
+                            <div class="font-weight-bold text-success">@PeriodoActivo.FechaInicio.ToString("dd/MM/yyyy")</div>
+                        </div>
+                        <div class="col-md-2 col-6 mb-2 border-right">
+                            <div class="text-muted small">Cierre Previsto</div>
+                            <div class="font-weight-bold text-danger">@PeriodoActivo.FechaCierre.ToString("dd/MM/yyyy")</div>
+                        </div>
+                        <div class="col-md-2 col-6 mb-2 border-right">
+                            <div class="text-muted small">Dias restantes</div>
+                            <div class="font-weight-bold" style="color:#dc3545;font-size:1.1rem;">@diasR dias</div>
+                        </div>
+                        <div class="col-md-2 col-6 mb-2">
+                            <div class="text-muted small">Abierto por</div>
+                            <div class="font-weight-bold" style="color:#003B70;">
+                                <i class="fas fa-user mr-1"></i>@PeriodoActivo.CreadoPor
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-1">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>Avance del periodo</span><strong>@pct%</strong>
+                        </div>
+                        <div class="progress" style="height:22px;border-radius:11px;">
+                            <div class="progress-bar font-weight-bold"
+                                 style="width:@pct%;background:@colorPct;border-radius:11px;font-size:.82rem;">
+                                @pct%
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted mt-1">
+                            <span>@PeriodoActivo.FechaInicio.ToString("dd MMM yyyy")</span>
+                            <span>@PeriodoActivo.FechaCierre.ToString("dd MMM yyyy")</span>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(PeriodoActivo.Descripcion))
+                    {
+                        <div class="alert alert-light border mt-3 mb-0 py-2">
+                            <i class="fas fa-info-circle mr-1 text-primary"></i>
+                            <strong>Alcance:</strong> @PeriodoActivo.Descripcion
+                        </div>
+                    }
+                    @if (PeriodoActivo.Bitacora.Any())
+                    {
+                        <div class="mt-3">
+                            <button class="btn btn-outline-info btn-sm"
+                                    @onclick="() => AbrirModalBitacora(PeriodoActivo)">
+                                <i class="fas fa-history mr-1"></i>
+                                Ver Bitacora (@PeriodoActivo.Bitacora.Count entradas)
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning shadow-sm mb-4 d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle fa-2x mr-3"></i>
+                <div>
+                    <strong>Sin periodo activo.</strong>
+                    No hay ningun periodo de evaluacion abierto actualmente.
+                </div>
+            </div>
+        }
+
+        @if (PeriodoActivo == null)
+        {
+            <div class="text-center mb-4">
+                <button class="btn btn-success btn-lg font-weight-bold px-5 shadow"
+                        @onclick="AbrirModalNuevo">
+                    <i class="fas fa-plus-circle mr-2"></i>Abrir Nuevo Periodo de Evaluacion
+                </button>
+            </div>
+        }
+
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap"
+                 style="background:#003B70;border-bottom:2px solid #FFDD00;gap:8px;">
+                <h4 class="card-title text-white mb-0">
+                    <i class="fas fa-history mr-2"></i>Historial de Periodos de Evaluacion
+                </h4>
+                <button class="btn btn-sm btn-outline-light"
+                        @onclick="() => MostrarBitacoraGlobal = !MostrarBitacoraGlobal">
+                    <i class="fas fa-scroll mr-1"></i>
+                    @(MostrarBitacoraGlobal ? "Ocultar" : "Ver") Bitacora Global
+                </button>
+            </div>
+
+            @if (MostrarBitacoraGlobal)
+            {
+                <div class="card-body p-3 border-bottom" style="background:#f8f9fa;">
+                    <h6 class="font-weight-bold text-dark mb-2">
+                        <i class="fas fa-scroll mr-1 text-info"></i>Bitacora Global
+                    </h6>
+                    <div class="table-responsive" style="max-height:280px;overflow-y:auto;">
+                        <table class="table table-sm table-striped border mb-0">
+                            <thead style="background:#0062B8;color:#fff;position:sticky;top:0;">
+                                <tr>
+                                    <th>Fecha</th><th>Periodo</th><th>Accion</th>
+                                    <th>Campo</th><th>Antes</th><th>Despues</th>
+                                    <th>Usuario</th><th>Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var b in BitacoraGlobal)
+                                {
+                                    var colorAccion = b.Accion switch
+                                    {
+                                        "Creado"    => "#28a745",
+                                        "Editado"   => "#ffc107",
+                                        "Cerrado"   => "#dc3545",
+                                        "Eliminado" => "#6c757d",
+                                        _           => "#0062B8"
+                                    };
+                                    <tr>
+                                        <td><small>@b.FechaCambio.ToString("dd/MM/yyyy HH:mm")</small></td>
+                                        <td><small><strong>@(b.Periodo?.NombrePeriodo ?? "—")</strong></small></td>
+                                        <td>
+                                            <span class="badge"
+                                                  style="background:@colorAccion;color:@(b.Accion=="Editado"?"#000":"#fff");">
+                                                @b.Accion
+                                            </span>
+                                        </td>
+                                        <td><small class="text-muted">@b.CampoModificado</small></td>
+                                        <td><small class="text-danger">@b.ValorAnterior</small></td>
+                                        <td><small class="text-success">@b.ValorNuevo</small></td>
+                                        <td><small>@b.UsuarioNombre</small></td>
+                                        <td><small class="text-muted">@b.Motivo</small></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <div class="card-body p-0">
+                @if (!Periodos.Where(p => p.Estado != "Eliminado").Any())
+                {
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-calendar-times fa-3x mb-3 d-block" style="opacity:.2;"></i>
+                        No se han registrado periodos aun.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead style="background:#0062B8;color:#fff;">
+                                <tr>
+                                    <th>#</th><th>Nombre</th><th>Tipo</th><th>Frecuencia</th>
+                                    <th>Inicio</th><th>Cierre</th><th>Abierto por</th>
+                                    <th>Cerrado por</th><th class="text-center">Estado</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in Periodos.Where(x => x.Estado != "Eliminado")
+                                                            .OrderByDescending(x => x.FechaInicio))
+                                {
+                                    <tr style="@(p.Estado=="Activo"?"background:#f0fff4;":"")">
+                                        <td><strong>@p.Id</strong></td>
+                                        <td>
+                                            <strong>@p.NombrePeriodo</strong>
+                                            @if (p.Estado == "Activo")
+                                            {
+                                                <span class="badge badge-success ml-1" style="font-size:.62rem;">EN CURSO</span>
+                                            }
+                                        </td>
+                                        <td><span class="badge badge-primary">@p.Tipo</span></td>
+                                        <td><span class="badge badge-info">@p.Frecuencia</span></td>
+                                        <td>@p.FechaInicio.ToString("dd/MM/yyyy")</td>
+                                        <td>@p.FechaCierre.ToString("dd/MM/yyyy")</td>
+                                        <td><small>@p.CreadoPor</small></td>
+                                        <td><small class="text-muted">@(string.IsNullOrWhiteSpace(p.CerradoPor) ? "—" : p.CerradoPor)</small></td>
+                                        <td class="text-center">
+                                            @if (p.Estado == "Activo")
+                                            {
+                                                <span class="badge badge-success"><i class="fas fa-play mr-1"></i>Activo</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge badge-secondary"><i class="fas fa-lock mr-1"></i>Cerrado</span>
+                                            }
+                                        </td>
+                                        <td class="text-center" style="white-space:nowrap;">
+                                            <button class="btn btn-xs btn-outline-info mr-1" title="Ver bitacora"
+                                                    @onclick="() => AbrirModalBitacora(p)">
+                                                <i class="fas fa-history"></i>
+                                            </button>
+                                            @if (p.Estado == "Activo")
+                                            {
+                                                <button class="btn btn-xs btn-warning mr-1" title="Editar"
+                                                        @onclick="() => AbrirModalEditar(p)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-xs btn-danger" title="Cerrar periodo"
+                                                        @onclick="() => AbrirModalCerrar(p)">
+                                                    <i class="fas fa-lock"></i>
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-xs btn-outline-danger" title="Eliminar"
+                                                        @onclick="() => AbrirModalEliminar(p)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@if (MostrarModalNuevo || MostrarModalEditar)
+{
+    var esEdicion = MostrarModalEditar;
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.55);">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius:14px;overflow:hidden;">
+                <div class="modal-header font-weight-bold"
+                     style="@(esEdicion ? "background:#ffc107;border-bottom:3px solid #003B70;" : "background:linear-gradient(135deg,#003B70,#0062B8);border-bottom:3px solid #FFDD00;")">
+                    <h5 class="modal-title @(esEdicion ? "text-dark" : "text-white")">
+                        <i class="fas @(esEdicion ? "fa-edit" : "fa-calendar-plus") mr-2"></i>
+                        @(esEdicion ? $"Editar Periodo — {PeriodoEditar?.NombrePeriodo}" : "Abrir Nuevo Periodo de Evaluacion")
+                    </h5>
+                    <button type="button" class="close @(esEdicion ? "" : "text-white")"
+                            @onclick="() => { if(esEdicion) CerrarModalEditar(); else CerrarModalNuevo(); }">&times;</button>
+                </div>
+                <div class="modal-body p-4" style="max-height:75vh;overflow-y:auto;">
+                    @if (!string.IsNullOrEmpty(MsgModalError))
+                    {
+                        <div class="alert alert-danger py-2 mb-3">
+                            <i class="fas fa-exclamation-circle mr-1"></i>@MsgModalError
+                        </div>
+                    }
+
+                    <!-- CARD 1: Tipo y Frecuencia -->
+                    <div class="card border mb-3">
+                        <div class="card-header bg-primary text-white py-2">
+                            <strong><i class="fas fa-layer-group mr-2"></i>1. Tipo y Frecuencia</strong>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="form-row">
+                                <div class="col-md-4 col-12 mb-2">
+                                    <label class="font-weight-bold small">Tipo de Evaluacion</label>
+                                    <select class="form-control" @onchange="OnTipoChange">
+                                        <option value="Ordinario" selected="@(FormPeriodo.Tipo == "Ordinario")">Ordinario</option>
+                                        <option value="Extraordinario" selected="@(FormPeriodo.Tipo == "Extraordinario")">Extraordinario</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 col-12 mb-2">
+                                    <label class="font-weight-bold small">Frecuencia</label>
+                                    <select class="form-control" @onchange="OnFrecuenciaChange">
+                                        <option value="Mensual"       selected="@(FormPeriodo.Frecuencia == "Mensual")">Mensual</option>
+                                        <option value="Bimestral"     selected="@(FormPeriodo.Frecuencia == "Bimestral")">Bimestral</option>
+                                        <option value="Trimestral"    selected="@(FormPeriodo.Frecuencia == "Trimestral")">Trimestral</option>
+                                        <option value="Semestral"     selected="@(FormPeriodo.Frecuencia == "Semestral")">Semestral</option>
+                                        <option value="Anual"         selected="@(FormPeriodo.Frecuencia == "Anual")">Anual</option>
+                                        <option value="Personalizado" selected="@(FormPeriodo.Frecuencia == "Personalizado")">Personalizado</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 col-12 mb-2">
+                                    <label class="font-weight-bold small">Nombre del Periodo</label>
+                                    <input class="form-control" value="@FormPeriodo.NombrePeriodo"
+                                           @oninput="e => FormPeriodo.NombrePeriodo = e.Value?.ToString() ?? string.Empty" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CARD 2: Fechas -->
+                    <div class="card border mb-3">
+                        <div class="card-header bg-success text-white py-2">
+                            <strong><i class="fas fa-calendar-day mr-2"></i>2. Fechas del Periodo</strong>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="form-row align-items-end">
+                                <div class="col-md-2 col-6 mb-2">
+                                    <label class="font-weight-bold small">Anio</label>
+                                    <select class="form-control" @onchange="OnAnioChange">
+                                        @for (int y = DateTime.Now.Year - 2; y <= DateTime.Now.Year + 3; y++)
+                                        {
+                                            <option value="@y" selected="@(y == AnioSel)">@y</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-3 col-6 mb-2">
+                                    <label class="font-weight-bold small">Mes de Inicio</label>
+                                    <select class="form-control" @onchange="OnMesInicioChange">
+                                        @foreach (var mes in Meses)
+                                        {
+                                            <option value="@mes.Key" selected="@(mes.Key == MesInicioSel)">@mes.Value</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-2 col-6 mb-2">
+                                    <label class="font-weight-bold small">Dia de Inicio</label>
+                                    <select class="form-control" @onchange="OnDiaInicioChange">
+                                        @for (int d = 1; d <= DiasEnMes(MesInicioSel, AnioSel); d++)
+                                        {
+                                            <option value="@d" selected="@(d == DiaInicioSel)">@d</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-1 mb-2 text-center d-none d-md-flex align-items-end justify-content-center pb-2">
+                                    <i class="fas fa-arrow-right fa-lg text-muted"></i>
+                                </div>
+                                @if (FormPeriodo.Frecuencia == "Personalizado")
+                                {
+                                    <div class="col-md-2 col-6 mb-2">
+                                        <label class="font-weight-bold small">Mes de Cierre</label>
+                                        <select class="form-control" @onchange="OnMesCierreChange">
+                                            @foreach (var mes in Meses)
+                                            {
+                                                <option value="@mes.Key" selected="@(mes.Key == MesCierreSel)">@mes.Value</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2 col-6 mb-2">
+                                        <label class="font-weight-bold small">Dia de Cierre</label>
+                                        <select class="form-control" @onchange="OnDiaCierreChange">
+                                            @for (int d = 1; d <= DiasEnMes(MesCierreSel, AnioSel); d++)
+                                            {
+                                                <option value="@d" selected="@(d == DiaCierreSel)">@d</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="col-md-4 col-12 mb-2">
+                                        <label class="font-weight-bold small text-muted">Fecha de Cierre (automatica)</label>
+                                        <div class="form-control bg-light text-success font-weight-bold">
+                                            <i class="fas fa-calendar-times mr-1"></i>
+                                            @FormPeriodo.FechaCierre.ToString("dd/MM/yyyy")
+                                        </div>
+                                        <small class="text-muted">Calculada segun frecuencia.</small>
+                                    </div>
+                                }
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <div class="alert alert-info py-2 mb-0 d-flex align-items-center flex-wrap" style="gap:6px;">
+                                        <i class="fas fa-info-circle fa-lg mr-2 text-info"></i>
+                                        <div>
+                                            <strong>Periodo:</strong>
+                                            Del <strong class="text-success">@FormPeriodo.FechaInicio.ToString("dd/MM/yyyy")</strong>
+                                            al <strong class="text-danger">@FormPeriodo.FechaCierre.ToString("dd/MM/yyyy")</strong>
+                                            <span class="badge badge-primary ml-1">
+                                                @((int)(FormPeriodo.FechaCierre - FormPeriodo.FechaInicio).TotalDays) dias
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CARD 3: Alcance -->
+                    <div class="card border mb-0">
+                        <div class="card-header bg-warning text-dark py-2">
+                            <strong><i class="fas fa-align-left mr-2"></i>3. Alcance y Descripcion</strong>
+                        </div>
+                        <div class="card-body p-3">
+                            <textarea class="form-control" rows="3"
+                                      placeholder="Describe el alcance del periodo..."
+                                      value="@FormPeriodo.Descripcion"
+                                      @oninput="e => FormPeriodo.Descripcion = e.Value?.ToString() ?? string.Empty">
+                            </textarea>
+                        </div>
+                    </div>
+
+                    @if (esEdicion)
+                    {
+                        <div class="form-group mt-3 mb-0">
+                            <label class="font-weight-bold text-muted small">
+                                <i class="fas fa-scroll mr-1"></i>Motivo de edicion (para bitacora)
+                            </label>
+                            <input @bind="MotivoAccion" class="form-control"
+                                   placeholder="Ej: Correccion de fechas por acuerdo de Gerencia General..." />
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer bg-light">
+                    <button class="btn btn-secondary"
+                            @onclick="() => { if(esEdicion) CerrarModalEditar(); else CerrarModalNuevo(); }">
+                        <i class="fas fa-times mr-1"></i>Cancelar
+                    </button>
+                    @if (esEdicion)
+                    {
+                        <button class="btn btn-warning font-weight-bold px-4 text-dark"
+                                @onclick="GuardarEdicion" disabled="@Procesando">
+                            @if (Procesando) { <span class="spinner-border spinner-border-sm mr-2"></span> }
+                            <i class="fas fa-save mr-1"></i>Guardar Cambios
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-success font-weight-bold px-4"
+                                @onclick="GuardarNuevo" disabled="@Procesando">
+                            @if (Procesando) { <span class="spinner-border spinner-border-sm mr-2"></span> }
+                            <i class="fas fa-play-circle mr-1"></i>Abrir Periodo
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (MostrarModalCerrar && PeriodoAccion != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.55);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius:12px;overflow:hidden;">
+                <div class="modal-header bg-danger text-white font-weight-bold">
+                    <h5 class="modal-title"><i class="fas fa-lock mr-2"></i>Cerrar Periodo</h5>
+                    <button type="button" class="close text-white" @onclick="CerrarModalCerrar">&times;</button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning py-2 mb-3">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        El periodo quedara <strong>bloqueado</strong> y se registrara en la bitacora. No se puede reabrir.
+                    </div>
+                    <p>Cerrando: <strong class="text-danger">@PeriodoAccion.NombrePeriodo</strong></p>
+                    <div class="row mb-3 text-center">
+                        <div class="col-6 border-right">
+                            <div class="text-muted small">Apertura</div>
+                            <div class="font-weight-bold text-success">@PeriodoAccion.FechaInicio.ToString("dd/MM/yyyy")</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Cierre real</div>
+                            <div class="font-weight-bold text-danger">@DateTime.Now.ToString("dd/MM/yyyy")</div>
+                        </div>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">Motivo de cierre</label>
+                        <textarea @bind="MotivoAccion" class="form-control" rows="3"
+                                  placeholder="Ej: Periodo concluido segun calendario institucional GIR..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button class="btn btn-secondary" @onclick="CerrarModalCerrar">
+                        <i class="fas fa-times mr-1"></i>Cancelar
+                    </button>
+                    <button class="btn btn-danger font-weight-bold px-4" @onclick="ConfirmarCierre" disabled="@Procesando">
+                        @if (Procesando) { <span class="spinner-border spinner-border-sm mr-2"></span> }
+                        <i class="fas fa-lock mr-1"></i>Confirmar Cierre
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (MostrarModalEliminar && PeriodoAccion != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.55);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius:12px;overflow:hidden;">
+                <div class="modal-header bg-dark text-white font-weight-bold">
+                    <h5 class="modal-title"><i class="fas fa-trash mr-2"></i>Eliminar Periodo</h5>
+                    <button type="button" class="close text-white" @onclick="CerrarModalEliminar">&times;</button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-danger py-2 mb-3">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        El periodo sera marcado como <strong>Eliminado</strong> y quedara registrado
+                        en la bitacora historica. <strong>No se borrara de la BD.</strong>
+                    </div>
+                    <p>Eliminando: <strong>@PeriodoAccion.NombrePeriodo</strong></p>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">Motivo</label>
+                        <input @bind="MotivoAccion" class="form-control"
+                               placeholder="Ej: Periodo creado por error, reemplazado por..." />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button class="btn btn-secondary" @onclick="CerrarModalEliminar">
+                        <i class="fas fa-times mr-1"></i>Cancelar
+                    </button>
+                    <button class="btn btn-dark font-weight-bold px-4" @onclick="ConfirmarEliminar" disabled="@Procesando">
+                        @if (Procesando) { <span class="spinner-border spinner-border-sm mr-2"></span> }
+                        <i class="fas fa-trash mr-1"></i>Confirmar Eliminacion
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (MostrarModalBitacora && PeriodoAccion != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.55);">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0" style="border-radius:12px;overflow:hidden;">
+                <div class="modal-header bg-info text-white font-weight-bold">
+                    <h5 class="modal-title">
+                        <i class="fas fa-history mr-2"></i>Bitacora — @PeriodoAccion.NombrePeriodo
+                    </h5>
+                    <button type="button" class="close text-white" @onclick="CerrarModalBitacora">&times;</button>
+                </div>
+                <div class="modal-body p-3">
+                    @if (!BitacoraPeriodo.Any())
+                    {
+                        <div class="text-center text-muted py-4">Sin registros en la bitacora.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive" style="max-height:420px;overflow-y:auto;">
+                            <table class="table table-sm table-striped border mb-0">
+                                <thead style="background:#17a2b8;color:#fff;position:sticky;top:0;">
+                                    <tr>
+                                        <th>Fecha y Hora</th><th>Accion</th><th>Campo</th>
+                                        <th>Valor Anterior</th><th>Valor Nuevo</th>
+                                        <th>Usuario</th><th>Motivo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var b in BitacoraPeriodo)
+                                    {
+                                        var ca = b.Accion switch
+                                        {
+                                            "Creado"    => "#28a745",
+                                            "Editado"   => "#d4a017",
+                                            "Cerrado"   => "#dc3545",
+                                            "Eliminado" => "#6c757d",
+                                            _           => "#0062B8"
+                                        };
+                                        <tr>
+                                            <td><strong>@b.FechaCambio.ToString("dd/MM/yyyy HH:mm:ss")</strong></td>
+                                            <td>
+                                                <span class="badge"
+                                                      style="background:@ca;color:@(b.Accion=="Editado"?"#000":"#fff");font-size:.75rem;">
+                                                    @b.Accion
+                                                </span>
+                                            </td>
+                                            <td><small class="text-muted">@b.CampoModificado</small></td>
+                                            <td><small class="text-danger">@b.ValorAnterior</small></td>
+                                            <td><small class="text-success">@b.ValorNuevo</small></td>
+                                            <td><small><strong>@b.UsuarioNombre</strong></small></td>
+                                            <td><small class="text-muted">@b.Motivo</small></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer bg-light">
+                    <button class="btn btn-secondary btn-sm" @onclick="CerrarModalBitacora">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    bool   Cargando              = true;
+    bool   Procesando            = false;
+    bool   MostrarModalNuevo     = false;
+    bool   MostrarModalEditar    = false;
+    bool   MostrarModalCerrar    = false;
+    bool   MostrarModalEliminar  = false;
+    bool   MostrarModalBitacora  = false;
+    bool   MostrarBitacoraGlobal = false;
+    string MsgExito              = "";
+    string MsgError              = "";
+    string MsgModalError         = "";
+    string MotivoAccion          = "";
+    string UsuarioActual         = "SuperAdmin";
+
+    List<MPeriodo>  Periodos        = new();
+    List<MBitacora> BitacoraGlobal  = new();
+    List<MBitacora> BitacoraPeriodo = new();
+
+    MPeriodo? PeriodoActivo => Periodos.FirstOrDefault(p => p.Estado == "Activo");
+    MPeriodo? PeriodoEditar;
+    MPeriodo? PeriodoAccion;
+
+    MPeriodo FormPeriodo = new();
+    int AnioSel      = DateTime.Now.Year;
+    int MesInicioSel = DateTime.Now.Month;
+    int DiaInicioSel = 1;
+    int MesCierreSel = DateTime.Now.Month;
+    int DiaCierreSel = DateTime.DaysInMonth(DateTime.Now.Year, DateTime.Now.Month);
+
+    static readonly Dictionary<int, string> Meses = new()
+    {
+        {1,"Enero"},{2,"Febrero"},{3,"Marzo"},{4,"Abril"},
+        {5,"Mayo"},{6,"Junio"},{7,"Julio"},{8,"Agosto"},
+        {9,"Septiembre"},{10,"Octubre"},{11,"Noviembre"},{12,"Diciembre"}
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        UsuarioActual = auth.User.Identity?.Name ?? "SuperAdmin";
+        await Cargar();
+        Cargando = false;
+    }
+
+    async Task Cargar()
+    {
+        Periodos       = await PeriodoSvc.GetTodosAsync();
+        BitacoraGlobal = await PeriodoSvc.GetBitacoraGlobalAsync();
+    }
+
+    int DiasEnMes(int mes, int anio) => DateTime.DaysInMonth(anio, mes);
+
+    void RecalcularFechas()
+    {
+        DiaInicioSel = Math.Min(DiaInicioSel, DiasEnMes(MesInicioSel, AnioSel));
+        FormPeriodo.FechaInicio = new DateTime(AnioSel, MesInicioSel, DiaInicioSel);
+
+        if (FormPeriodo.Frecuencia == "Personalizado")
+        {
+            DiaCierreSel = Math.Min(DiaCierreSel, DiasEnMes(MesCierreSel, AnioSel));
+            FormPeriodo.FechaCierre = new DateTime(AnioSel, MesCierreSel, DiaCierreSel);
+        }
+        else
+        {
+            FormPeriodo.FechaCierre = FormPeriodo.Frecuencia switch
+            {
+                "Mensual"    => FormPeriodo.FechaInicio.AddMonths(1).AddDays(-1),
+                "Bimestral"  => FormPeriodo.FechaInicio.AddMonths(2).AddDays(-1),
+                "Trimestral" => FormPeriodo.FechaInicio.AddMonths(3).AddDays(-1),
+                "Semestral"  => FormPeriodo.FechaInicio.AddMonths(6).AddDays(-1),
+                "Anual"      => FormPeriodo.FechaInicio.AddYears(1).AddDays(-1),
+                _            => FormPeriodo.FechaInicio.AddMonths(3).AddDays(-1)
+            };
+        }
+
+        FormPeriodo.NombrePeriodo = FormPeriodo.Frecuencia switch
+        {
+            "Mensual"    => $"Periodo Mensual {Meses[MesInicioSel]} {AnioSel}",
+            "Bimestral"  => $"Periodo Bimestral {Meses[MesInicioSel]}-{Meses[Math.Min(MesInicioSel+1,12)]} {AnioSel}",
+            "Trimestral" => $"Periodo Trimestral Q{((MesInicioSel-1)/3)+1} {AnioSel}",
+            "Semestral"  => $"Periodo Semestral {(MesInicioSel<=6?"I":"II")} {AnioSel}",
+            "Anual"      => $"Periodo Anual {AnioSel}",
+            _            => $"Periodo Personalizado {AnioSel}"
+        };
+        if (FormPeriodo.Tipo == "Extraordinario")
+            FormPeriodo.NombrePeriodo = "Ext. — " + FormPeriodo.NombrePeriodo;
+    }
+
+    void OnTipoChange(ChangeEventArgs e)      { FormPeriodo.Tipo      = e.Value?.ToString() ?? "Ordinario";  RecalcularFechas(); }
+    void OnFrecuenciaChange(ChangeEventArgs e){ FormPeriodo.Frecuencia = e.Value?.ToString() ?? "Trimestral"; RecalcularFechas(); }
+    void OnAnioChange(ChangeEventArgs e)      { if (int.TryParse(e.Value?.ToString(), out var y)) AnioSel=y;    RecalcularFechas(); }
+    void OnMesInicioChange(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var m)) MesInicioSel=m; RecalcularFechas(); }
+    void OnDiaInicioChange(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var d)) DiaInicioSel=d; RecalcularFechas(); }
+    void OnMesCierreChange(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var m)) MesCierreSel=m; RecalcularFechas(); }
+    void OnDiaCierreChange(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var d)) DiaCierreSel=d; RecalcularFechas(); }
+
+    void AbrirModalNuevo()
+    {
+        MsgModalError = "";
+        AnioSel=DateTime.Now.Year; MesInicioSel=DateTime.Now.Month; DiaInicioSel=1;
+        MesCierreSel=Math.Min(DateTime.Now.Month+2,12);
+        DiaCierreSel=DiasEnMes(MesCierreSel, AnioSel);
+        FormPeriodo = new MPeriodo { Tipo="Ordinario", Frecuencia="Trimestral" };
+        RecalcularFechas();
+        MostrarModalNuevo = true;
+    }
+    void CerrarModalNuevo() { MostrarModalNuevo=false; MsgModalError=""; }
+
+    async Task GuardarNuevo()
+    {
+        MsgModalError = "";
+        if (string.IsNullOrWhiteSpace(FormPeriodo.NombrePeriodo)) { MsgModalError="El nombre es obligatorio."; return; }
+        if (FormPeriodo.FechaCierre <= FormPeriodo.FechaInicio)   { MsgModalError="La fecha de cierre debe ser posterior al inicio."; return; }
+        Procesando = true;
+        try
+        {
+            await PeriodoSvc.CrearAsync(FormPeriodo, UsuarioActual);
+            await Cargar();
+            MostrarModalNuevo = false;
+            MsgExito = $"Periodo '{FormPeriodo.NombrePeriodo}' aperturado correctamente.";
+        }
+        catch (Exception ex) { MsgModalError = ex.Message; }
+        finally { Procesando = false; }
+    }
+
+    void AbrirModalEditar(MPeriodo p)
+    {
+        PeriodoEditar = p; MsgModalError = ""; MotivoAccion = "";
+        AnioSel=p.FechaInicio.Year; MesInicioSel=p.FechaInicio.Month; DiaInicioSel=p.FechaInicio.Day;
+        MesCierreSel=p.FechaCierre.Month; DiaCierreSel=p.FechaCierre.Day;
+        FormPeriodo = new MPeriodo
+        {
+            Id=p.Id, NombrePeriodo=p.NombrePeriodo, Tipo=p.Tipo,
+            Frecuencia=p.Frecuencia, FechaInicio=p.FechaInicio,
+            FechaCierre=p.FechaCierre, Descripcion=p.Descripcion
+        };
+        MostrarModalEditar = true;
+    }
+    void CerrarModalEditar() { MostrarModalEditar=false; PeriodoEditar=null; MsgModalError=""; }
+
+    async Task GuardarEdicion()
+    {
+        MsgModalError = "";
+        if (string.IsNullOrWhiteSpace(FormPeriodo.NombrePeriodo)) { MsgModalError="El nombre es obligatorio."; return; }
+        if (FormPeriodo.FechaCierre <= FormPeriodo.FechaInicio)   { MsgModalError="La fecha de cierre debe ser posterior al inicio."; return; }
+        Procesando = true;
+        try
+        {
+            await PeriodoSvc.EditarAsync(FormPeriodo, UsuarioActual, MotivoAccion);
+            await Cargar();
+            MostrarModalEditar = false;
+            MsgExito = $"Periodo '{FormPeriodo.NombrePeriodo}' editado y registrado en bitacora.";
+        }
+        catch (Exception ex) { MsgModalError = ex.Message; }
+        finally { Procesando = false; }
+    }
+
+    void AbrirModalCerrar(MPeriodo p)  { PeriodoAccion=p; MotivoAccion=""; MostrarModalCerrar=true; }
+    void CerrarModalCerrar() { MostrarModalCerrar=false; PeriodoAccion=null; }
+
+    async Task ConfirmarCierre()
+    {
+        if (PeriodoAccion==null) return;
+        Procesando=true;
+        try
+        {
+            await PeriodoSvc.CerrarAsync(PeriodoAccion.Id, UsuarioActual, MotivoAccion);
+            await Cargar();
+            MostrarModalCerrar=false;
+            MsgExito=$"Periodo '{PeriodoAccion.NombrePeriodo}' cerrado y registrado en bitacora.";
+            PeriodoAccion=null;
+        }
+        catch (Exception ex) { MsgError=ex.Message; }
+        finally { Procesando=false; }
+    }
+
+    void AbrirModalEliminar(MPeriodo p) { PeriodoAccion=p; MotivoAccion=""; MostrarModalEliminar=true; }
+    void CerrarModalEliminar() { MostrarModalEliminar=false; PeriodoAccion=null; }
+
+    async Task ConfirmarEliminar()
+    {
+        if (PeriodoAccion==null) return;
+        Procesando=true;
+        try
+        {
+            await PeriodoSvc.EliminarAsync(PeriodoAccion.Id, UsuarioActual, MotivoAccion);
+            await Cargar();
+            MostrarModalEliminar=false;
+            MsgExito="Periodo marcado como eliminado. Registro conservado en bitacora historica.";
+            PeriodoAccion=null;
+        }
+        catch (Exception ex) { MsgError=ex.Message; }
+        finally { Procesando=false; }
+    }
+
+    async Task AbrirModalBitacora(MPeriodo p)
+    {
+        PeriodoAccion        = p;
+        BitacoraPeriodo      = await PeriodoSvc.GetBitacoraAsync(p.Id);
+        MostrarModalBitacora = true;
+    }
+    void CerrarModalBitacora() { MostrarModalBitacora=false; PeriodoAccion=null; }
+}

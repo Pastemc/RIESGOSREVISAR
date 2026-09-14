@@ -1,0 +1,176 @@
+@* ════════════════════════════════════════════════════════════════════════════
+   NivelesRiesgoWidget.razor
+   Coloca este archivo en: RiesgosElor/Widgets/NivelesRiesgoWidget.razor
+   ════════════════════════════════════════════════════════════════════════════ *@
+
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using RiesgosElor.Services
+@inject ExcelMatrizService MatrizSvc
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-dark text-white fw-bold">
+        <i class="bi bi-file-earmark-bar-graph me-2"></i>
+        Evaluación de Riesgo Residual — Conteo por Nivel
+    </div>
+    <div class="card-body">
+
+        @* ── Subida de archivo ─────────────────────────────────────────── *@
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Seleccione la Matriz de Riesgos (.xlsx)</label>
+            <InputFile OnChange="OnArchivoSeleccionado"
+                       accept=".xlsx"
+                       class="form-control" />
+        </div>
+
+        @* ── Error ────────────────────────────────────────────────────── *@
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="bi bi-exclamation-triangle me-1"></i> @_error
+            </div>
+        }
+
+        @* ── Cargando ─────────────────────────────────────────────────── *@
+        @if (_cargando)
+        {
+            <div class="d-flex align-items-center gap-2 text-muted">
+                <div class="spinner-border spinner-border-sm"></div>
+                <span>Procesando archivo...</span>
+            </div>
+        }
+
+        @* ── Resultados ───────────────────────────────────────────────── *@
+        @if (_resultado is not null)
+        {
+            <div class="mt-3">
+                <p class="text-muted small mb-2">
+                    <i class="bi bi-file-earmark-excel me-1 text-success"></i>
+                    <strong>@_resultado.ArchivoNombre</strong>
+                    — columna nivel detectada: <code>@_resultado.ColumnaDetectada</code>
+                    — <strong>@_resultado.Total</strong> riesgos con nivel residual
+                </p>
+
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 text-white text-center py-3"
+                             style="background-color:#28a745;">
+                            <div class="fs-1 fw-bold">@_resultado.Bajo</div>
+                            <div class="fw-semibold">BAJO</div>
+                            <div class="small opacity-75">@Pct(_resultado.Bajo)%</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 text-dark text-center py-3"
+                             style="background-color:#ffc107;">
+                            <div class="fs-1 fw-bold">@_resultado.Moderado</div>
+                            <div class="fw-semibold">MODERADO</div>
+                            <div class="small opacity-75">@Pct(_resultado.Moderado)%</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 text-white text-center py-3"
+                             style="background-color:#fd7e14;">
+                            <div class="fs-1 fw-bold">@_resultado.Alto</div>
+                            <div class="fw-semibold">ALTO</div>
+                            <div class="small opacity-75">@Pct(_resultado.Alto)%</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 text-white text-center py-3"
+                             style="background-color:#dc3545;">
+                            <div class="fs-1 fw-bold">@_resultado.Extremo</div>
+                            <div class="fw-semibold">EXTREMO</div>
+                            <div class="small opacity-75">@Pct(_resultado.Extremo)%</div>
+                        </div>
+                    </div>
+                </div>
+
+                @* ── Barra apilada ─────────────────────────────────────── *@
+                @if (_resultado.Total > 0)
+                {
+                    <div class="progress mt-3" style="height:22px;border-radius:6px;">
+                        <div class="progress-bar fw-bold"
+                             style="width:@Pct(_resultado.Bajo)%;background-color:#28a745;"
+                             title="Bajo: @_resultado.Bajo">
+                            @if (_resultado.Bajo > 0) { @_resultado.Bajo }
+                        </div>
+                        <div class="progress-bar fw-bold"
+                             style="width:@Pct(_resultado.Moderado)%;background-color:#ffc107;color:#000;"
+                             title="Moderado: @_resultado.Moderado">
+                            @if (_resultado.Moderado > 0) { @_resultado.Moderado }
+                        </div>
+                        <div class="progress-bar fw-bold"
+                             style="width:@Pct(_resultado.Alto)%;background-color:#fd7e14;"
+                             title="Alto: @_resultado.Alto">
+                            @if (_resultado.Alto > 0) { @_resultado.Alto }
+                        </div>
+                        <div class="progress-bar fw-bold"
+                             style="width:@Pct(_resultado.Extremo)%;background-color:#dc3545;"
+                             title="Extremo: @_resultado.Extremo">
+                            @if (_resultado.Extremo > 0) { @_resultado.Extremo }
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between small text-muted mt-1 px-1">
+                        <span>■ Bajo</span>
+                        <span>■ Moderado</span>
+                        <span>■ Alto</span>
+                        <span>■ Extremo</span>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private NivelesRiesgoResidual? _resultado;
+    private bool   _cargando = false;
+    private string _error    = "";
+
+    private async Task OnArchivoSeleccionado(InputFileChangeEventArgs e)
+    {
+        _resultado = null;
+        _error     = "";
+        _cargando  = true;
+        StateHasChanged();
+
+        try
+        {
+            var archivo = e.File;
+
+            if (!archivo.Name.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                _error = "Solo se aceptan archivos .xlsx";
+                return;
+            }
+
+            // Límite 20 MB
+            const long MaxBytes = 20L * 1024 * 1024;
+            using var stream = archivo.OpenReadStream(MaxBytes);
+            using var ms     = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+
+            _resultado = MatrizSvc.LeerNivelesResiduales(ms, archivo.Name);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error al procesar el archivo: {ex.Message}";
+        }
+        finally
+        {
+            _cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private string Pct(int valor) =>
+        _resultado is null || _resultado.Total == 0
+            ? "0"
+            : Math.Round(valor * 100.0 / _resultado.Total, 1).ToString("0.#");
+}

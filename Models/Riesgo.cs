@@ -34,17 +34,46 @@ public class Riesgo
     public ICollection<PlanAccion> PlanesAccion { get; set; } = new List<PlanAccion>();
     public ICollection<Indicador> Indicadores { get; set; } = new List<Indicador>();
 
+    // ─── Propiedades calculadas ───────────────────────────────────────────────
     public int SeveridadInherente => ProbabilidadInherente * ImpactoInherente;
-    public string NivelInherente => GetNivel(SeveridadInherente);
+    public string NivelInherente => GetNivel(ProbabilidadInherente, ImpactoInherente);
     public int SeveridadResidual => ProbabilidadResidual * ImpactoResidual;
-    public string NivelResidual => GetNivel(SeveridadResidual);
+    public string NivelResidual => GetNivel(ProbabilidadResidual, ImpactoResidual);
     public bool RequierePlanAccion => NivelResidual == "Alto" || NivelResidual == "Extremo";
 
+    // ─── GetNivel 2 parámetros — tabla FONAFE ELORSA (fuente de verdad) ───────
+    // Prob\Imp   1          2          3          4
+    //    1      Bajo       Bajo       Moderado   Moderado
+    //    2      Bajo       Moderado   Alto       Alto
+    //    3      Moderado   Alto       Alto       Extremo
+    //    4      Moderado   Alto       Extremo    Extremo
+    public static string GetNivel(int prob, int imp) => (prob, imp) switch
+    {
+        (1, 1) or (2, 1) or (1, 2) => "Bajo",
+        (3, 1) or (1, 3) or (4, 1) or (1, 4) or (2, 2) => "Moderado",
+        (3, 2) or (2, 3) or (4, 2) or (2, 4) or (3, 3) => "Alto",
+        (4, 3) or (3, 4) or (4, 4) => "Extremo",
+        _ => "Bajo"
+    };
+
+    // ─── GetNivel 1 parámetro — delega en la tabla FONAFE via prob=imp=√sev ──
+    // IMPORTANTE: la tabla FONAFE no es simétrica con la severidad simple.
+    // Para compatibilidad con código legacy que pase solo severidad,
+    // usamos la misma lógica que la tabla FONAFE con los casos conocidos:
+    //   sev=1(1×1)→Bajo  sev=2(1×2 o 2×1)→Bajo  sev=3(1×3 o 3×1)→Moderado
+    //   sev=4(1×4,4×1,2×2)→Moderado  sev=6(2×3,3×2)→Alto  sev=8(2×4,4×2)→Alto
+    //   sev=9(3×3)→Alto  sev=12(3×4,4×3)→Extremo  sev=16(4×4)→Extremo
     public static string GetNivel(int severidad) => severidad switch
     {
-        <= 2 => "Bajo",
-        <= 6 => "Moderado",
-        <= 9 => "Alto",
-        _ => "Extremo"
+        1 => "Bajo",       // 1×1
+        2 => "Bajo",       // 1×2, 2×1
+        3 => "Moderado",   // 1×3, 3×1
+        4 => "Moderado",   // 1×4, 4×1, 2×2
+        6 => "Alto",       // 2×3, 3×2  ← antes era Moderado (BUG)
+        8 => "Alto",       // 2×4, 4×2
+        9 => "Alto",       // 3×3
+        12 => "Extremo",    // 3×4, 4×3
+        16 => "Extremo",    // 4×4
+        _ => "Bajo"        // cualquier otro valor inesperado
     };
 }

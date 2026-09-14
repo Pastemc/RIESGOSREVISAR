@@ -1,6 +1,8 @@
 @page "/indicadores"
 @layout MainLayout
 @attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@inject RiesgoService RiesgoSvc
+@inject IJSRuntime JS
 
 <div class="content-header">
     <div class="container-fluid">
@@ -8,8 +10,9 @@
             <div class="col-sm-8">
                 <h1 class="m-0">
                     <i class="fas fa-tachometer-alt mr-2" style="color:#0062B8;"></i>
-                    Indicadores
+                    Indicadores Claves de Riesgo (KRI)
                 </h1>
+                <small class="text-muted">Monitoreo en tiempo real — ELORSA</small>
             </div>
             <div class="col-sm-4 text-right">
                 <ol class="breadcrumb float-sm-right">
@@ -21,33 +24,574 @@
     </div>
 </div>
 
+<style>
+/* Animación de aguja — se aplica a todos los grupos .needle-anim */
+@@keyframes needleSwing {
+    0%   { transform: rotate(-90deg); }
+    60%  { transform: rotate(var(--nr)); }
+    78%  { transform: rotate(calc(var(--nr) + 6deg)); }
+    90%  { transform: rotate(calc(var(--nr) - 3deg)); }
+    100% { transform: rotate(var(--nr)); }
+}
+.needle-anim {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    animation: needleSwing 1.6s cubic-bezier(.22,.61,.36,1) forwards;
+}
+.kri-outer {
+    display:flex; flex-direction:column; height:100%;
+    background:#fff; border:1px solid #dee2e6;
+    border-radius:12px; box-shadow:0 3px 12px rgba(0,0,0,.08);
+    overflow:hidden;
+}
+.kri-top { padding:10px 14px 8px; background:#f8f9fa; border-bottom:1px solid #eee; }
+.kri-top-row { display:flex; justify-content:space-between; align-items:center; }
+.kri-codigo { color:#0062B8; font-weight:700; font-size:.88rem; }
+.kri-def {
+    font-size:.73rem; color:#6c757d; line-height:1.45;
+    display:-webkit-box; -webkit-line-clamp:3;
+    -webkit-box-orient:vertical; overflow:hidden; margin-top:5px;
+}
+.kri-gauge-wrap { display:flex; justify-content:center; align-items:center; padding:10px 0 0; width:100%; }
+.kri-info { font-size:.72rem; color:#495057; padding:8px 14px 0; border-top:1px solid #f0f0f0; width:100%; }
+.kri-info div { margin-bottom:3px; }
+.kri-footer { padding:10px 14px 14px; width:100%; }
+.bloque-riesgo { border-radius:10px; box-shadow:0 3px 12px rgba(0,0,0,.09); margin-bottom:28px; overflow:hidden; }
+.bloque-header { padding:10px 16px; }
+.bloque-body { background:#fff; padding:16px; }
+</style>
+
 <div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card" style="border-top:3px solid #0062B8;">
-                <div class="card-header d-flex align-items-center"
-                     style="background:#0062B8;border-bottom:2px solid #FFDD00;">
-                    <h3 class="card-title text-white mb-0">
-                        <i class="fas fa-tachometer-alt mr-2"></i>
-                        Gestión de Indicadores (KRI)
-                    </h3>
+
+@if (Cargando)
+{
+    <div class="text-center p-5">
+        <i class="fas fa-spinner fa-spin fa-3x" style="color:#0062B8;"></i>
+        <p class="mt-3 text-muted">Cargando indicadores...</p>
+    </div>
+}
+else
+{
+    <div class="row mb-4">
+        <div class="col-md-3 col-6 mb-2">
+            <div class="info-box shadow-sm mb-0" style="border-left:4px solid #dc3545;">
+                <span class="info-box-icon" style="background:#dc3545;"><i class="fas fa-exclamation-circle text-white"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Riesgos con KRI</span>
+                    <span class="info-box-number">@RiesgosConKRI.Count</span>
                 </div>
-                <div class="card-body text-center py-5">
-                    <i class="fas fa-tachometer-alt fa-4x mb-4"
-                       style="color:#0062B8;opacity:0.25;"></i>
-                    <h4 class="text-muted font-weight-light mb-2">
-                        Módulo en construcción
-                    </h4>
-                    <p class="text-muted" style="max-width:420px;margin:0 auto;">
-                        Aquí se gestionarán los <strong>Indicadores Claves de Riesgo (KRI)</strong>
-                        de todos los procesos de ELORSA.
-                    </p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+            <div class="info-box shadow-sm mb-0" style="border-left:4px solid #0062B8;">
+                <span class="info-box-icon" style="background:#0062B8;"><i class="fas fa-tachometer-alt text-white"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Total KRI</span>
+                    <span class="info-box-number">@TotalKRI</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+            <div class="info-box shadow-sm mb-0" style="border-left:4px solid #28a745;">
+                <span class="info-box-icon" style="background:#28a745;"><i class="fas fa-check-circle text-white"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Con valor actual</span>
+                    <span class="info-box-number">@TotalKRIConValor</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+            <div class="info-box shadow-sm mb-0" style="border-left:4px solid #ffc107;">
+                <span class="info-box-icon" style="background:#ffc107;"><i class="fas fa-exclamation-triangle text-dark"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Sin valor actual</span>
+                    <span class="info-box-number">@TotalKRISinValor</span>
                 </div>
             </div>
         </div>
     </div>
+
+    @if (!RiesgosConKRI.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-tachometer-alt fa-4x mb-4" style="color:#0062B8;opacity:0.15;"></i>
+                <h4 class="text-muted font-weight-light mb-2">Sin indicadores registrados</h4>
+                <p class="text-muted" style="max-width:480px;margin:0 auto;">
+                    Los <strong>KRI</strong> se asocian a riesgos
+                    <span class="badge badge-danger">Extremo</span> y
+                    <span class="badge badge-warning text-dark">Alto</span>.
+                </p>
+                <a href="/carga-masiva" class="btn btn-primary mt-4">
+                    <i class="fas fa-upload mr-2"></i>Ir a Carga Masiva
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body py-2">
+                <div class="row align-items-center">
+                    <div class="col-md-4 mb-1">
+                        <div class="input-group input-group-sm">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                            </div>
+                            <input type="text" class="form-control border-left-0"
+                                   placeholder="Buscar código, proceso o KRI..."
+                                   @bind="Busqueda" @bind:event="oninput" />
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-1">
+                        <select class="form-control form-control-sm" @bind="FiltroNivel">
+                            <option value="">Todos los niveles</option>
+                            <option value="Extremo">🔴 Extremo</option>
+                            <option value="Alto">🟠 Alto</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-1">
+                        <select class="form-control form-control-sm" @bind="FiltroProceso">
+                            <option value="">Todos los procesos</option>
+                            @foreach (var p in RiesgosConKRI.Select(r => r.CodigoProceso).Distinct().OrderBy(x => x))
+                            {
+                                <option value="@p">@p</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-1 text-right">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="LimpiarFiltros">
+                            <i class="fas fa-undo mr-1"></i>Limpiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!RiesgosFiltrados.Any())
+        {
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-search fa-2x mb-2 d-block" style="opacity:.25;"></i>
+                Sin resultados para los filtros aplicados.
+            </div>
+        }
+
+        @foreach (var riesgo in RiesgosFiltrados)
+        {
+            var esExt  = riesgo.NivelResidual == "Extremo";
+            var hdrBg  = esExt ? "#dc3545" : "#fd7e14";
+
+            <div class="bloque-riesgo">
+                <div class="bloque-header" style="background:@hdrBg;">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap:6px;">
+                        <div>
+                            <span class="badge badge-light mr-1" style="font-size:.78rem;">@riesgo.CodigoProceso</span>
+                            <span style="color:#fff;font-weight:700;font-size:.95rem;">@riesgo.CodigoRiesgo</span>
+                            <span style="color:#fff;opacity:.85;font-size:.82rem;margin-left:6px;">@riesgo.NombreProceso</span>
+                        </div>
+                        <div style="white-space:nowrap;">
+                            <span class="badge badge-light" style="font-size:.74rem;">
+                                <i class="fas fa-exclamation-circle mr-1" style="color:@hdrBg;"></i>@riesgo.NivelResidual
+                            </span>
+                            <span class="badge badge-dark ml-1" style="font-size:.74rem;">@riesgo.Indicadores.Count KRI</span>
+                        </div>
+                    </div>
+                    <div style="color:#fff;opacity:.82;font-size:.75rem;margin-top:4px;line-height:1.4;">
+                        <i class="fas fa-info-circle mr-1"></i>@riesgo.DescripcionRiesgo
+                    </div>
+                </div>
+
+                <div class="bloque-body">
+                    <div class="row justify-content-center">
+                        @foreach (var kri in riesgo.Indicadores)
+                        {
+                            var estado  = GetEstadoKRI(kri);
+                            var valNum  = ExtraerNumero(kri.KRIActual ?? "");
+                            // pct: posición REAL de la aguja 0=LOW 100=HIGH
+                            var pct     = CalcularPctReal(kri, estado, valNum);
+                            // cssRot: -90°=LOW, 0°=MED, +90°=HIGH
+                            var cssRot  = (pct / 100.0 * 180.0 - 90.0)
+                                          .ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+
+                            var (cEstado, cBadgeTxt) = estado switch
+                            {
+                                "Verde"    => ("#28a745", "#fff"),
+                                "Amarillo" => ("#d4a017", "#000"),
+                                "Rojo"     => ("#dc3545", "#fff"),
+                                _          => ("#9ca3af", "#fff")
+                            };
+                            var tieneValor = valNum.HasValue;
+                            var valTxt  = tieneValor
+                                ? (kri.KRIActual!.Length > 9 ? kri.KRIActual[..9]+"…" : kri.KRIActual)
+                                : "–";
+                            var valColor = tieneValor ? cEstado : "#9ca3af";
+                            var estadoLbl = tieneValor ? estado : "Sin datos";
+                            var svgStr  = BuildGauge(kri.Id, valTxt!, valColor, estadoLbl, cssRot, pct);
+
+                            <div class="col-xl-3 col-lg-4 col-md-6 mb-4 d-flex">
+                                <div class="kri-outer w-100">
+                                    <div class="kri-top">
+                                        <div class="kri-top-row">
+                                            <span class="kri-codigo">@kri.CodigoKRI</span>
+                                            <span class="badge"
+                                                  style="background:@cEstado;color:@cBadgeTxt;font-size:.68rem;padding:3px 8px;">
+                                                ● @estado
+                                            </span>
+                                        </div>
+                                        <div class="kri-def">@kri.DefinicionKRI</div>
+                                    </div>
+
+                                    <div class="kri-gauge-wrap">
+                                        @((MarkupString)svgStr)
+                                    </div>
+
+                                    <div class="kri-info">
+                                        @if (!string.IsNullOrWhiteSpace(kri.MetaKRI))
+                                        {
+                                            <div>
+                                                <i class="fas fa-bullseye mr-1" style="color:#0062B8;"></i>
+                                                <strong>Meta:</strong>
+                                                <span style="white-space:pre-line;font-size:.7rem;">@kri.MetaKRI</span>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(kri.Frecuencia))
+                                        {
+                                            <div>
+                                                <i class="fas fa-calendar-alt mr-1 text-info"></i>
+                                                <strong>Frecuencia:</strong> @kri.Frecuencia
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(kri.ResponsableKRI))
+                                        {
+                                            <div>
+                                                <i class="fas fa-user mr-1 text-secondary"></i>
+                                                <strong>Resp.:</strong> @kri.ResponsableKRI
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <div class="kri-footer">
+                                        @if (EditandoKriId == kri.Id)
+                                        {
+                                            <div class="input-group input-group-sm">
+                                                <input type="text" class="form-control"
+                                                       placeholder="Ej: 95%, 3, 100%..."
+                                                       @bind="NuevoValorKRI" />
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-success btn-sm"
+                                                            @onclick="() => GuardarValorKRI(kri)">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary btn-sm"
+                                                            @onclick="CancelarEdicion">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-outline-primary btn-sm btn-block"
+                                                    style="font-size:.75rem;"
+                                                    @onclick="() => IniciarEdicion(kri)">
+                                                <i class="fas fa-edit mr-1"></i>
+                                                @(tieneValor ? "Actualizar valor" : "Ingresar valor actual")
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+}
 </div>
 
 @code {
-    // Módulo pendiente de implementación
+    bool   Cargando      = true;
+    string Busqueda      = "";
+    string FiltroNivel   = "";
+    string FiltroProceso = "";
+    int?   EditandoKriId = null;
+    string NuevoValorKRI = "";
+    List<Riesgo> RiesgosConKRI = new();
+
+    int TotalKRI         => RiesgosConKRI.Sum(r => r.Indicadores.Count);
+    int TotalKRIConValor => RiesgosConKRI.Sum(r =>
+        r.Indicadores.Count(i => ExtraerNumero(i.KRIActual ?? "").HasValue));
+    int TotalKRISinValor => TotalKRI - TotalKRIConValor;
+
+    IEnumerable<Riesgo> RiesgosFiltrados => RiesgosConKRI
+        .Where(r =>
+            (string.IsNullOrWhiteSpace(FiltroNivel)   || r.NivelResidual == FiltroNivel)  &&
+            (string.IsNullOrWhiteSpace(FiltroProceso) || r.CodigoProceso == FiltroProceso) &&
+            (string.IsNullOrWhiteSpace(Busqueda) ||
+                r.CodigoRiesgo.Contains(Busqueda,  StringComparison.OrdinalIgnoreCase) ||
+                r.CodigoProceso.Contains(Busqueda, StringComparison.OrdinalIgnoreCase) ||
+                r.NombreProceso.Contains(Busqueda, StringComparison.OrdinalIgnoreCase) ||
+                r.Indicadores.Any(i =>
+                    i.CodigoKRI.Contains(Busqueda,     StringComparison.OrdinalIgnoreCase) ||
+                    i.DefinicionKRI.Contains(Busqueda, StringComparison.OrdinalIgnoreCase))))
+        .OrderByDescending(r => r.NivelResidual == "Extremo")
+        .ThenBy(r => r.CodigoProceso)
+        .ThenBy(r => r.CodigoRiesgo);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var todos = await RiesgoSvc.GetTodosAsync();
+        RiesgosConKRI = todos
+            .Where(r => (r.NivelResidual == "Extremo" || r.NivelResidual == "Alto")
+                     && r.Indicadores != null && r.Indicadores.Any())
+            .OrderByDescending(r => r.NivelResidual == "Extremo")
+            .ThenBy(r => r.CodigoProceso)
+            .ThenBy(r => r.CodigoRiesgo)
+            .ToList();
+        Cargando = false;
+    }
+
+    void LimpiarFiltros() { Busqueda=""; FiltroNivel=""; FiltroProceso=""; }
+
+    void IniciarEdicion(Indicador kri)
+    {
+        EditandoKriId = kri.Id;
+        NuevoValorKRI = ExtraerNumero(kri.KRIActual ?? "").HasValue ? kri.KRIActual! : "";
+    }
+
+    void CancelarEdicion() { EditandoKriId = null; NuevoValorKRI = ""; }
+
+    async Task GuardarValorKRI(Indicador kri)
+    {
+        kri.KRIActual = NuevoValorKRI.Trim();
+        await RiesgoSvc.GuardarIndicadorAsync(kri);
+        EditandoKriId = null; NuevoValorKRI = "";
+        StateHasChanged();
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // CÁLCULO REAL DE POSICIÓN DE AGUJA
+    // Devuelve pct 0–100 basado en el valor numérico vs rangos de MetaKRI
+    // 0  = extremo LOW (muy verde)
+    // 50 = MED (centro)
+    // 100= extremo HIGH (muy rojo)
+    // ════════════════════════════════════════════════════════════════════
+    double CalcularPctReal(Indicador kri, string estado, double? valNum)
+    {
+        // Sin datos → aguja al centro
+        if (!valNum.HasValue) return 50.0;
+
+        var meta  = kri.MetaKRI ?? "";
+        var v     = valNum.Value;
+
+        // Extraer umbrales de la meta
+        var verde = ExtraerRango(meta, "Verde");
+        var ambar = ExtraerRango(meta, "Amarillo")
+                    ?? ExtraerRango(meta, "Ambar")
+                    ?? ExtraerRango(meta, "Amber");
+        var rojo  = ExtraerRango(meta, "Rojo");
+
+        // Intentar calcular posición proporcional dentro del rango 0-100
+        // Estrategia: determinar el valor "límite" del umbral verde y rojo
+        // para mapear el valor actual proporcionalmente
+
+        double limVerde = ObtenerLimite(verde) ?? 100.0;
+        double limRojo  = ObtenerLimite(rojo)  ?? 0.0;
+
+        // Determinar si "mayor = mejor" o "menor = mejor"
+        // Si el umbral verde es ">= X" → mayor es mejor (LOW risk)
+        // Si el umbral verde es "<= X" → menor es mejor (LOW risk cuando bajo)
+        bool mayorEsMejor = verde?.op is ">=" or ">";
+
+        double pct;
+        if (mayorEsMejor)
+        {
+            // Ej: Verde ≥ 90%, Rojo < 80%
+            // v=100 → pct=0 (LOW), v=80 → pct=~67, v=0 → pct=100 (HIGH)
+            double max = Math.Max(limVerde, v);
+            double min = Math.Min(limRojo,  0);
+            double rango = max - min;
+            pct = rango > 0 ? (1.0 - (v - min) / rango) * 100.0 : 50.0;
+        }
+        else
+        {
+            // Ej: Verde ≤ 5%, Rojo > 8%
+            // v=0 → pct=0 (LOW=bueno), v=8+ → pct=100 (HIGH=malo)
+            double max = Math.Max(limRojo,  v);
+            double min = Math.Min(limVerde, 0);
+            double rango = max - min;
+            pct = rango > 0 ? ((v - min) / rango) * 100.0 : 50.0;
+        }
+
+        // Clamp 2–98 para que la aguja no llegue al extremo del arco
+        return Math.Clamp(pct, 2.0, 98.0);
+    }
+
+    double? ObtenerLimite((string op, double val)? rango)
+    {
+        return rango?.val;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // SVG GAUGE — aguja animada con CSS
+    // viewBox 0 0 220 140
+    // Centro pivot: (110, 120), radio arco: 95
+    // Aguja base apunta arriba; rotate(-90)=LOW, rotate(0)=MED, rotate(90)=HIGH
+    // cssRot = pct/100 * 180 - 90  →  [-90, +90]
+    // ════════════════════════════════════════════════════════════════════
+    string BuildGauge(int id, string valTxt, string valColor,
+                      string estadoLbl, string cssRot, double pct)
+    {
+        var ic  = System.Globalization.CultureInfo.InvariantCulture;
+        var gid = $"gg{id}";
+        var sid = $"sh{id}";
+        var nid = $"nd{id}";
+        var kid = $"kf{id}";
+
+        var encVal    = System.Net.WebUtility.HtmlEncode(valTxt);
+        var encEstado = System.Net.WebUtility.HtmlEncode(estadoLbl);
+
+        // Color del arco de progreso según pct
+        // Pintamos un segundo arco más delgado encima del gradiente
+        // para indicar visualmente la posición (opcional — la aguja es suficiente)
+
+        return $@"<svg viewBox=""0 0 220 140"" xmlns=""http://www.w3.org/2000/svg""
+     style=""width:200px;height:127px;display:block;margin:0 auto;"">
+  <defs>
+    <linearGradient id=""{gid}"" x1=""0%"" y1=""0%"" x2=""100%"" y2=""0%"">
+      <stop offset=""0%""   stop-color=""#1db954""/>
+      <stop offset=""28%""  stop-color=""#82c91e""/>
+      <stop offset=""52%""  stop-color=""#fcc419""/>
+      <stop offset=""74%""  stop-color=""#ff6b35""/>
+      <stop offset=""100%"" stop-color=""#e03131""/>
+    </linearGradient>
+    <filter id=""{sid}"">
+      <feDropShadow dx=""1"" dy=""2"" stdDeviation=""2.5"" flood-opacity=""0.35""/>
+    </filter>
+    <!-- animación via clase CSS global needle-anim + CSS var --nr -->
+  </defs>
+
+  <!-- Arco fondo -->
+  <path d=""M 15 120 A 95 95 0 0 1 205 120""
+        fill=""none"" stroke=""#e9ecef"" stroke-width=""22"" stroke-linecap=""round""/>
+
+  <!-- Arco gradiente -->
+  <path d=""M 15 120 A 95 95 0 0 1 205 120""
+        fill=""none"" stroke=""url(#{gid})"" stroke-width=""22""
+        stroke-linecap=""round""/>
+
+  <!-- Ticks -->
+  <line x1=""15""  y1=""120"" x2=""4""   y2=""120"" stroke=""#adb5bd"" stroke-width=""1.5""/>
+  <line x1=""110"" y1=""25""  x2=""110"" y2=""13""  stroke=""#adb5bd"" stroke-width=""1.5""/>
+  <line x1=""205"" y1=""120"" x2=""216"" y2=""120"" stroke=""#adb5bd"" stroke-width=""1.5""/>
+
+  <!-- Etiquetas con fondo blanco -->
+  <rect x=""0""   y=""123"" width=""28"" height=""14"" fill=""#fff"" rx=""2"" opacity="".9""/>
+  <text x=""14""  y=""133"" font-size=""10"" font-weight=""800"" fill=""#1db954""
+        text-anchor=""middle"" font-family=""Arial,sans-serif"">LOW</text>
+
+  <rect x=""99"" y=""5"" width=""22"" height=""12"" fill=""#fff"" rx=""2"" opacity="".9""/>
+  <text x=""110"" y=""14"" font-size=""9"" fill=""#868e96""
+        text-anchor=""middle"" font-family=""Arial,sans-serif"">MED</text>
+
+  <rect x=""192"" y=""123"" width=""28"" height=""14"" fill=""#fff"" rx=""2"" opacity="".9""/>
+  <text x=""206"" y=""133"" font-size=""10"" font-weight=""800"" fill=""#e03131""
+        text-anchor=""middle"" font-family=""Arial,sans-serif"">HIGH</text>
+
+  <!-- AGUJA ANIMADA -->
+  <g id=""{nid}"" class=""needle-anim"" style=""--nr:{cssRot}deg;"" filter=""url(#{sid})"">
+    <!-- Cuerpo aguja -->
+    <line x1=""110"" y1=""118"" x2=""110"" y2=""34""
+          stroke=""#1a1a2e"" stroke-width=""3"" stroke-linecap=""round""/>
+    <!-- Punta triángulo -->
+    <polygon points=""110,28  107,40  113,40"" fill=""#1a1a2e""/>
+  </g>
+
+  <!-- Pivote -->
+  <circle cx=""110"" cy=""120"" r=""11"" fill=""#343a40"" filter=""url(#{sid})""/>
+  <circle cx=""110"" cy=""120"" r=""5.5"" fill=""#f8f9fa""/>
+
+  <!-- Valor actual -->
+  <text x=""110"" y=""103"" font-size=""15"" font-weight=""bold""
+        fill=""{valColor}"" text-anchor=""middle"" font-family=""Arial,sans-serif"">
+    {encVal}
+  </text>
+  <!-- Etiqueta estado -->
+  <text x=""110"" y=""137"" font-size=""9"" fill=""#6c757d""
+        text-anchor=""middle"" font-family=""Arial,sans-serif"">
+    {encEstado}
+  </text>
+</svg>";
+    }
+
+    // ── Parseo ────────────────────────────────────────────────────────────
+    string GetEstadoKRI(Indicador kri)
+    {
+        var val = ExtraerNumero(kri.KRIActual ?? "");
+        if (!val.HasValue) return "Sin datos";
+        var meta  = kri.MetaKRI ?? "";
+        var verde = ExtraerRango(meta, "Verde");
+        var ambar = ExtraerRango(meta, "Amarillo")
+                    ?? ExtraerRango(meta, "Ambar")
+                    ?? ExtraerRango(meta, "Amber");
+        if (CumpleRango(val.Value, verde)) return "Verde";
+        if (CumpleRango(val.Value, ambar)) return "Amarillo";
+        return "Rojo";
+    }
+
+    double? ExtraerNumero(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s) || s == "-") return null;
+        var m = System.Text.RegularExpressions.Regex.Match(
+            s.Replace(",", "."), @"\d+(?:\.\d+)?");
+        return m.Success && double.TryParse(m.Value,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+    }
+
+    (string op, double val)? ExtraerRango(string meta, string etiqueta)
+    {
+        foreach (var raw in meta.Split('\n'))
+        {
+            var l = raw.Trim();
+            if (!l.StartsWith(etiqueta + ":", StringComparison.OrdinalIgnoreCase)) continue;
+            var parte = l[(l.IndexOf(':') + 1)..].Trim();
+
+            // Rango: "80% – 94%"
+            var mr = System.Text.RegularExpressions.Regex.Match(
+                parte, @"([\d.]+)\s*[–\-]\s*([\d.]+)");
+            if (mr.Success)
+            {
+                double a = double.Parse(mr.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                double b = double.Parse(mr.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+                return ("rango", (a + b) / 2.0);
+            }
+            if (parte.StartsWith(">=") || parte.StartsWith("≥"))
+            { var n = ExtraerNumero(parte); if (n.HasValue) return (">=", n.Value); }
+            else if (parte.StartsWith("<=") || parte.StartsWith("≤"))
+            { var n = ExtraerNumero(parte); if (n.HasValue) return ("<=", n.Value); }
+            else if (parte.StartsWith(">"))
+            { var n = ExtraerNumero(parte); if (n.HasValue) return (">", n.Value); }
+            else if (parte.StartsWith("<"))
+            { var n = ExtraerNumero(parte); if (n.HasValue) return ("<", n.Value); }
+            else { var n = ExtraerNumero(parte); if (n.HasValue) return ("=", n.Value); }
+        }
+        return null;
+    }
+
+    bool CumpleRango(double v, (string op, double val)? r)
+    {
+        if (!r.HasValue) return false;
+        return r.Value.op switch
+        {
+            ">="    => v >= r.Value.val,
+            "<="    => v <= r.Value.val,
+            ">"     => v >  r.Value.val,
+            "<"     => v <  r.Value.val,
+            "="     => Math.Abs(v - r.Value.val) < .01,
+            "rango" => v >= r.Value.val,
+            _       => false
+        };
+    }
 }
