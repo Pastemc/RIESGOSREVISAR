@@ -8,7 +8,6 @@
 @inject IJSRuntime JS
 @inject IDbContextFactory<AppDbContext> DbFactory
 
-@* ── Alias para evitar conflicto entre la página Matriz y el modelo PeriodoRiesgo ── *@
 @using MPeriodo = RiesgosElor.Models.PeriodoRiesgo
 
 <div class="content-header">
@@ -28,7 +27,6 @@
 </div>
 
 <style>
-    /* ── estilos del mapa (sin cambios) ── */
     .mapa-card { border:2px solid #FFDD00; border-radius:10px; overflow:hidden; background:#f0f4f8; }
     .mapa-header { background:#003B70; border-bottom:3px solid #FFDD00; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
     .mapa-body { display:flex; align-items:stretch; }
@@ -58,7 +56,6 @@
     .sbadge { display:inline-block; margin-top:3px; border-radius:10px; font-size:0.52rem; padding:1px 7px; font-weight:700; }
     .sbadge.con { background:#0062B8; color:#fff; }
     .sbadge.sin { background:rgba(0,98,184,0.12); color:#888; }
-    /* ── Selector de periodo ── */
     .periodo-bar { background:#003B70; border-bottom:3px solid #FFDD00; padding:8px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
     .periodo-bar label { color:#FFDD00; font-weight:700; font-size:.85rem; margin:0; white-space:nowrap; }
     .periodo-bar select { max-width:280px; border-radius:6px; font-weight:600; }
@@ -69,9 +66,7 @@
 
 <div class="container-fluid">
 
-    <!-- ══════════════════════════════════════════════════
-         SELECTOR DE PERIODO
-    ══════════════════════════════════════════════════ -->
+    <!-- SELECTOR DE PERIODO -->
     <div class="periodo-bar mb-3" style="border-radius:8px 8px 0 0;">
         <i class="fas fa-calendar-alt" style="color:#FFDD00;font-size:1.1rem;"></i>
         <label>Periodo:</label>
@@ -79,6 +74,11 @@
         @if (!Periodos.Any())
         {
             <span class="badge-periodo-sin">Sin periodos registrados</span>
+            <small class="text-warning ml-2">
+                <i class="fas fa-info-circle mr-1"></i>
+                Ve a <a href="/periodo-riesgo" class="text-warning font-weight-bold">Gestión de Periodos</a>
+                para aperturar un periodo.
+            </small>
         }
         else
         {
@@ -104,26 +104,30 @@
                 <span class="badge-periodo-cerrado"><i class="fas fa-lock mr-1"></i>CERRADO — Solo lectura</span>
             }
         }
-        else if (!Periodos.Any())
-        {
-            <small class="text-warning ml-2">
-                <i class="fas fa-info-circle mr-1"></i>
-                Ve a <a href="/periodo-riesgo" class="text-warning font-weight-bold">Gestión de Periodos</a>
-                para aperturar un periodo.
-            </small>
-        }
     </div>
 
-    @* ── El mapa de procesos se muestra SIEMPRE (con o sin periodo seleccionado) ── *@
+    <!-- MAPA DE PROCESOS (siempre visible) -->
     @if (!MostrarFormulario && !MostrarHeatmap && MatrizActual == null)
     {
-        @* Aviso solo lectura cuando periodo está seleccionado y cerrado *@
+        @* Banner informativo cuando no hay periodo seleccionado pero SÍ hay periodos *@
         @if (PeriodoSel == null && Periodos.Any())
         {
             <div class="alert alert-info mb-3">
                 <i class="fas fa-hand-point-up mr-2"></i>
-                Selecciona un periodo en el selector para ver o editar la matriz.
-                Puedes navegar por el mapa y abrir cualquier proceso de todas formas.
+                Selecciona un periodo para ver o editar la matriz.
+                Los contadores del mapa muestran el total histórico de la carga base.
+            </div>
+        }
+
+        @* Banner informativo cuando NO hay periodos (solo carga base visible) *@
+        @if (!Periodos.Any())
+        {
+            <div class="alert alert-warning mb-3">
+                <i class="fas fa-info-circle mr-2"></i>
+                <strong>Vista previa de carga masiva.</strong>
+                Los contadores muestran los riesgos cargados en la base de datos.
+                Crea un periodo en <a href="/periodo-riesgo" class="alert-link font-weight-bold">Gestión de Periodos</a>
+                para comenzar a trabajar con ellos.
             </div>
         }
 
@@ -142,16 +146,13 @@
             </Authorized>
         </AuthorizeView>
 
-        <!-- Mapa de procesos — siempre visible -->
         <div class="mapa-card mb-4">
             <div class="mapa-header">
                 <h3 class="text-white mb-0" style="font-size:1rem;">
                     <i class="fas fa-sitemap mr-2" style="color:#FFDD00;"></i>Mapa de Procesos
                     @if (PeriodoSel != null)
                     {
-                        <small style="font-size:.75rem;opacity:.75;margin-left:8px;">
-                            — @PeriodoSel.NombrePeriodo
-                        </small>
+                        <small style="font-size:.75rem;opacity:.75;margin-left:8px;">— @PeriodoSel.NombrePeriodo</small>
                     }
                     else
                     {
@@ -213,22 +214,20 @@
         </div>
     }
 
-    <!-- ══════════════════════════════════════════════════
-         DETALLE DE MATRIZ (SNAPSHOT)
-    ══════════════════════════════════════════════════ -->
+    <!-- DETALLE DE MATRIZ -->
     @if (MatrizActual != null && !MostrarFormulario && !MostrarHeatmap)
     {
-        <!-- Banner según estado del periodo -->
         @if (PeriodoSel == null)
         {
             <div class="alert alert-warning d-flex align-items-center mb-3">
                 <i class="fas fa-calendar-times fa-lg mr-3 text-warning"></i>
                 <div>
                     <strong>Sin periodo seleccionado.</strong>
-                    Selecciona un periodo en el selector superior para ver o editar los datos de esta matriz.
+                    Estás viendo la vista previa de la carga masiva (solo lectura).
                     <a href="/periodo-riesgo" class="alert-link ml-2">
                         <i class="fas fa-plus-circle mr-1"></i>Abrir nuevo periodo
                     </a>
+                    para comenzar a trabajar con estos riesgos.
                 </div>
             </div>
         }
@@ -470,9 +469,7 @@
         </div>
     }
 
-    <!-- ══════════════════════════════════════════════════
-         FORMULARIO DE EDICIÓN DEL SNAPSHOT
-    ══════════════════════════════════════════════════ -->
+    <!-- FORMULARIO DE EDICIÓN DEL SNAPSHOT -->
     @if (MostrarFormulario && PeriodoSel?.Estado == "Activo")
     {
         <div class="card card-outline" style="border-top:3px solid #0062B8;">
@@ -827,13 +824,12 @@
 </div>
 
 @code {
-    // ── Estado general ─────────────────────────────────────────────────
-    List<MatrizGrupo>       Matrices        = new();
-    List<MPeriodo>          Periodos        = new();
-    List<MaestroArea>       AreasMaestras   = new();
-    List<MaestroProceso>    ProcesosMaestros = new();
+    List<MatrizGrupo>       Matrices           = new();
+    List<MPeriodo>          Periodos           = new();
+    List<MaestroArea>       AreasMaestras      = new();
+    List<MaestroProceso>    ProcesosMaestros   = new();
     List<MaestroParametro>  ParametrosMaestros = new();
-    Dictionary<int,int>     ConteoSnap      = new();
+    Dictionary<int,int>     ConteoSnap         = new();
 
     MatrizGrupo?    MatrizActual      = null;
     SnapshotMatriz? SnapshotActual    = null;
@@ -848,18 +844,16 @@
     int    UsuarioId       = 0;
     string UsuarioActual   = "Sistema";
 
-    // ── Formulario snapshot ────────────────────────────────────────────
     SnapshotRiesgo              RiesgoSnap  = new();
     List<SnapshotControl>       Controles   = new();
     List<SnapshotPlanAccion>    Planes      = new();
     List<SnapshotIndicador>     Indicadores = new();
 
-    // ── Calculados inherente/residual ──────────────────────────────────
-    int    SevInh  => RiesgoSnap.ProbabilidadInherente * RiesgoSnap.ImpactoInherente;
-    string NivInh  => Riesgo.GetNivel(SevInh);
+    int    SevInh   => RiesgoSnap.ProbabilidadInherente * RiesgoSnap.ImpactoInherente;
+    string NivInh   => Riesgo.GetNivel(SevInh);
     string ColorInh => RiesgoService.GetColorNivel(NivInh);
-    int    SevRes  => RiesgoSnap.ProbabilidadResidual  * RiesgoSnap.ImpactoResidual;
-    string NivRes  => Riesgo.GetNivel(SevRes);
+    int    SevRes   => RiesgoSnap.ProbabilidadResidual  * RiesgoSnap.ImpactoResidual;
+    string NivRes   => Riesgo.GetNivel(SevRes);
     string ColorRes => RiesgoService.GetColorNivel(NivRes);
     bool   PuedeVerPlanIndicadores => NivRes == "Alto" || NivRes == "Extremo";
 
@@ -872,7 +866,6 @@
                 StringComparison.OrdinalIgnoreCase)))
         .OrderBy(p => p.Orden).ThenBy(p => p.Codigo);
 
-    // ── Inicio ─────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthState.GetAuthenticationStateAsync();
@@ -885,7 +878,6 @@
         Periodos = await SnapSvc.GetPeriodosOrdenadosAsync();
         await CargarMaestros();
 
-        // Seleccionar automáticamente el periodo activo
         var activo = Periodos.FirstOrDefault(p => p.Estado == "Activo");
         if (activo != null)
         {
@@ -895,7 +887,7 @@
         }
         else
         {
-            // Sin periodo activo → mostrar conteo desde tabla base para el mapa
+            // Sin periodo activo → mostrar conteo desde tabla base
             ConteoSnap = await SnapSvc.GetConteoBaseAsync();
         }
     }
@@ -907,7 +899,6 @@
         ParametrosMaestros = await RiesgoSvc.GetMaestroParametrosAsync(soloActivos: true);
     }
 
-    // ── Cambio de periodo ──────────────────────────────────────────────
     async Task OnPeriodoChange(ChangeEventArgs e)
     {
         MatrizActual      = null;
@@ -929,7 +920,6 @@
         ConteoSnap   = await SnapSvc.GetConteoSnapshotAsync(pid);
     }
 
-    // ── Helpers del mapa ───────────────────────────────────────────────
     bool TieneMacro(string p) => Matrices.Any(m =>
         !string.IsNullOrWhiteSpace(m.CodigoProceso) &&
         m.CodigoProceso.TrimStart().StartsWith(p, StringComparison.OrdinalIgnoreCase));
@@ -965,7 +955,6 @@
         }
     };
 
-    // ── Abrir matriz ───────────────────────────────────────────────────
     async Task AbrirMatriz(MatrizGrupo m)
     {
         MatrizActual      = m;
@@ -978,8 +967,63 @@
         }
         else
         {
-            // Sin periodo seleccionado → no hay snapshot, solo muestra aviso
-            SnapshotActual = null;
+            // Sin periodo → cargar riesgos base como snapshot solo lectura
+            var riesgosBase = await RiesgoSvc.GetRiesgosPorMatrizAsync(m.Id);
+            SnapshotActual = new SnapshotMatriz
+            {
+                MatrizGrupoId = m.Id,
+                Estado        = "SoloLectura",
+                Riesgos       = riesgosBase.Select(r => new SnapshotRiesgo
+                {
+                    Id                     = r.Id,
+                    RiesgoOrigenId         = r.Id,
+                    SnapshotMatrizId       = 0,
+                    CodigoProceso          = r.CodigoProceso         ?? "",
+                    NombreProceso          = r.NombreProceso         ?? "",
+                    GerenciaResponsable    = r.GerenciaResponsable   ?? "",
+                    Subproceso             = r.Subproceso            ?? "",
+                    CodigoRiesgo           = r.CodigoRiesgo          ?? "",
+                    DescripcionRiesgo      = r.DescripcionRiesgo     ?? "",
+                    OrigenRiesgo           = r.OrigenRiesgo          ?? "",
+                    FrecuenciaRiesgo       = r.FrecuenciaRiesgo      ?? "",
+                    TipoRiesgo             = r.TipoRiesgo            ?? "",
+                    ProbabilidadInherente  = r.ProbabilidadInherente,
+                    ImpactoInherente       = r.ImpactoInherente,
+                    ProbabilidadResidual   = r.ProbabilidadResidual,
+                    ImpactoResidual        = r.ImpactoResidual,
+                    EstrategiaResidual     = r.EstrategiaResidual    ?? "",
+                    Controles = r.Controles.Select(c => new SnapshotControl
+                    {
+                        CodigoControl         = c.CodigoControl         ?? "",
+                        DescripcionControl    = c.DescripcionControl    ?? "",
+                        AreaResponsable       = c.AreaResponsable       ?? "",
+                        ResponsablesControl   = c.ResponsablesControl   ?? "",
+                        FrecuenciaControl     = c.FrecuenciaControl     ?? "",
+                        OportunidadControl    = c.OportunidadControl    ?? "",
+                        AutomatizacionControl = c.AutomatizacionControl ?? "",
+                        EvidenciaControl      = c.EvidenciaControl      ?? ""
+                    }).ToList(),
+                    Planes = r.PlanesAccion.Select(p => new SnapshotPlanAccion
+                    {
+                        CodigoPlan      = p.CodigoPlan      ?? "",
+                        DescripcionPlan = p.DescripcionPlan ?? "",
+                        AreaResponsable = p.AreaResponsable ?? "",
+                        ResponsablePlan = p.ResponsablePlan ?? "",
+                        InicioPlan      = p.InicioPlan,
+                        FinPlan         = p.FinPlan,
+                        EstadoPlan      = p.EstadoPlan      ?? ""
+                    }).ToList(),
+                    Indicadores = r.Indicadores.Select(i => new SnapshotIndicador
+                    {
+                        CodigoKRI      = i.CodigoKRI      ?? "",
+                        DefinicionKRI  = i.DefinicionKRI  ?? "",
+                        Frecuencia     = i.Frecuencia     ?? "",
+                        MetaKRI        = i.MetaKRI        ?? "",
+                        KRIActual      = i.KRIActual      ?? "",
+                        ResponsableKRI = i.ResponsableKRI ?? ""
+                    }).ToList()
+                }).ToList()
+            };
         }
     }
 
@@ -993,7 +1037,6 @@
 
     void MostrarMapasCalor() { MostrarHeatmap = true; MostrarFormulario = false; }
 
-    // ── Nuevo riesgo en el snapshot ────────────────────────────────────
     async Task NuevoRiesgo()
     {
         if (MatrizActual == null || PeriodoSel == null) return;
@@ -1027,14 +1070,10 @@
 
     void Cancelar() { MostrarFormulario = false; MsgGuardar = string.Empty; }
 
-    // ── Controles, Planes, Indicadores locales ─────────────────────────
     void AgregarControl()
     {
         var n = Controles.Count + 1;
-        Controles.Add(new SnapshotControl
-        {
-            CodigoControl = $"{RiesgoSnap.CodigoProceso}.C{n:D2}"
-        });
+        Controles.Add(new SnapshotControl { CodigoControl = $"{RiesgoSnap.CodigoProceso}.C{n:D2}" });
     }
 
     void AgregarPlan()
@@ -1050,16 +1089,11 @@
     void AgregarIndicador()
     {
         var n = Indicadores.Count + 1;
-        Indicadores.Add(new SnapshotIndicador
-        {
-            CodigoKRI = $"{RiesgoSnap.CodigoRiesgo}.KRI{n:D2}"
-        });
+        Indicadores.Add(new SnapshotIndicador { CodigoKRI = $"{RiesgoSnap.CodigoRiesgo}.KRI{n:D2}" });
     }
 
-    // ── Guardar todo el snapshot ───────────────────────────────────────
     async Task GuardarTodoSnapshot()
     {
-        // Asignar estrategia a planes
         foreach (var p in Planes) p.EstrategiaRespuesta = RiesgoSnap.EstrategiaResidual;
 
         await SnapSvc.GuardarSnapshotRiesgoAsync(
@@ -1078,7 +1112,6 @@
         MostrarFormulario = false;
     }
 
-    // ── Eventos onchange probabilidad/impacto ──────────────────────────
     void OnProbInhChange(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var v)) RiesgoSnap.ProbabilidadInherente=v; StateHasChanged(); }
     void OnImpInhChange (ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var v)) RiesgoSnap.ImpactoInherente=v;     StateHasChanged(); }
     void OnProbResChange(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out var v)) RiesgoSnap.ProbabilidadResidual=v;  StateHasChanged(); }
@@ -1105,7 +1138,6 @@
         };
     }
 
-    // ── Mapa de calor sobre snapshot ───────────────────────────────────
     RenderFragment RenderHeatmapSnapshot(bool esI) => builder =>
     {
         if (SnapshotActual == null) return;
