@@ -1,3 +1,7 @@
+// ============================================================
+// Archivo: Services/PeriodoRiesgoService.cs  — VERSIÓN COMPLETA
+// Integra la inicialización y cierre de snapshots
+// ============================================================
 using Microsoft.EntityFrameworkCore;
 using RiesgosElor.Data;
 using RiesgosElor.Models;
@@ -6,207 +10,175 @@ namespace RiesgosElor.Services;
 
 public class PeriodoRiesgoService
 {
-    private readonly IDbContextFactory<AppDbContext> _factory;
-    public PeriodoRiesgoService(IDbContextFactory<AppDbContext> factory) => _factory = factory;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
+    private readonly SnapshotService _snapSvc;
 
-    private AppDbContext Db() => _factory.CreateDbContext();
+    public PeriodoRiesgoService(
+        IDbContextFactory<AppDbContext> dbFactory,
+        SnapshotService snapSvc)
+    {
+        _dbFactory = dbFactory;
+        _snapSvc = snapSvc;
+    }
 
-    // ── CONSULTAS ─────────────────────────────────────────────────────────
-
+    // ── Consultas ─────────────────────────────────────────────────────
     public async Task<List<PeriodoRiesgo>> GetTodosAsync()
     {
-        using var db = Db();
+        using var db = _dbFactory.CreateDbContext();
         return await db.PeriodosRiesgo
-            .Include(p => p.Bitacora.OrderByDescending(b => b.FechaCambio))
+            .Include(p => p.Bitacora)
             .OrderByDescending(p => p.FechaInicio)
             .ToListAsync();
     }
 
-    public async Task<PeriodoRiesgo?> GetActivoAsync()
+    public async Task<List<BitacoraPeriodoRiesgo>> GetBitacoraGlobalAsync()
     {
-        using var db = Db();
-        return await db.PeriodosRiesgo
-            .Include(p => p.Bitacora.OrderByDescending(b => b.FechaCambio))
-            .FirstOrDefaultAsync(p => p.Estado == "Activo");
-    }
-
-    public async Task<PeriodoRiesgo?> GetByIdAsync(int id)
-    {
-        using var db = Db();
-        return await db.PeriodosRiesgo
-            .Include(p => p.Bitacora.OrderByDescending(b => b.FechaCambio))
-            .FirstOrDefaultAsync(p => p.Id == id);
+        using var db = _dbFactory.CreateDbContext();
+        return await db.BitacoraPeriodoRiesgo
+            .Include(b => b.Periodo)
+            .OrderByDescending(b => b.FechaCambio)
+            .Take(200)
+            .ToListAsync();
     }
 
     public async Task<List<BitacoraPeriodoRiesgo>> GetBitacoraAsync(int periodoId)
     {
-        using var db = Db();
+        using var db = _dbFactory.CreateDbContext();
         return await db.BitacoraPeriodoRiesgo
             .Where(b => b.PeriodoId == periodoId)
             .OrderByDescending(b => b.FechaCambio)
             .ToListAsync();
     }
 
-    public async Task<List<BitacoraPeriodoRiesgo>> GetBitacoraGlobalAsync()
+    // ── Crear periodo ─────────────────────────────────────────────────
+    public async Task CrearAsync(PeriodoRiesgo periodo, string usuario)
     {
-        using var db = Db();
-        return await db.BitacoraPeriodoRiesgo
-            .Include(b => b.Periodo)
-            .OrderByDescending(b => b.FechaCambio)
-            .ToListAsync();
-    }
+        using var db = _dbFactory.CreateDbContext();
 
-    // ── CREAR ─────────────────────────────────────────────────────────────
+        // Solo puede haber un periodo activo
+        if (await db.PeriodosRiesgo.AnyAsync(p => p.Estado == "Activo"))
+            throw new InvalidOperationException("Ya existe un periodo activo. Ciérralo antes de abrir uno nuevo.");
 
-    public async Task<PeriodoRiesgo> CrearAsync(PeriodoRiesgo periodo, string usuario)
-    {
-        using var db = Db();
-
-        // Cerrar cualquier periodo activo primero (seguridad)
-        var activo = await db.PeriodosRiesgo.FirstOrDefaultAsync(p => p.Estado == "Activo");
-        if (activo != null)
-            throw new InvalidOperationException("Ya existe un periodo activo. Ciérralo antes de crear uno nuevo.");
-
-        periodo.Estado       = "Activo";
-        periodo.CreadoPor    = usuario;
-        periodo.FechaCreacion= DateTime.Now;
-
+        periodo.Estado = "Activo";
+        periodo.CreadoPor = usuario;
         db.PeriodosRiesgo.Add(periodo);
         await db.SaveChangesAsync();
 
-        // Bitácora — Creado
+        // Registrar en bitácora
         db.BitacoraPeriodoRiesgo.Add(new BitacoraPeriodoRiesgo
         {
-            PeriodoId     = periodo.Id,
-            Accion        = "Creado",
+            PeriodoId = periodo.Id,
+            Accion = "Creado",
+            CampoModificado = "Estado",
+            ValorAnterior = "",
+            ValorNuevo = "Activo",
             UsuarioNombre = usuario,
-            Motivo        = $"Periodo '{periodo.NombrePeriodo}' aperturado. Frecuencia: {periodo.Frecuencia}.",
-            FechaCambio   = DateTime.Now
+            Motivo = $"Apertura del periodo {periodo.NombrePeriodo}",
+            FechaCambio = DateTime.Now
         });
         await db.SaveChangesAsync();
 
-        return periodo;
+        // ── CREAR SNAPSHOTS EN BLANCO ─────────────────────────────────
+        await _snapSvc.InicializarSnapshotPeriodoAsync(periodo.Id, usuario);
     }
 
-    // ── EDITAR ────────────────────────────────────────────────────────────
-
-    public async Task EditarAsync(PeriodoRiesgo nuevo, string usuario, string motivo)
+    // ── Editar periodo ────────────────────────────────────────────────
+    public async Task EditarAsync(PeriodoRiesgo datos, string usuario, string motivo)
     {
-        using var db = Db();
-        var actual = await db.PeriodosRiesgo.FindAsync(nuevo.Id)
-            ?? throw new KeyNotFoundException("Periodo no encontrado.");
+        using var db = _dbFactory.CreateDbContext();
+        var p = await db.PeriodosRiesgo.FindAsync(datos.Id)
+                ?? throw new Exception("Periodo no encontrado.");
 
-        // Registrar cambios campo a campo
         var cambios = new List<(string campo, string antes, string despues)>();
 
-        if (actual.NombrePeriodo != nuevo.NombrePeriodo)
-            cambios.Add(("NombrePeriodo", actual.NombrePeriodo, nuevo.NombrePeriodo));
-        if (actual.Tipo != nuevo.Tipo)
-            cambios.Add(("Tipo", actual.Tipo, nuevo.Tipo));
-        if (actual.Frecuencia != nuevo.Frecuencia)
-            cambios.Add(("Frecuencia", actual.Frecuencia, nuevo.Frecuencia));
-        if (actual.FechaInicio != nuevo.FechaInicio)
-            cambios.Add(("FechaInicio", actual.FechaInicio.ToString("dd/MM/yyyy"), nuevo.FechaInicio.ToString("dd/MM/yyyy")));
-        if (actual.FechaCierre != nuevo.FechaCierre)
-            cambios.Add(("FechaCierre", actual.FechaCierre.ToString("dd/MM/yyyy"), nuevo.FechaCierre.ToString("dd/MM/yyyy")));
-        if (actual.Descripcion != nuevo.Descripcion)
-            cambios.Add(("Descripcion", actual.Descripcion, nuevo.Descripcion));
+        if (p.NombrePeriodo != datos.NombrePeriodo)
+            cambios.Add(("NombrePeriodo", p.NombrePeriodo, datos.NombrePeriodo));
+        if (p.FechaInicio != datos.FechaInicio)
+            cambios.Add(("FechaInicio",
+                p.FechaInicio.ToString("dd/MM/yyyy"),
+                datos.FechaInicio.ToString("dd/MM/yyyy")));
+        if (p.FechaCierre != datos.FechaCierre)
+            cambios.Add(("FechaCierre",
+                p.FechaCierre.ToString("dd/MM/yyyy"),
+                datos.FechaCierre.ToString("dd/MM/yyyy")));
+        if (p.Descripcion != datos.Descripcion)
+            cambios.Add(("Descripcion", p.Descripcion ?? "", datos.Descripcion ?? ""));
 
-        // Aplicar cambios
-        actual.NombrePeriodo = nuevo.NombrePeriodo;
-        actual.Tipo          = nuevo.Tipo;
-        actual.Frecuencia    = nuevo.Frecuencia;
-        actual.FechaInicio   = nuevo.FechaInicio;
-        actual.FechaCierre   = nuevo.FechaCierre;
-        actual.Descripcion   = nuevo.Descripcion;
+        p.NombrePeriodo = datos.NombrePeriodo;
+        p.Tipo = datos.Tipo;
+        p.Frecuencia = datos.Frecuencia;
+        p.FechaInicio = datos.FechaInicio;
+        p.FechaCierre = datos.FechaCierre;
+        p.Descripcion = datos.Descripcion;
 
-        await db.SaveChangesAsync();
-
-        // Bitácora — una entrada por campo modificado
         foreach (var (campo, antes, despues) in cambios)
         {
             db.BitacoraPeriodoRiesgo.Add(new BitacoraPeriodoRiesgo
             {
-                PeriodoId       = actual.Id,
-                Accion          = "Editado",
+                PeriodoId = p.Id,
+                Accion = "Editado",
                 CampoModificado = campo,
-                ValorAnterior   = antes,
-                ValorNuevo      = despues,
-                UsuarioNombre   = usuario,
-                Motivo          = motivo,
-                FechaCambio     = DateTime.Now
-            });
-        }
-
-        if (!cambios.Any())
-        {
-            db.BitacoraPeriodoRiesgo.Add(new BitacoraPeriodoRiesgo
-            {
-                PeriodoId     = actual.Id,
-                Accion        = "Editado",
+                ValorAnterior = antes,
+                ValorNuevo = despues,
                 UsuarioNombre = usuario,
-                Motivo        = "Sin cambios detectados. " + motivo,
-                FechaCambio   = DateTime.Now
+                Motivo = motivo,
+                FechaCambio = DateTime.Now
             });
         }
 
         await db.SaveChangesAsync();
     }
 
-    // ── CERRAR ────────────────────────────────────────────────────────────
-
-    public async Task CerrarAsync(int id, string usuario, string motivo)
+    // ── Cerrar periodo ────────────────────────────────────────────────
+    public async Task CerrarAsync(int periodoId, string usuario, string motivo)
     {
-        using var db = Db();
-        var p = await db.PeriodosRiesgo.FindAsync(id)
-            ?? throw new KeyNotFoundException("Periodo no encontrado.");
+        using var db = _dbFactory.CreateDbContext();
+        var p = await db.PeriodosRiesgo.FindAsync(periodoId)
+                ?? throw new Exception("Periodo no encontrado.");
 
-        p.Estado          = "Cerrado";
-        p.CerradoPor      = usuario;
+        p.Estado = "Cerrado";
+        p.CerradoPor = usuario;
         p.FechaCierreReal = DateTime.Now;
 
         db.BitacoraPeriodoRiesgo.Add(new BitacoraPeriodoRiesgo
         {
-            PeriodoId     = p.Id,
-            Accion        = "Cerrado",
+            PeriodoId = p.Id,
+            Accion = "Cerrado",
+            CampoModificado = "Estado",
             ValorAnterior = "Activo",
-            ValorNuevo    = "Cerrado",
+            ValorNuevo = "Cerrado",
             UsuarioNombre = usuario,
-            Motivo        = string.IsNullOrWhiteSpace(motivo) ? "Cierre de periodo." : motivo,
-            FechaCambio   = DateTime.Now
+            Motivo = motivo,
+            FechaCambio = DateTime.Now
         });
 
         await db.SaveChangesAsync();
+
+        // ── CONGELAR SNAPSHOTS ────────────────────────────────────────
+        await _snapSvc.CerrarSnapshotsPeriodoAsync(periodoId);
     }
 
-    // ── ELIMINAR (lógico — queda en historial) ────────────────────────────
-
-    public async Task EliminarAsync(int id, string usuario, string motivo)
+    // ── Eliminar (soft delete) ─────────────────────────────────────────
+    public async Task EliminarAsync(int periodoId, string usuario, string motivo)
     {
-        using var db = Db();
-        var p = await db.PeriodosRiesgo.FindAsync(id)
-            ?? throw new KeyNotFoundException("Periodo no encontrado.");
+        using var db = _dbFactory.CreateDbContext();
+        var p = await db.PeriodosRiesgo.FindAsync(periodoId)
+                ?? throw new Exception("Periodo no encontrado.");
 
-        if (p.Estado == "Activo")
-            throw new InvalidOperationException("No se puede eliminar un periodo activo. Ciérralo primero.");
+        p.Estado = "Eliminado";
 
-        // Registrar en bitácora ANTES de eliminar
         db.BitacoraPeriodoRiesgo.Add(new BitacoraPeriodoRiesgo
         {
-            PeriodoId     = p.Id,
-            Accion        = "Eliminado",
-            ValorAnterior = p.NombrePeriodo,
-            ValorNuevo    = "ELIMINADO",
+            PeriodoId = p.Id,
+            Accion = "Eliminado",
+            CampoModificado = "Estado",
+            ValorAnterior = p.Estado,
+            ValorNuevo = "Eliminado",
             UsuarioNombre = usuario,
-            Motivo        = string.IsNullOrWhiteSpace(motivo) ? "Eliminación manual." : motivo,
-            FechaCambio   = DateTime.Now
+            Motivo = motivo,
+            FechaCambio = DateTime.Now
         });
-        await db.SaveChangesAsync();
 
-        // Eliminar periodo (la bitácora se mantiene por CASCADE DELETE desactivado en este caso)
-        // Para mantener historial completo, marcamos como "Eliminado" en lugar de borrar
-        p.Estado     = "Eliminado";
-        p.CerradoPor = usuario;
         await db.SaveChangesAsync();
     }
 }

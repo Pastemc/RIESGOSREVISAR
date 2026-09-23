@@ -49,27 +49,30 @@ builder.Services.AddScoped<RiesgoService>();
 builder.Services.AddScoped<ExcelService>();
 builder.Services.AddScoped<GrcService>();
 builder.Services.AddScoped<EmailService>();
-builder.Services.AddScoped<PeriodoRiesgoService>();
+
+// ── Gestión de Periodos de Riesgo ──────────────────────────────────────────
+builder.Services.AddScoped<SnapshotService>();           // ← NUEVO: servicio de snapshots
+builder.Services.AddScoped<PeriodoRiesgoService>();      // depende de SnapshotService
 
 // ─── API PERSONAL ELORSA ──────────────────────────────────────────────────────
-// HttpClient nombrado con SSL permisivo para llamar la API HTTPS de ELORSA
-// desde un servidor HTTP interno (red local).
-builder.Services.AddHttpClient("PersonalCargoClient", client =>
+// Una sola registración — HttpClient directo con handler SSL permisivo
+// (servidor HTTP interno → API HTTPS de ELORSA en red local)
+builder.Services.AddSingleton<PersonalCargoService>(sp =>
 {
-    client.Timeout = TimeSpan.FromSeconds(20);
-    client.DefaultRequestHeaders.Add("Accept", "application/json");
-}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-{
-    ServerCertificateCustomValidationCallback =
-        HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-});
-
-// Scoped en lugar de Singleton para evitar conflictos de registro
-builder.Services.AddScoped<PersonalCargoService>(sp =>
-{
-    var factory = sp.GetRequiredService<IHttpClientFactory>();
-    var http = factory.CreateClient("PersonalCargoClient");
     var logger = sp.GetRequiredService<ILogger<PersonalCargoService>>();
+
+    var handler = new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback =
+            HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    };
+
+    var http = new HttpClient(handler)
+    {
+        Timeout = TimeSpan.FromSeconds(20)
+    };
+    http.DefaultRequestHeaders.Add("Accept", "application/json");
+
     return new PersonalCargoService(http, logger);
 });
 
@@ -90,6 +93,7 @@ builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
+// ─── MIGRACIÓN Y SEED ─────────────────────────────────────────────────────────
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -114,6 +118,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
+// ─── ENDPOINT: LOGIN ──────────────────────────────────────────────────────────
 app.MapPost("/do-login", async (HttpContext ctx, AuthService authSvc) =>
 {
     var form = await ctx.Request.ReadFormAsync();
@@ -124,9 +129,11 @@ app.MapPost("/do-login", async (HttpContext ctx, AuthService authSvc) =>
 
     if (res.Type == AuthResultType.InvalidCredentials)
         return Results.Redirect("/login?error=1");
-    else if (res.Type == AuthResultType.PendingApproval)
+
+    if (res.Type == AuthResultType.PendingApproval)
         return Results.Redirect("/login?status=pending");
-    else if (res.Type == AuthResultType.FirstTimeNeedsConfirmation)
+
+    if (res.Type == AuthResultType.FirstTimeNeedsConfirmation)
     {
         string encU = Convert.ToBase64String(Encoding.UTF8.GetBytes(correo));
         string encP = Convert.ToBase64String(Encoding.UTF8.GetBytes(password));
@@ -164,6 +171,7 @@ app.MapPost("/do-login", async (HttpContext ctx, AuthService authSvc) =>
     return Results.Redirect("/");
 });
 
+// ─── ENDPOINT: SOLICITAR ACCESO (primer ingreso) ──────────────────────────────
 app.MapPost("/do-solicitar-acceso", async (HttpContext ctx, AuthService authSvc) =>
 {
     var form = await ctx.Request.ReadFormAsync();
@@ -191,6 +199,7 @@ app.MapPost("/do-solicitar-acceso", async (HttpContext ctx, AuthService authSvc)
     return Results.Redirect("/login");
 });
 
+// ─── ENDPOINT: LOGOUT ─────────────────────────────────────────────────────────
 app.MapGet("/do-logout", async (HttpContext ctx) =>
 {
     await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -205,6 +214,7 @@ app.MapPost("/do-logout", async (HttpContext ctx) =>
     return Results.Redirect("/login");
 });
 
+// ─── RAZOR COMPONENTS ─────────────────────────────────────────────────────────
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
