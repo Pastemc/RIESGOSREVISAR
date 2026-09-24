@@ -38,7 +38,6 @@
 
 <div class="container-fluid">
 
-    @* ── Selector de periodo ── *@
     <div class="periodo-bar">
         <i class="fas fa-calendar-alt" style="color:#FFDD00;font-size:1.1rem;"></i>
         <label>Periodo:</label>
@@ -49,7 +48,7 @@
         else
         {
             <select class="form-control form-control-sm" style="max-width:360px;" @onchange="OnPeriodoChange">
-                <option value="">— Selecciona un periodo —</option>
+                <option value="">— Sin periodo seleccionado —</option>
                 @foreach (var p in Periodos)
                 {
                     <option value="@p.Id" selected="@(p.Id == PeriodoSelId)">
@@ -69,18 +68,22 @@
                 <span class="badge-periodo-cerrado"><i class="fas fa-lock mr-1"></i>CERRADO</span>
             }
         }
+        else
+        {
+            <span class="badge" style="background:#856404;color:#fff;font-size:.75rem;padding:4px 10px;border-radius:20px;">
+                <i class="fas fa-database mr-1"></i>Vista carga base
+            </span>
+        }
     </div>
 
-    @* Banner cuando no hay periodo — diseño siempre visible *@
+    @* Banner informativo sin periodo *@
     @if (PeriodoSel == null)
     {
-        <div class="alert alert-info d-flex align-items-center mb-3 shadow-sm" style="border-left:4px solid #0062B8;">
-            <i class="fas fa-hand-point-up fa-lg mr-3 text-primary"></i>
+        <div class="alert alert-warning d-flex align-items-center mb-3">
+            <i class="fas fa-info-circle fa-lg mr-3 text-warning"></i>
             <div>
-                <strong>Selecciona un periodo</strong> en el selector superior para cargar el resumen de riesgos.
-                <a href="/periodo-riesgo" class="ml-2 font-weight-bold">
-                    <i class="fas fa-plus-circle mr-1"></i>Gestionar Periodos
-                </a>
+                <strong>Mostrando resumen de la carga base (solo lectura).</strong>
+                Selecciona un periodo para ver el resumen de ese periodo específico.
             </div>
         </div>
     }
@@ -92,7 +95,6 @@
         </div>
     }
 
-    @* Botón volver — siempre visible *@
     <div class="row mb-3">
         <div class="col-12">
             <button class="btn btn-secondary" @onclick='() => Nav.NavigateTo("/matriz")'>
@@ -101,71 +103,55 @@
         </div>
     </div>
 
-    @* Tarjetas — siempre visibles, en 0 si no hay datos *@
     <div class="row mb-3">
         <div class="col-md-2">
             <div class="small-box bg-danger shadow-sm" style="cursor:pointer;" @onclick='() => SeleccionarFiltroNivel("Extremo")'>
-                <div class="inner">
-                    <h3>@TotalExtremo</h3>
-                    <p class="font-weight-bold mb-0">Extremo @(NivelFiltro=="Extremo"?"✓":"")</p>
-                </div>
+                <div class="inner"><h3>@TotalExtremo</h3><p class="font-weight-bold mb-0">Extremo @(NivelFiltro=="Extremo"?"✓":"")</p></div>
                 <div class="icon"><i class="fas fa-exclamation-circle"></i></div>
             </div>
         </div>
         <div class="col-md-2">
             <div class="small-box shadow-sm" style="background:#fd7e14;cursor:pointer;" @onclick='() => SeleccionarFiltroNivel("Alto")'>
-                <div class="inner text-white">
-                    <h3>@TotalAlto</h3>
-                    <p class="font-weight-bold mb-0">Alto @(NivelFiltro=="Alto"?"✓":"")</p>
-                </div>
+                <div class="inner text-white"><h3>@TotalAlto</h3><p class="font-weight-bold mb-0">Alto @(NivelFiltro=="Alto"?"✓":"")</p></div>
                 <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
             </div>
         </div>
         <div class="col-md-2">
             <div class="small-box bg-warning shadow-sm" style="cursor:pointer;" @onclick='() => SeleccionarFiltroNivel("Moderado")'>
-                <div class="inner">
-                    <h3>@TotalModerado</h3>
-                    <p class="font-weight-bold mb-0">Moderado @(NivelFiltro=="Moderado"?"✓":"")</p>
-                </div>
+                <div class="inner"><h3>@TotalModerado</h3><p class="font-weight-bold mb-0">Moderado @(NivelFiltro=="Moderado"?"✓":"")</p></div>
                 <div class="icon"><i class="fas fa-minus-circle"></i></div>
             </div>
         </div>
         <div class="col-md-2">
             <div class="small-box bg-success shadow-sm" style="cursor:pointer;" @onclick='() => SeleccionarFiltroNivel("Bajo")'>
-                <div class="inner">
-                    <h3>@TotalBajo</h3>
-                    <p class="font-weight-bold mb-0">Bajo @(NivelFiltro=="Bajo"?"✓":"")</p>
-                </div>
+                <div class="inner"><h3>@TotalBajo</h3><p class="font-weight-bold mb-0">Bajo @(NivelFiltro=="Bajo"?"✓":"")</p></div>
                 <div class="icon"><i class="fas fa-check-circle"></i></div>
             </div>
         </div>
         <div class="col-md-2">
             <div class="small-box bg-primary shadow-sm" style="cursor:pointer;" @onclick='() => SeleccionarFiltroNivel("Todos")'>
-                <div class="inner">
-                    <h3>@TotalRiesgos</h3>
-                    <p class="font-weight-bold mb-0">Total @(NivelFiltro=="Todos"?"✓":"")</p>
-                </div>
+                <div class="inner"><h3>@TotalRiesgos</h3><p class="font-weight-bold mb-0">Total @(NivelFiltro=="Todos"?"✓":"")</p></div>
                 <div class="icon"><i class="fas fa-list"></i></div>
             </div>
         </div>
         <div class="col-md-2">
             <div class="small-box bg-info shadow-sm">
-                <div class="inner">
-                    <h3>@TotalIndicadores</h3>
-                    <p class="font-weight-bold mb-0">Total Indicadores</p>
-                </div>
+                <div class="inner"><h3>@TotalIndicadores</h3><p class="font-weight-bold mb-0">Total Indicadores</p></div>
                 <div class="icon"><i class="fas fa-tachometer-alt"></i></div>
             </div>
         </div>
     </div>
 
-    @* Tabla resumen — siempre visible *@
     <div class="card card-outline card-primary">
         <div class="card-header d-flex justify-content-between align-items-center"
              style="background:#0062B8;border-bottom:2px solid #FFDD00;">
             <h3 class="card-title text-white font-weight-bold mb-0">
                 <i class="fas fa-table mr-2"></i>
                 Nivel de Criticidad de Riesgo Residual — @FechaCorte
+                @if (PeriodoSel == null)
+                {
+                    <span class="badge badge-warning ml-2"><i class="fas fa-database mr-1"></i>Carga base</span>
+                }
                 @if (NivelFiltro != "Todos")
                 {
                     <span class="badge badge-warning ml-2">
@@ -208,21 +194,12 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (PeriodoSel == null)
-                    {
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-5">
-                                <i class="fas fa-calendar-alt fa-2x mb-2 d-block" style="opacity:.25;"></i>
-                                Selecciona un periodo para visualizar el resumen
-                            </td>
-                        </tr>
-                    }
-                    else if (!MacroProcesosFiltrados.Any())
+                    @if (!MacroProcesosFiltrados.Any())
                     {
                         <tr>
                             <td colspan="8" class="text-center text-muted py-5">
                                 <i class="fas fa-inbox fa-2x mb-2 d-block" style="opacity:.25;"></i>
-                                @(NivelFiltro == "Todos" ? "No hay riesgos registrados en este periodo." : $"No hay procesos con riesgo nivel {NivelFiltro}.")
+                                @(NivelFiltro == "Todos" ? "No hay riesgos registrados." : $"No hay procesos con riesgo nivel {NivelFiltro}.")
                             </td>
                         </tr>
                     }
@@ -273,17 +250,14 @@
 @code {
     [SupplyParameterFromQuery] public string? Nivel { get; set; }
 
-    // ── Periodo ────────────────────────────────────────────────────────────
     List<MPeriodo> Periodos     = new();
     MPeriodo?      PeriodoSel   = null;
     int            PeriodoSelId = 0;
 
-    // ── Estado ────────────────────────────────────────────────────────────
     bool   Cargando    = false;
     string FechaCorte  = DateTime.Now.ToString("dd/MM/yyyy");
     string NivelFiltro = "Todos";
 
-    // ── Totales calculados ─────────────────────────────────────────────────
     int TotalExtremo     => FilasTodas.Sum(f => f.Extremo);
     int TotalAlto        => FilasTodas.Sum(f => f.Alto);
     int TotalModerado    => FilasTodas.Sum(f => f.Moderado);
@@ -362,13 +336,61 @@
             NivelFiltro = Nivel;
 
         Periodos = await SnapSvc.GetPeriodosOrdenadosAsync();
-        // NO auto-seleccionar — el usuario escoge el periodo manualmente
+
+        // Cargar resumen de carga base automáticamente
+        await CargarResumenBase();
     }
 
     protected override void OnParametersSet()
     {
         if (!string.IsNullOrWhiteSpace(Nivel))
             NivelFiltro = Nivel;
+    }
+
+    // ── Carga resumen desde tabla Riesgos base ──────────────────────────
+    async Task CargarResumenBase()
+    {
+        var riesgos = await RiesgoSvc.GetTodosAsync();
+        FilasTodas  = new();
+
+        var porProceso = riesgos
+            .GroupBy(r => r.CodigoProceso?.Trim() ?? "")
+            .Where(g => !string.IsNullOrWhiteSpace(g.Key));
+
+        foreach (var grp in porProceso.OrderBy(g => g.Key))
+        {
+            var cod    = grp.Key;
+            var nombre = grp.First().NombreProceso ?? cod;
+            var macro  = MapaMacro.TryGetValue(cod, out var mp) ? mp : cod;
+
+            int ext = 0, alt = 0, mod = 0, baj = 0, ind = 0;
+            foreach (var r in grp)
+            {
+                var sev   = r.ProbabilidadResidual * r.ImpactoResidual;
+                var nivel = Riesgo.GetNivel(sev);
+                switch (nivel)
+                {
+                    case "Extremo":  ext++; break;
+                    case "Alto":     alt++; break;
+                    case "Moderado": mod++; break;
+                    case "Bajo":     baj++; break;
+                }
+                ind += r.Indicadores?.Count(i => !string.IsNullOrWhiteSpace(i.CodigoKRI)) ?? 0;
+            }
+
+            if (ext + alt + mod + baj > 0)
+                FilasTodas.Add(new FilaResumen
+                {
+                    MacroProceso  = macro,
+                    CodigoProceso = cod,
+                    NombreProceso = $"{cod} {nombre}",
+                    Extremo       = ext,
+                    Alto          = alt,
+                    Moderado      = mod,
+                    Bajo          = baj,
+                    Indicadores   = ind
+                });
+        }
     }
 
     async Task OnPeriodoChange(ChangeEventArgs e)
@@ -380,6 +402,8 @@
         {
             PeriodoSel   = null;
             PeriodoSelId = 0;
+            // Volver a mostrar resumen de carga base
+            await CargarResumenBase();
             return;
         }
 
@@ -445,7 +469,6 @@
             }
 
             if (ext + alt + mod + baj > 0)
-            {
                 FilasTodas.Add(new FilaResumen
                 {
                     MacroProceso  = macro,
@@ -457,7 +480,6 @@
                     Bajo          = baj,
                     Indicadores   = ind
                 });
-            }
         }
 
         Cargando = false;
@@ -481,7 +503,7 @@
 
         var bytes  = ExcelSvc.GenerarExcelResumen(filasExcel, FechaCorte);
         var b64    = Convert.ToBase64String(bytes);
-        var nombre = $"Resumen_Riesgos_{NivelFiltro}_{DateTime.Now:yyyyMMdd}.xlsx";
+        var nombre = $"Resumen_Riesgos_{NivelFiltro}_{PeriodoSel?.NombrePeriodo?.Replace(" ","_") ?? "CargaBase"}_{DateTime.Now:yyyyMMdd}.xlsx";
         await JS.InvokeVoidAsync("downloadFile", b64, nombre,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }

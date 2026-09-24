@@ -52,7 +52,7 @@
         else
         {
             <select class="form-control form-control-sm" style="max-width:360px;" @onchange="OnPeriodoChange">
-                <option value="">— Selecciona un periodo —</option>
+                <option value="">— Sin periodo seleccionado —</option>
                 @foreach (var p in Periodos)
                 {
                     <option value="@p.Id" selected="@(p.Id == PeriodoSelId)">
@@ -76,17 +76,26 @@
         }
     </div>
 
-
-    @* Banner cuando no hay periodo — diseño siempre visible *@
-    @if (PeriodoSel == null)
+    @* Banner cuando no hay periodo — muestra datos base *@
+    @if (PeriodoSel == null && !Periodos.Any())
     {
-        <div class="alert alert-info d-flex align-items-center mb-3 shadow-sm" style="border-left:4px solid #0062B8;">
+        <div class="alert alert-warning d-flex align-items-center mb-3">
+            <i class="fas fa-info-circle fa-lg mr-3 text-warning"></i>
+            <div>
+                <strong>Vista previa de carga masiva.</strong>
+                Mostrando los riesgos de la base de datos histórica (solo lectura).
+                Crea un periodo en <a href="/periodo-riesgo" class="alert-link font-weight-bold">Gestión de Periodos</a>
+                para comenzar a trabajar con ellos.
+            </div>
+        </div>
+    }
+    else if (PeriodoSel == null && Periodos.Any())
+    {
+        <div class="alert alert-info d-flex align-items-center mb-3">
             <i class="fas fa-hand-point-up fa-lg mr-3 text-primary"></i>
             <div>
-                <strong>Selecciona un periodo</strong> en el selector superior para cargar los datos de la sábana.
-                <a href="/periodo-riesgo" class="ml-2 font-weight-bold">
-                    <i class="fas fa-plus-circle mr-1"></i>Gestionar Periodos
-                </a>
+                <strong>Mostrando datos históricos de carga base (solo lectura).</strong>
+                Selecciona un periodo en el selector para ver los datos de ese periodo.
             </div>
         </div>
     }
@@ -98,7 +107,6 @@
         </div>
     }
 
-    @* Botones — siempre visibles *@
     <div class="row mb-2">
         <div class="col-12">
             <a href="/matriz" class="btn btn-secondary mr-2">
@@ -113,7 +121,6 @@
         </div>
     </div>
 
-    @* Encabezado — siempre visible *@
     <div class="card mb-3" style="border:2px solid #0062B8;">
         <div class="card-header d-flex justify-content-between align-items-center"
              style="background:#0062B8;border-bottom:2px solid #FFDD00;">
@@ -187,6 +194,10 @@
                         <span><strong>Total Riesgos:</strong> @TodosLosRiesgos.Count</span>
                         <span><strong>Matrices con datos:</strong> @MatricesConDatos</span>
                         <span><strong>Fecha de corte:</strong> @DateTime.Now.ToString("dd/MM/yyyy")</span>
+                        @if (PeriodoSel == null)
+                        {
+                            <span class="text-warning font-weight-bold"><i class="fas fa-info-circle mr-1"></i>Vista carga base — sin periodo</span>
+                        }
                     </div>
                 </div>
             }
@@ -261,13 +272,16 @@
         </div>
     </div>
 
-    @* Tabla sábana — siempre visible, columnas siempre presentes *@
     <div class="card card-outline card-primary shadow-sm">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center bg-dark text-white p-3">
             <h3 class="card-title font-weight-bold mb-2 mb-md-0">
                 <i class="fas fa-table mr-2 text-warning"></i>
                 SÁBANA — MATRIZ DE RIESGOS Y CONTROLES
                 <span class="badge badge-warning ml-2">@RiesgosFiltrados.Count riesgo(s) total</span>
+                @if (PeriodoSel == null)
+                {
+                    <span class="badge badge-secondary ml-2"><i class="fas fa-lock mr-1"></i>Solo lectura — Carga base</span>
+                }
             </h3>
             <div class="d-flex align-items-center flex-wrap" style="gap:10px;">
                 <div class="input-group input-group-sm" style="width:260px;">
@@ -278,8 +292,7 @@
                     </div>
                     <input type="text" class="form-control border-0"
                            placeholder="Buscar por código o descripción..."
-                           value="@BusquedaTexto" @oninput="OnBusquedaChanged"
-                           disabled="@(PeriodoSel == null)" />
+                           value="@BusquedaTexto" @oninput="OnBusquedaChanged" />
                 </div>
                 <div class="d-flex align-items-center">
                     <label class="mb-0 text-white mr-2 small font-weight-normal">Mostrar:</label>
@@ -347,22 +360,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (PeriodoSel == null)
-                    {
-                        <tr>
-                            <td colspan="39" class="text-center text-muted py-5">
-                                <i class="fas fa-calendar-alt fa-2x mb-2 d-block" style="opacity:.25;"></i>
-                                Selecciona un periodo para visualizar los datos
-                            </td>
-                        </tr>
-                    }
-                    else if (!RiesgosFiltrados.Any())
+                    @if (!RiesgosFiltrados.Any())
                     {
                         <tr>
                             <td colspan="39" class="text-center text-muted py-5">
                                 <i class="fas fa-inbox fa-2x mb-2 d-block" style="opacity:.25;"></i>
                                 @(string.IsNullOrWhiteSpace(BusquedaTexto)
-                                    ? "No hay riesgos registrados en este periodo."
+                                    ? "No hay riesgos registrados."
                                     : "No se encontraron riesgos que coincidan con la búsqueda.")
                             </td>
                         </tr>
@@ -484,12 +488,10 @@
 </div>
 
 @code {
-    // ── Periodo ────────────────────────────────────────────────────────────
     List<MPeriodo> Periodos     = new();
     MPeriodo?      PeriodoSel   = null;
     int            PeriodoSelId = 0;
 
-    // ── Estado de carga ────────────────────────────────────────────────────
     bool   Cargando        = false;
     bool   EditandoEnc     = false;
     bool   EncOk           = false;
@@ -498,12 +500,9 @@
 
     SabanaEncabezado Enc = new();
 
-    // ── Datos del periodo seleccionado ─────────────────────────────────────
-    // Los SnapshotRiesgo tienen Controles, Planes e Indicadores como listas
-    // igual que la clase Riesgo original → misma lógica de renderizado
+    // Usamos SnapshotRiesgo como DTO universal para snapshot y datos base
     List<SnapshotRiesgo> TodosLosRiesgos = new();
 
-    // ── Búsqueda y paginación ──────────────────────────────────────────────
     int    PaginaActual  = 1;
     int    TamanoPagina  = 15;
     string BusquedaTexto = "";
@@ -522,26 +521,83 @@
     List<SnapshotRiesgo> RiesgosPaginados =>
         RiesgosFiltrados.Skip((PaginaActual - 1) * TamanoPagina).Take(TamanoPagina).ToList();
 
-    int TotalPaginas  => Math.Max(1, (int)Math.Ceiling((double)RiesgosFiltrados.Count / TamanoPagina));
-    int IndiceInicio  => RiesgosFiltrados.Any() ? (PaginaActual - 1) * TamanoPagina + 1 : 0;
-    int IndiceFin     => Math.Min(PaginaActual * TamanoPagina, RiesgosFiltrados.Count);
+    int TotalPaginas    => Math.Max(1, (int)Math.Ceiling((double)RiesgosFiltrados.Count / TamanoPagina));
+    int IndiceInicio    => RiesgosFiltrados.Any() ? (PaginaActual - 1) * TamanoPagina + 1 : 0;
+    int IndiceFin       => Math.Min(PaginaActual * TamanoPagina, RiesgosFiltrados.Count);
     int PaginaInicioNum => Math.Max(1, PaginaActual - 2);
     int PaginaFinNum    => Math.Min(TotalPaginas, Math.Max(1, PaginaActual + 2));
 
-    // ── Init ───────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        // Cargar encabezado
         using var db = DbFactory.CreateDbContext();
         var enc = await db.SabanaEncabezados.FirstOrDefaultAsync();
         Enc = enc ?? new SabanaEncabezado();
 
-        // Cargar lista de periodos — NO auto-seleccionar ninguno
-        // El usuario debe escoger el periodo manualmente en el selector
         Periodos = await SnapSvc.GetPeriodosOrdenadosAsync();
+
+        // Cargar datos base automáticamente para vista previa
+        await CargarDatosBase();
     }
 
-    // ── Cambio de periodo ──────────────────────────────────────────────────
+    // ── Carga datos base (tabla Riesgos) como vista previa sin periodo ──
+    async Task CargarDatosBase()
+    {
+        var riesgosBase = await RiesgoSvc.GetTodosAsync();
+        TodosLosRiesgos = riesgosBase.Select(r => new SnapshotRiesgo
+        {
+            Id                     = r.Id,
+            RiesgoOrigenId         = r.Id,
+            SnapshotMatrizId       = 0,
+            CodigoProceso          = r.CodigoProceso         ?? "",
+            NombreProceso          = r.NombreProceso         ?? "",
+            GerenciaResponsable    = r.GerenciaResponsable   ?? "",
+            Subproceso             = r.Subproceso            ?? "",
+            CodigoRiesgo           = r.CodigoRiesgo          ?? "",
+            DescripcionRiesgo      = r.DescripcionRiesgo     ?? "",
+            OrigenRiesgo           = r.OrigenRiesgo          ?? "",
+            FrecuenciaRiesgo       = r.FrecuenciaRiesgo      ?? "",
+            TipoRiesgo             = r.TipoRiesgo            ?? "",
+            ProbabilidadInherente  = r.ProbabilidadInherente,
+            ImpactoInherente       = r.ImpactoInherente,
+            ProbabilidadResidual   = r.ProbabilidadResidual,
+            ImpactoResidual        = r.ImpactoResidual,
+            EstrategiaResidual     = r.EstrategiaResidual    ?? "",
+            Controles = r.Controles.Select(c => new SnapshotControl
+            {
+                CodigoControl         = c.CodigoControl         ?? "",
+                DescripcionControl    = c.DescripcionControl    ?? "",
+                AreaResponsable       = c.AreaResponsable       ?? "",
+                ResponsablesControl   = c.ResponsablesControl   ?? "",
+                FrecuenciaControl     = c.FrecuenciaControl     ?? "",
+                OportunidadControl    = c.OportunidadControl    ?? "",
+                AutomatizacionControl = c.AutomatizacionControl ?? "",
+                EvidenciaControl      = c.EvidenciaControl      ?? ""
+            }).ToList(),
+            Planes = r.PlanesAccion.Select(p => new SnapshotPlanAccion
+            {
+                CodigoPlan      = p.CodigoPlan      ?? "",
+                DescripcionPlan = p.DescripcionPlan ?? "",
+                AreaResponsable = p.AreaResponsable ?? "",
+                ResponsablePlan = p.ResponsablePlan ?? "",
+                InicioPlan      = p.InicioPlan,
+                FinPlan         = p.FinPlan,
+                EstadoPlan      = p.EstadoPlan      ?? ""
+            }).ToList(),
+            Indicadores = r.Indicadores.Select(i => new SnapshotIndicador
+            {
+                CodigoKRI      = i.CodigoKRI      ?? "",
+                DefinicionKRI  = i.DefinicionKRI  ?? "",
+                Frecuencia     = i.Frecuencia     ?? "",
+                MetaKRI        = i.MetaKRI        ?? "",
+                KRIActual      = i.KRIActual      ?? "",
+                ResponsableKRI = i.ResponsableKRI ?? ""
+            }).ToList()
+        }).ToList();
+
+        MatricesConDatos = TodosLosRiesgos
+            .Select(r => r.CodigoProceso).Distinct().Count();
+    }
+
     async Task OnPeriodoChange(ChangeEventArgs e)
     {
         TodosLosRiesgos  = new();
@@ -553,6 +609,8 @@
         {
             PeriodoSel   = null;
             PeriodoSelId = 0;
+            // Volver a mostrar datos base
+            await CargarDatosBase();
             return;
         }
 
@@ -566,7 +624,6 @@
         Cargando = true;
         StateHasChanged();
 
-        // Obtener todos los snapshots del periodo con sus datos completos
         using var db = DbFactory.CreateDbContext();
         var snapshots = await db.SnapshotMatriz
             .Include(sm => sm.Riesgos)
@@ -592,7 +649,6 @@
         Cargando = false;
     }
 
-    // ── Encabezado ─────────────────────────────────────────────────────────
     async Task GuardarEncabezado()
     {
         var state  = await AuthState.GetAuthenticationStateAsync();
@@ -630,17 +686,12 @@
         EncOk  = true;
     }
 
-    // ── Descarga Excel ─────────────────────────────────────────────────────
     async Task DescargarExcel()
     {
-        // FilaSabanaExcel en este proyecto tiene { CodigoProceso, NombreProceso, Riesgo }
-        // donde Riesgo es el objeto completo con sus Controles, PlanesAccion e Indicadores.
-        // Necesitamos construir un Riesgo temporal desde el SnapshotRiesgo para cada fila.
         var filas = new List<FilaSabanaExcel>();
 
         foreach (var snap in TodosLosRiesgos)
         {
-            // Construir objeto Riesgo temporal desde los datos del snapshot
             var r = new Riesgo
             {
                 CodigoProceso         = snap.CodigoProceso,
@@ -659,9 +710,7 @@
                 EstrategiaResidual    = snap.EstrategiaResidual
             };
 
-            // Mapear controles del snapshot → RiesgoControl
             foreach (var sc in snap.Controles)
-            {
                 r.Controles.Add(new RiesgoControl
                 {
                     CodigoControl         = sc.CodigoControl,
@@ -673,11 +722,8 @@
                     AutomatizacionControl = sc.AutomatizacionControl,
                     EvidenciaControl      = sc.EvidenciaControl
                 });
-            }
 
-            // Mapear planes del snapshot → PlanAccion
             foreach (var sp in snap.Planes)
-            {
                 r.PlanesAccion.Add(new PlanAccion
                 {
                     CodigoPlan          = sp.CodigoPlan,
@@ -689,11 +735,8 @@
                     EstadoPlan          = sp.EstadoPlan,
                     EstrategiaRespuesta = sp.EstrategiaRespuesta
                 });
-            }
 
-            // Mapear indicadores del snapshot → Indicador
             foreach (var si in snap.Indicadores)
-            {
                 r.Indicadores.Add(new Indicador
                 {
                     CodigoKRI      = si.CodigoKRI,
@@ -703,7 +746,6 @@
                     KRIActual      = si.KRIActual,
                     ResponsableKRI = si.ResponsableKRI
                 });
-            }
 
             filas.Add(new FilaSabanaExcel
             {
@@ -716,7 +758,7 @@
         var logoPath = Path.Combine(Env.WebRootPath, "logo.png");
         var bytes    = ExcelSvc.GenerarExcelSabana(filas, Enc, logoPath);
         var b64      = Convert.ToBase64String(bytes);
-        var nombre   = $"Sabana_MRC_{PeriodoSel?.NombrePeriodo?.Replace(" ","_") ?? "sin_periodo"}_{DateTime.Now:yyyyMMdd}.xlsx";
+        var nombre   = $"Sabana_MRC_{PeriodoSel?.NombrePeriodo?.Replace(" ","_") ?? "CargaBase"}_{DateTime.Now:yyyyMMdd}.xlsx";
         await JS.InvokeVoidAsync("downloadFile", b64, nombre,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
