@@ -56,17 +56,21 @@
     .sbadge { display:inline-block; margin-top:3px; border-radius:10px; font-size:0.52rem; padding:1px 7px; font-weight:700; }
     .sbadge.con { background:#0062B8; color:#fff; }
     .sbadge.sin { background:rgba(0,98,184,0.12); color:#888; }
-    .periodo-bar { background:#003B70; border-bottom:3px solid #FFDD00; padding:8px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .periodo-bar { background:#003B70; border-bottom:3px solid #FFDD00; padding:8px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     .periodo-bar label { color:#FFDD00; font-weight:700; font-size:.85rem; margin:0; white-space:nowrap; }
-    .periodo-bar select { max-width:280px; border-radius:6px; font-weight:600; }
-    .badge-periodo-activo  { background:#28a745; color:#fff; font-size:.75rem; padding:4px 10px; border-radius:20px; }
-    .badge-periodo-cerrado { background:#6c757d; color:#fff; font-size:.75rem; padding:4px 10px; border-radius:20px; }
-    .badge-periodo-sin     { background:#dc3545; color:#fff; font-size:.75rem; padding:4px 10px; border-radius:20px; }
+    .periodo-bar select { max-width:340px; border-radius:6px; font-weight:600; }
+    .badge-periodo-activo  { background:#28a745; color:#fff; font-size:.75rem; padding:4px 10px; border-radius:20px; white-space:nowrap; }
+    .badge-periodo-cerrado { background:#6c757d; color:#fff; font-size:.75rem; padding:4px 10px; border-radius:20px; white-space:nowrap; }
+    .badge-periodo-sin     { background:#dc3545; color:#fff; font-size:.75rem; padding:4px 10px; border-radius:20px; white-space:nowrap; }
+    .version-chip { display:inline-block; background:#FFDD00; color:#003B70; font-weight:800; font-size:.72rem; padding:2px 8px; border-radius:20px; vertical-align:middle; letter-spacing:.4px; }
+    .tipo-chip-apertura   { background:#0062B8; color:#fff; font-size:.7rem; padding:2px 8px; border-radius:20px; font-weight:700; white-space:nowrap; }
+    .tipo-chip-validacion { background:#28a745; color:#fff; font-size:.7rem; padding:2px 8px; border-radius:20px; font-weight:700; white-space:nowrap; }
+    .tipo-chip-evidencia  { background:#fd7e14; color:#fff; font-size:.7rem; padding:2px 8px; border-radius:20px; font-weight:700; white-space:nowrap; }
 </style>
 
 <div class="container-fluid">
 
-    <!-- SELECTOR DE PERIODO -->
+    <!-- ══ SELECTOR DE PERIODO ══ -->
     <div class="periodo-bar mb-3" style="border-radius:8px 8px 0 0;">
         <i class="fas fa-calendar-alt" style="color:#FFDD00;font-size:1.1rem;"></i>
         <label>Periodo:</label>
@@ -82,34 +86,52 @@
         }
         else
         {
-            <select class="form-control form-control-sm" @onchange="OnPeriodoChange">
+            <select class="form-control form-control-sm" style="max-width:260px;" @onchange="OnPeriodoChange">
                 <option value="">— Sin periodo seleccionado —</option>
-                @foreach (var p in Periodos)
+                @foreach (var p in PeriodosUnicos)
                 {
                     <option value="@p.Id" selected="@(p.Id == PeriodoSelId)">
                         @p.NombrePeriodo (@p.FechaInicio.ToString("dd/MM/yy") — @p.FechaCierre.ToString("dd/MM/yy"))
                     </option>
                 }
             </select>
+
+            @* Selector de Versión — aparece solo cuando hay periodo seleccionado *@
+            @if (PeriodoSel != null)
+            {
+                <label class="ml-2" style="color:#FFDD00;font-weight:700;font-size:.85rem;margin:0;white-space:nowrap;">Versión:</label>
+                <select class="form-control form-control-sm" style="max-width:120px;" @onchange="OnVersionChange">
+                    @foreach (var p in VersionesDelPeriodo)
+                    {
+                        <option value="@p.Id" selected="@(p.Id == PeriodoSelId)">
+                            V@(p.Version) — @p.TipoPeriodo
+                        </option>
+                    }
+                </select>
+            }
         }
 
         @if (PeriodoSel != null)
         {
+            <span class="@TipoChipClass(PeriodoSel.TipoPeriodo)">
+                <i class="fas @TipoIcono(PeriodoSel.TipoPeriodo) mr-1"></i>@PeriodoSel.TipoPeriodo
+            </span>
             @if (PeriodoSel.Estado == "Activo")
             {
-                <span class="badge-periodo-activo"><i class="fas fa-circle mr-1" style="font-size:.5rem;"></i>ACTIVO</span>
+                <span class="badge-periodo-activo">
+                    <i class="fas fa-circle mr-1" style="font-size:.5rem;vertical-align:middle;"></i>ACTIVO
+                </span>
             }
             else
             {
-                <span class="badge-periodo-cerrado"><i class="fas fa-lock mr-1"></i>CERRADO — Solo lectura</span>
+                <span class="badge-periodo-cerrado"><i class="fas fa-lock mr-1"></i>CERRADO</span>
             }
         }
     </div>
 
-    <!-- MAPA DE PROCESOS (siempre visible) -->
+    <!-- ══ MAPA DE PROCESOS — siempre visible ══ -->
     @if (!MostrarFormulario && !MostrarHeatmap && MatrizActual == null)
     {
-        @* Banner informativo cuando no hay periodo seleccionado pero SÍ hay periodos *@
         @if (PeriodoSel == null && Periodos.Any())
         {
             <div class="alert alert-info mb-3">
@@ -119,7 +141,6 @@
             </div>
         }
 
-        @* Banner informativo cuando NO hay periodos (solo carga base visible) *@
         @if (!Periodos.Any())
         {
             <div class="alert alert-warning mb-3">
@@ -152,12 +173,15 @@
                     <i class="fas fa-sitemap mr-2" style="color:#FFDD00;"></i>Mapa de Procesos
                     @if (PeriodoSel != null)
                     {
-                        <small style="font-size:.75rem;opacity:.75;margin-left:8px;">— @PeriodoSel.NombrePeriodo</small>
+                        <small style="font-size:.75rem;opacity:.85;margin-left:8px;">
+                            — @PeriodoSel.NombrePeriodo
+                            <span class="version-chip ml-1">P-@(PeriodoSel.NumeroPeriodo) V@(PeriodoSel.Version)</span>
+                        </small>
                     }
                     else
                     {
                         <small style="font-size:.7rem;opacity:.65;margin-left:8px;">
-                            (sin periodo seleccionado — los contadores muestran el total histórico)
+                            (sin periodo seleccionado — contadores históricos)
                         </small>
                     }
                 </h3>
@@ -214,7 +238,7 @@
         </div>
     }
 
-    <!-- DETALLE DE MATRIZ -->
+    <!-- ══ DETALLE DE MATRIZ ══ -->
     @if (MatrizActual != null && !MostrarFormulario && !MostrarHeatmap)
     {
         @if (PeriodoSel == null)
@@ -223,11 +247,10 @@
                 <i class="fas fa-calendar-times fa-lg mr-3 text-warning"></i>
                 <div>
                     <strong>Sin periodo seleccionado.</strong>
-                    Estás viendo la vista previa de la carga masiva (solo lectura).
+                    Vista previa de la carga masiva (solo lectura).
                     <a href="/periodo-riesgo" class="alert-link ml-2">
                         <i class="fas fa-plus-circle mr-1"></i>Abrir nuevo periodo
                     </a>
-                    para comenzar a trabajar con estos riesgos.
                 </div>
             </div>
         }
@@ -236,7 +259,7 @@
             <div class="alert alert-secondary d-flex align-items-center mb-3">
                 <i class="fas fa-lock fa-lg mr-3 text-secondary"></i>
                 <div>
-                    <strong>Periodo cerrado.</strong> Los datos de este periodo son de solo lectura.
+                    <strong>Periodo cerrado.</strong> Solo lectura.
                     Para editar, selecciona el periodo activo.
                 </div>
             </div>
@@ -247,9 +270,20 @@
                  style="background:#0062B8;border-bottom:2px solid #FFDD00;">
                 <h5 class="text-white mb-0">
                     <i class="fas fa-heading mr-2"></i>@MatrizActual.Nombre
-                    <small class="ml-2" style="font-size:.75rem;opacity:.8;">
-                        Periodo: @(PeriodoSel?.NombrePeriodo ?? "—")
-                    </small>
+                    @if (PeriodoSel != null)
+                    {
+                        <small class="ml-2" style="font-size:.75rem;opacity:.85;">
+                            — @PeriodoSel.NombrePeriodo
+                            <span class="version-chip ml-1">P-@(PeriodoSel.NumeroPeriodo) V@(PeriodoSel.Version)</span>
+                            <span class="@TipoChipClass(PeriodoSel.TipoPeriodo) ml-1" style="font-size:.65rem;padding:1px 7px;">
+                                @PeriodoSel.TipoPeriodo
+                            </span>
+                        </small>
+                    }
+                    else
+                    {
+                        <small class="ml-2" style="font-size:.75rem;opacity:.7;">— Vista carga base</small>
+                    }
                 </h5>
                 <button class="btn btn-secondary btn-sm" @onclick="VolverALista">
                     <i class="fas fa-arrow-left mr-1"></i> Volver al Mapa
@@ -440,6 +474,7 @@
         </div>
     }
 
+    <!-- ══ MAPA DE CALOR ══ -->
     @if (MostrarHeatmap && MatrizActual != null && SnapshotActual != null)
     {
         <div class="row mb-3">
@@ -469,7 +504,7 @@
         </div>
     }
 
-    <!-- FORMULARIO DE EDICIÓN DEL SNAPSHOT -->
+    <!-- ══ FORMULARIO EDICIÓN ══ -->
     @if (MostrarFormulario && PeriodoSel?.Estado == "Activo")
     {
         <div class="card card-outline" style="border-top:3px solid #0062B8;">
@@ -480,6 +515,10 @@
                     @if (MatrizActual != null)
                     {
                         <small class="ml-2 text-muted">— @MatrizActual.CodigoProceso @MatrizActual.NombreProceso</small>
+                    }
+                    @if (PeriodoSel != null)
+                    {
+                        <span class="version-chip ml-2">P-@(PeriodoSel.NumeroPeriodo) V@(PeriodoSel.Version)</span>
                     }
                 </h3>
                 <div class="card-tools">
@@ -866,6 +905,52 @@
                 StringComparison.OrdinalIgnoreCase)))
         .OrderBy(p => p.Orden).ThenBy(p => p.Codigo);
 
+    // ── Periodos únicos por nombre (para el primer selector) ────────────
+    // Muestra cada nombre de periodo una sola vez (el más reciente)
+    List<MPeriodo> PeriodosUnicos => Periodos
+        .GroupBy(p => p.NombrePeriodo)
+        .Select(g => g.OrderByDescending(x => x.NumeroPeriodo).First())
+        .OrderByDescending(p => p.AnioRef)
+        .ThenByDescending(p => p.NumeroPeriodo)
+        .ToList();
+
+    // ── Versiones disponibles del periodo seleccionado ──────────────────
+    // Muestra todas las versiones (V1, V2…) del mismo nombre de periodo
+    List<MPeriodo> VersionesDelPeriodo => PeriodoSel == null
+        ? new()
+        : Periodos
+            .Where(p => p.NombrePeriodo == PeriodoSel.NombrePeriodo)
+            .OrderBy(p => p.Version)
+            .ToList();
+
+    // ── Cambio de versión ───────────────────────────────────────────────
+    async Task OnVersionChange(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var pid) || pid == 0) return;
+        MatrizActual      = null;
+        SnapshotActual    = null;
+        MostrarFormulario = false;
+        MostrarHeatmap    = false;
+        PeriodoSelId      = pid;
+        PeriodoSel        = Periodos.FirstOrDefault(p => p.Id == pid);
+        ConteoSnap        = await SnapSvc.GetConteoSnapshotAsync(pid);
+    }
+
+    // ── Helpers de estilo para TipoPeriodo ──────────────────────────────
+    string TipoChipClass(string tipo) => tipo switch
+    {
+        "Validación" => "tipo-chip-validacion",
+        "Evidencia"  => "tipo-chip-evidencia",
+        _            => "tipo-chip-apertura"
+    };
+
+    string TipoIcono(string tipo) => tipo switch
+    {
+        "Validación" => "fa-check-double",
+        "Evidencia"  => "fa-file-signature",
+        _            => "fa-unlock"
+    };
+
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthState.GetAuthenticationStateAsync();
@@ -878,7 +963,7 @@
         Periodos = await SnapSvc.GetPeriodosOrdenadosAsync();
         await CargarMaestros();
 
-        var activo = Periodos.FirstOrDefault(p => p.Estado == "Activo");
+        var activo = Periodos.FirstOrDefault(p => p.Estado == "Activo" && p.TipoPeriodo == "Apertura");
         if (activo != null)
         {
             PeriodoSel   = activo;
@@ -887,7 +972,6 @@
         }
         else
         {
-            // Sin periodo activo → mostrar conteo desde tabla base
             ConteoSnap = await SnapSvc.GetConteoBaseAsync();
         }
     }
@@ -910,14 +994,31 @@
         {
             PeriodoSel   = null;
             PeriodoSelId = 0;
-            // Sin periodo → conteo desde tabla base
             ConteoSnap   = await SnapSvc.GetConteoBaseAsync();
             return;
         }
 
-        PeriodoSelId = pid;
-        PeriodoSel   = Periodos.FirstOrDefault(p => p.Id == pid);
-        ConteoSnap   = await SnapSvc.GetConteoSnapshotAsync(pid);
+        // Al cambiar de periodo, seleccionar la versión más reciente activa (o la más alta)
+        var seleccionado = Periodos.FirstOrDefault(p => p.Id == pid);
+        if (seleccionado != null)
+        {
+            // Buscar la versión activa del mismo nombre, o la más alta
+            var mejor = Periodos
+                .Where(p => p.NombrePeriodo == seleccionado.NombrePeriodo)
+                .OrderByDescending(p => p.Estado == "Activo" ? 1 : 0)
+                .ThenByDescending(p => p.Version)
+                .FirstOrDefault() ?? seleccionado;
+
+            PeriodoSelId = mejor.Id;
+            PeriodoSel   = mejor;
+        }
+        else
+        {
+            PeriodoSelId = pid;
+            PeriodoSel   = seleccionado;
+        }
+
+        ConteoSnap = await SnapSvc.GetConteoSnapshotAsync(PeriodoSelId);
     }
 
     bool TieneMacro(string p) => Matrices.Any(m =>
@@ -967,7 +1068,6 @@
         }
         else
         {
-            // Sin periodo → cargar riesgos base como snapshot solo lectura
             var riesgosBase = await RiesgoSvc.GetRiesgosPorMatrizAsync(m.Id);
             SnapshotActual = new SnapshotMatriz
             {

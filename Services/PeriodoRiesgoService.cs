@@ -1,6 +1,5 @@
 // ============================================================
-// Archivo: Services/PeriodoRiesgoService.cs  — VERSIÓN COMPLETA
-// Integra la inicialización y cierre de snapshots
+// Archivo: Services/PeriodoRiesgoService.cs
 // ============================================================
 using Microsoft.EntityFrameworkCore;
 using RiesgosElor.Data;
@@ -21,13 +20,14 @@ public class PeriodoRiesgoService
         _snapSvc = snapSvc;
     }
 
-    // ── Consultas ─────────────────────────────────────────────────────
+    // ── Consultas ─────────────────────────────────────────────────────────
     public async Task<List<PeriodoRiesgo>> GetTodosAsync()
     {
         using var db = _dbFactory.CreateDbContext();
         return await db.PeriodosRiesgo
             .Include(p => p.Bitacora)
-            .OrderByDescending(p => p.FechaInicio)
+            .OrderByDescending(p => p.AnioRef)
+            .ThenByDescending(p => p.NumeroPeriodo)
             .ToListAsync();
     }
 
@@ -50,21 +50,72 @@ public class PeriodoRiesgoService
             .ToListAsync();
     }
 
-    // ── Crear periodo ─────────────────────────────────────────────────
+    // ── Calcular próximo NumeroPeriodo y Version ───────────────────────────
+    // Usado solo para previsualizar en el modal de apertura
+    public async Task<(int numero, int version)> CalcularNumeroVersionAsync(
+        int anio, string nombreBase, bool tuvoModificaciones)
+    {
+        using var db = _dbFactory.CreateDbContext();
+
+        // Último periodo de Apertura cerrado en ese año
+        var ultimoCerrado = await db.PeriodosRiesgo
+            .Where(p => p.AnioRef == anio
+                     && p.TipoPeriodo == "Apertura"
+                     && p.Estado == "Cerrado")
+            .OrderByDescending(p => p.NumeroPeriodo)
+            .ThenByDescending(p => p.Id)
+            .FirstOrDefaultAsync();
+
+        // Si no hay ningún cerrado, buscar entre activos
+        if (ultimoCerrado == null)
+        {
+            var ultimoActivo = await db.PeriodosRiesgo
+                .Where(p => p.AnioRef == anio
+                         && p.TipoPeriodo == "Apertura"
+                         && p.Estado != "Eliminado")
+                .OrderByDescending(p => p.NumeroPeriodo)
+                .FirstOrDefaultAsync();
+
+            int num = (ultimoActivo?.NumeroPeriodo ?? 0) + 1;
+            int ver = 1;
+            return (num, ver);
+        }
+
+        int numero = ultimoCerrado.NumeroPeriodo + 1;
+        // La versión sube si el último periodo cerrado tuvo modificaciones
+        int version = ultimoCerrado.TuvoModificaciones
+            ? ultimoCerrado.Version + 1
+            : ultimoCerrado.Version;
+
+        return (numero, version);
+    }
+
+    // ── Crear periodo ─────────────────────────────────────────────────────
     public async Task CrearAsync(PeriodoRiesgo periodo, string usuario)
     {
         using var db = _dbFactory.CreateDbContext();
 
-        // Solo puede haber un periodo activo
-        if (await db.PeriodosRiesgo.AnyAsync(p => p.Estado == "Activo"))
-            throw new InvalidOperationException("Ya existe un periodo activo. Ciérralo antes de abrir uno nuevo.");
+        // Solo puede haber un periodo activo por TipoPeriodo
+        var activoMismoTipo = await db.PeriodosRiesgo
+            .AnyAsync(p => p.Estado == "Activo" && p.TipoPeriodo == periodo.TipoPeriodo);
+        if (activoMismoTipo)
+            throw new InvalidOperationException(
+                $"Ya existe un periodo de {periodo.TipoPeriodo} activo. Ciérralo antes de abrir uno nuevo.");
 
         periodo.Estado = "Activo";
         periodo.CreadoPor = usuario;
+        periodo.AnioRef = periodo.FechaInicio.Year;
+        periodo.TuvoModificaciones = false; // siempre arranca en false
+
+        // NumeroPeriodo y Version se calculan en InicializarSnapshotPeriodoAsync
+        // Aquí solo asignamos valores provisionales que serán sobreescritos
+        periodo.NumeroPeriodo = 0;
+        periodo.Version = 1;
+
         db.PeriodosRiesgo.Add(periodo);
         await db.SaveChangesAsync();
 
-        // Registrar en bitácora
+        // Bitácora
         db.BitacoraPeriodoRiesgo.Add(new BitacoraPeriodoRiesgo
         {
             PeriodoId = periodo.Id,
@@ -73,16 +124,35 @@ public class PeriodoRiesgoService
             ValorAnterior = "",
             ValorNuevo = "Activo",
             UsuarioNombre = usuario,
-            Motivo = $"Apertura del periodo {periodo.NombrePeriodo}",
+            Motivo = $"Apertura del periodo {periodo.NombrePeriodo} — {periodo.TipoPeriodo}",
             FechaCambio = DateTime.Now
         });
         await db.SaveChangesAsync();
 
-        // ── CREAR SNAPSHOTS EN BLANCO ─────────────────────────────────
-        await _snapSvc.InicializarSnapshotPeriodoAsync(periodo.Id, usuario);
+        // InicializarSnapshotPeriodoAsync calcula y graba NumeroPeriodo y Version
+        if (periodo.TipoPeriodo == "Apertura")
+            await _snapSvc.InicializarSnapshotPeriodoAsync(periodo.Id, usuario);
+
+        // Actualizar bitácora con la versión real
+        var periodoActualizado = await db.PeriodosRiesgo.FindAsync(periodo.Id);
+        if (periodoActualizado != null)
+        {
+            var ultimaBitacora = await db.BitacoraPeriodoRiesgo
+                .Where(b => b.PeriodoId == periodo.Id && b.Accion == "Creado")
+                .OrderByDescending(b => b.FechaCambio)
+                .FirstOrDefaultAsync();
+            if (ultimaBitacora != null)
+            {
+                ultimaBitacora.Motivo =
+                    $"Apertura del periodo {periodoActualizado.NombrePeriodo} " +
+                    $"— {periodoActualizado.TipoPeriodo} " +
+                    $"— P-{periodoActualizado.NumeroPeriodo} V{periodoActualizado.Version}";
+                await db.SaveChangesAsync();
+            }
+        }
     }
 
-    // ── Editar periodo ────────────────────────────────────────────────
+    // ── Editar periodo ────────────────────────────────────────────────────
     public async Task EditarAsync(PeriodoRiesgo datos, string usuario, string motivo)
     {
         using var db = _dbFactory.CreateDbContext();
@@ -129,7 +199,7 @@ public class PeriodoRiesgoService
         await db.SaveChangesAsync();
     }
 
-    // ── Cerrar periodo ────────────────────────────────────────────────
+    // ── Cerrar periodo ────────────────────────────────────────────────────
     public async Task CerrarAsync(int periodoId, string usuario, string motivo)
     {
         using var db = _dbFactory.CreateDbContext();
@@ -148,23 +218,25 @@ public class PeriodoRiesgoService
             ValorAnterior = "Activo",
             ValorNuevo = "Cerrado",
             UsuarioNombre = usuario,
-            Motivo = motivo,
+            Motivo = $"{motivo} | TuvoModificaciones={p.TuvoModificaciones} | V{p.Version}",
             FechaCambio = DateTime.Now
         });
 
         await db.SaveChangesAsync();
 
-        // ── CONGELAR SNAPSHOTS ────────────────────────────────────────
-        await _snapSvc.CerrarSnapshotsPeriodoAsync(periodoId);
+        // Congelar snapshots solo si es periodo de Apertura
+        if (p.TipoPeriodo == "Apertura")
+            await _snapSvc.CerrarSnapshotsPeriodoAsync(periodoId);
     }
 
-    // ── Eliminar (soft delete) ─────────────────────────────────────────
+    // ── Eliminar (soft delete) ─────────────────────────────────────────────
     public async Task EliminarAsync(int periodoId, string usuario, string motivo)
     {
         using var db = _dbFactory.CreateDbContext();
         var p = await db.PeriodosRiesgo.FindAsync(periodoId)
                 ?? throw new Exception("Periodo no encontrado.");
 
+        var estadoAnterior = p.Estado;
         p.Estado = "Eliminado";
 
         db.BitacoraPeriodoRiesgo.Add(new BitacoraPeriodoRiesgo
@@ -172,7 +244,7 @@ public class PeriodoRiesgoService
             PeriodoId = p.Id,
             Accion = "Eliminado",
             CampoModificado = "Estado",
-            ValorAnterior = p.Estado,
+            ValorAnterior = estadoAnterior,
             ValorNuevo = "Eliminado",
             UsuarioNombre = usuario,
             Motivo = motivo,
