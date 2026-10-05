@@ -76,7 +76,6 @@
         }
     </div>
 
-    @* Banner informativo sin periodo *@
     @if (PeriodoSel == null)
     {
         <div class="alert alert-warning d-flex align-items-center mb-3">
@@ -330,14 +329,25 @@
         {"S6.1","S6. Gestión Documental"},{"S6.2","S6. Gestión Documental"}
     };
 
+    // ── Valida que el CodigoProceso sea un código real ELORSA ────────────
+    // Formato válido: letra(E/O/S) + dígito(s) + punto + dígito(s)
+    // Ej: E1.1, O2.2, S3.1
+    // Inválidos: "(X)", "(X)(X)", vacío, solo letras, solo símbolos
+    static bool EsCodigoProcesoValido(string cod)
+    {
+        if (string.IsNullOrWhiteSpace(cod)) return false;
+        var c = cod.Trim();
+        // Debe empezar con E, O o S (mayúscula o minúscula) seguido de dígito y punto
+        return System.Text.RegularExpressions.Regex.IsMatch(c,
+            @"^[EeOoSs]\d+\.\d+");
+    }
+
     protected override async Task OnInitializedAsync()
     {
         if (!string.IsNullOrWhiteSpace(Nivel))
             NivelFiltro = Nivel;
 
         Periodos = await SnapSvc.GetPeriodosOrdenadosAsync();
-
-        // Cargar resumen de carga base automáticamente
         await CargarResumenBase();
     }
 
@@ -347,7 +357,7 @@
             NivelFiltro = Nivel;
     }
 
-    // ── Carga resumen desde tabla Riesgos base ──────────────────────────
+    // ── Carga resumen desde tabla Riesgos base ───────────────────────────
     async Task CargarResumenBase()
     {
         var riesgos = await RiesgoSvc.GetTodosAsync();
@@ -355,7 +365,8 @@
 
         var porProceso = riesgos
             .GroupBy(r => r.CodigoProceso?.Trim() ?? "")
-            .Where(g => !string.IsNullOrWhiteSpace(g.Key));
+            // ── FILTRO: solo códigos de proceso válidos ──────────────────
+            .Where(g => EsCodigoProcesoValido(g.Key));
 
         foreach (var grp in porProceso.OrderBy(g => g.Key))
         {
@@ -402,7 +413,6 @@
         {
             PeriodoSel   = null;
             PeriodoSelId = 0;
-            // Volver a mostrar resumen de carga base
             await CargarResumenBase();
             return;
         }
@@ -433,7 +443,9 @@
         {
             var cod    = sm.MatrizGrupo?.CodigoProceso ?? "";
             var nombre = sm.MatrizGrupo?.NombreProceso ?? "";
-            if (string.IsNullOrWhiteSpace(cod)) continue;
+
+            // ── FILTRO: solo códigos de proceso válidos ──────────────────
+            if (!EsCodigoProcesoValido(cod)) continue;
 
             if (!riesgosPorProceso.ContainsKey(cod))
                 riesgosPorProceso[cod] = (nombre, new List<SnapshotRiesgo>());

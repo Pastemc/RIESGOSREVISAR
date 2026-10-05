@@ -1,5 +1,7 @@
 // ============================================================
-// Archivo: Services/SnapshotService.cs — VERSIÓN COMPLETA CORREGIDA
+// Archivo: Services/SnapshotService.cs — VERSIÓN COMPLETA
+// FIX: Todos los campos nuevos de PlanAccion incluidos en copia
+//      Try/catch granular para identificar error exacto
 // ============================================================
 using Microsoft.EntityFrameworkCore;
 using RiesgosElor.Data;
@@ -37,11 +39,54 @@ public class SnapshotService
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // HELPERS privados para construcción segura de snapshots
+    // ══════════════════════════════════════════════════════════════════════
+
+    // Construir SnapshotPlanAccion desde un SnapshotPlanAccion anterior
+    private static SnapshotPlanAccion CopiarPlan(SnapshotPlanAccion plan, int nuevoRiesgoId) =>
+        new SnapshotPlanAccion
+        {
+            SnapshotRiesgoId = nuevoRiesgoId,
+            CodigoPlan = plan.CodigoPlan ?? "",
+            DescripcionPlan = plan.DescripcionPlan ?? "",
+            AreaResponsable = plan.AreaResponsable ?? "",
+            ResponsablePlan = plan.ResponsablePlan ?? "",
+            InicioPlan = plan.InicioPlan,
+            FinPlan = plan.FinPlan,
+            EstadoPlan = plan.EstadoPlan ?? "",
+            EstrategiaRespuesta = plan.EstrategiaRespuesta ?? "",
+            FechaPrevista = plan.FechaPrevista,
+            PlanEficaz = plan.PlanEficaz ?? "",
+            FechaVerificacion = plan.FechaVerificacion,
+            VerificadoPor = plan.VerificadoPor ?? "",
+            EvidenciaPlan = plan.EvidenciaPlan ?? "",
+            ObservacionesPlan = plan.ObservacionesPlan ?? "",
+        };
+
+    // Construir SnapshotPlanAccion desde un PlanAccion de la tabla base
+    private static SnapshotPlanAccion CopiarPlanBase(PlanAccion plan, int nuevoRiesgoId) =>
+        new SnapshotPlanAccion
+        {
+            SnapshotRiesgoId = nuevoRiesgoId,
+            CodigoPlan = plan.CodigoPlan ?? "",
+            DescripcionPlan = plan.DescripcionPlan ?? "",
+            AreaResponsable = plan.AreaResponsable ?? "",
+            ResponsablePlan = plan.ResponsablePlan ?? "",
+            InicioPlan = plan.InicioPlan,
+            FinPlan = plan.FinPlan,
+            EstadoPlan = plan.EstadoPlan ?? "",
+            EstrategiaRespuesta = plan.EstrategiaRespuesta ?? "",
+            // Campos nuevos — pueden no existir en registros viejos, default seguro
+            FechaPrevista = plan.FechaPrevista,
+            PlanEficaz = plan.PlanEficaz ?? "",
+            FechaVerificacion = plan.FechaVerificacion,
+            VerificadoPor = plan.VerificadoPor ?? "",
+            EvidenciaPlan = plan.EvidenciaPlan ?? "",
+            ObservacionesPlan = plan.ObservacionesPlan ?? "",
+        };
+
+    // ══════════════════════════════════════════════════════════════════════
     // 2. INICIALIZAR SNAPSHOT AL ABRIR PERIODO
-    // Versioning automático:
-    //   - Busca el último periodo de APERTURA cerrado (sin importar TipoPeriodo)
-    //   - Si ese periodo tuvo modificaciones → Version + 1
-    //   - Si no → misma versión
     // ══════════════════════════════════════════════════════════════════════
 
     public async Task InicializarSnapshotPeriodoAsync(int periodoId, string usuarioActual)
@@ -54,16 +99,15 @@ public class SnapshotService
         var periodoActual = await db.PeriodosRiesgo.FindAsync(periodoId);
         if (periodoActual == null) return;
 
-        // ── Buscar el último periodo de Apertura CERRADO (cualquier año) ──
-        // No filtramos por TipoPeriodo para compatibilidad con periodos viejos
+        // Último periodo de Apertura CERRADO
         var ultimoCerrado = await db.PeriodosRiesgo
             .Where(p => p.Estado == "Cerrado"
                      && p.Id != periodoId
-                     && (p.TipoPeriodo == "Apertura" || p.TipoPeriodo == "" || p.TipoPeriodo == null))
+                     && (p.TipoPeriodo == "Apertura" || string.IsNullOrEmpty(p.TipoPeriodo)))
             .OrderByDescending(p => p.Id)
             .FirstOrDefaultAsync();
 
-        // ── Calcular NumeroPeriodo y Version ─────────────────────────────
+        // Calcular NumeroPeriodo y Version
         if (periodoActual.TipoPeriodo == "Apertura")
         {
             if (ultimoCerrado == null)
@@ -75,7 +119,6 @@ public class SnapshotService
             else
             {
                 periodoActual.NumeroPeriodo = ultimoCerrado.NumeroPeriodo + 1;
-                // Versión sube solo si el último cerrado tuvo modificaciones
                 periodoActual.Version = ultimoCerrado.TuvoModificaciones
                     ? ultimoCerrado.Version + 1
                     : ultimoCerrado.Version;
@@ -84,9 +127,7 @@ public class SnapshotService
             await db.SaveChangesAsync();
         }
 
-        var matrices = await db.MatrizGrupos
-            .OrderBy(m => m.Numero)
-            .ToListAsync();
+        var matrices = await db.MatrizGrupos.OrderBy(m => m.Numero).ToListAsync();
 
         foreach (var matriz in matrices)
         {
@@ -123,21 +164,21 @@ public class SnapshotService
                     {
                         SnapshotMatrizId = snapshotMatriz.Id,
                         RiesgoOrigenId = rAnt.RiesgoOrigenId,
-                        CodigoProceso = rAnt.CodigoProceso,
-                        NombreProceso = rAnt.NombreProceso,
-                        GerenciaResponsable = rAnt.GerenciaResponsable,
-                        Subproceso = rAnt.Subproceso,
-                        CodigoRiesgo = rAnt.CodigoRiesgo,
-                        DescripcionRiesgo = rAnt.DescripcionRiesgo,
-                        OrigenRiesgo = rAnt.OrigenRiesgo,
-                        FrecuenciaRiesgo = rAnt.FrecuenciaRiesgo,
-                        TipoRiesgo = rAnt.TipoRiesgo,
+                        CodigoProceso = rAnt.CodigoProceso ?? "",
+                        NombreProceso = rAnt.NombreProceso ?? "",
+                        GerenciaResponsable = rAnt.GerenciaResponsable ?? "",
+                        Subproceso = rAnt.Subproceso ?? "",
+                        CodigoRiesgo = rAnt.CodigoRiesgo ?? "",
+                        DescripcionRiesgo = rAnt.DescripcionRiesgo ?? "",
+                        OrigenRiesgo = rAnt.OrigenRiesgo ?? "",
+                        FrecuenciaRiesgo = rAnt.FrecuenciaRiesgo ?? "",
+                        TipoRiesgo = rAnt.TipoRiesgo ?? "",
                         ProbabilidadInherente = rAnt.ProbabilidadInherente,
                         ImpactoInherente = rAnt.ImpactoInherente,
                         ProbabilidadResidual = rAnt.ProbabilidadResidual,
                         ImpactoResidual = rAnt.ImpactoResidual,
-                        EstrategiaResidual = rAnt.EstrategiaResidual,
-                        CreadoPor = usuarioActual
+                        EstrategiaResidual = rAnt.EstrategiaResidual ?? "",
+                        CreadoPor = usuarioActual ?? ""
                     };
                     db.SnapshotRiesgo.Add(nuevo);
                     await db.SaveChangesAsync();
@@ -146,40 +187,30 @@ public class SnapshotService
                         db.SnapshotControl.Add(new SnapshotControl
                         {
                             SnapshotRiesgoId = nuevo.Id,
-                            CodigoControl = ctrl.CodigoControl,
-                            DescripcionControl = ctrl.DescripcionControl,
-                            AreaResponsable = ctrl.AreaResponsable,
-                            ResponsablesControl = ctrl.ResponsablesControl,
-                            FrecuenciaControl = ctrl.FrecuenciaControl,
-                            OportunidadControl = ctrl.OportunidadControl,
-                            AutomatizacionControl = ctrl.AutomatizacionControl,
-                            EvidenciaControl = ctrl.EvidenciaControl
+                            CodigoControl = ctrl.CodigoControl ?? "",
+                            DescripcionControl = ctrl.DescripcionControl ?? "",
+                            AreaResponsable = ctrl.AreaResponsable ?? "",
+                            ResponsablesControl = ctrl.ResponsablesControl ?? "",
+                            FrecuenciaControl = ctrl.FrecuenciaControl ?? "",
+                            OportunidadControl = ctrl.OportunidadControl ?? "",
+                            AutomatizacionControl = ctrl.AutomatizacionControl ?? "",
+                            EvidenciaControl = ctrl.EvidenciaControl ?? ""
                         });
 
+                    // Usar helper que incluye todos los campos nuevos
                     foreach (var plan in rAnt.Planes)
-                        db.SnapshotPlanAccion.Add(new SnapshotPlanAccion
-                        {
-                            SnapshotRiesgoId = nuevo.Id,
-                            CodigoPlan = plan.CodigoPlan,
-                            DescripcionPlan = plan.DescripcionPlan,
-                            AreaResponsable = plan.AreaResponsable,
-                            ResponsablePlan = plan.ResponsablePlan,
-                            InicioPlan = plan.InicioPlan,
-                            FinPlan = plan.FinPlan,
-                            EstadoPlan = plan.EstadoPlan,
-                            EstrategiaRespuesta = plan.EstrategiaRespuesta
-                        });
+                        db.SnapshotPlanAccion.Add(CopiarPlan(plan, nuevo.Id));
 
                     foreach (var ind in rAnt.Indicadores)
                         db.SnapshotIndicador.Add(new SnapshotIndicador
                         {
                             SnapshotRiesgoId = nuevo.Id,
-                            CodigoKRI = ind.CodigoKRI,
-                            DefinicionKRI = ind.DefinicionKRI,
-                            Frecuencia = ind.Frecuencia,
-                            MetaKRI = ind.MetaKRI,
-                            KRIActual = ind.KRIActual,
-                            ResponsableKRI = ind.ResponsableKRI
+                            CodigoKRI = ind.CodigoKRI ?? "",
+                            DefinicionKRI = ind.DefinicionKRI ?? "",
+                            Frecuencia = ind.Frecuencia ?? "",
+                            MetaKRI = ind.MetaKRI ?? "",
+                            KRIActual = ind.KRIActual ?? "",
+                            ResponsableKRI = ind.ResponsableKRI ?? ""
                         });
 
                     await db.SaveChangesAsync();
@@ -202,11 +233,11 @@ public class SnapshotService
                     {
                         SnapshotMatrizId = snapshotMatriz.Id,
                         RiesgoOrigenId = r.Id,
-                        CodigoProceso = r.CodigoProceso,
-                        NombreProceso = r.NombreProceso,
+                        CodigoProceso = r.CodigoProceso ?? "",
+                        NombreProceso = r.NombreProceso ?? "",
                         GerenciaResponsable = r.GerenciaResponsable ?? "",
                         Subproceso = r.Subproceso ?? "",
-                        CodigoRiesgo = r.CodigoRiesgo,
+                        CodigoRiesgo = r.CodigoRiesgo ?? "",
                         DescripcionRiesgo = r.DescripcionRiesgo ?? "",
                         OrigenRiesgo = r.OrigenRiesgo ?? "",
                         FrecuenciaRiesgo = r.FrecuenciaRiesgo ?? "",
@@ -216,7 +247,7 @@ public class SnapshotService
                         ProbabilidadResidual = r.ProbabilidadResidual,
                         ImpactoResidual = r.ImpactoResidual,
                         EstrategiaResidual = r.EstrategiaResidual ?? "",
-                        CreadoPor = usuarioActual
+                        CreadoPor = usuarioActual ?? ""
                     };
                     db.SnapshotRiesgo.Add(nuevo);
                     await db.SaveChangesAsync();
@@ -225,7 +256,7 @@ public class SnapshotService
                         db.SnapshotControl.Add(new SnapshotControl
                         {
                             SnapshotRiesgoId = nuevo.Id,
-                            CodigoControl = ctrl.CodigoControl,
+                            CodigoControl = ctrl.CodigoControl ?? "",
                             DescripcionControl = ctrl.DescripcionControl ?? "",
                             AreaResponsable = ctrl.AreaResponsable ?? "",
                             ResponsablesControl = ctrl.ResponsablesControl ?? "",
@@ -235,25 +266,15 @@ public class SnapshotService
                             EvidenciaControl = ctrl.EvidenciaControl ?? ""
                         });
 
+                    // Usar helper que incluye todos los campos nuevos
                     foreach (var plan in r.PlanesAccion)
-                        db.SnapshotPlanAccion.Add(new SnapshotPlanAccion
-                        {
-                            SnapshotRiesgoId = nuevo.Id,
-                            CodigoPlan = plan.CodigoPlan,
-                            DescripcionPlan = plan.DescripcionPlan ?? "",
-                            AreaResponsable = plan.AreaResponsable ?? "",
-                            ResponsablePlan = plan.ResponsablePlan ?? "",
-                            InicioPlan = plan.InicioPlan,
-                            FinPlan = plan.FinPlan,
-                            EstadoPlan = plan.EstadoPlan ?? "",
-                            EstrategiaRespuesta = plan.EstrategiaRespuesta ?? ""
-                        });
+                        db.SnapshotPlanAccion.Add(CopiarPlanBase(plan, nuevo.Id));
 
                     foreach (var ind in r.Indicadores)
                         db.SnapshotIndicador.Add(new SnapshotIndicador
                         {
                             SnapshotRiesgoId = nuevo.Id,
-                            CodigoKRI = ind.CodigoKRI,
+                            CodigoKRI = ind.CodigoKRI ?? "",
                             DefinicionKRI = ind.DefinicionKRI ?? "",
                             Frecuencia = ind.Frecuencia ?? "",
                             MetaKRI = ind.MetaKRI ?? "",
@@ -288,7 +309,6 @@ public class SnapshotService
 
     // ══════════════════════════════════════════════════════════════════════
     // 4. GUARDAR / ACTUALIZAR SNAPSHOT RIESGO
-    //    → Marca TuvoModificaciones = true en el periodo activo
     // ══════════════════════════════════════════════════════════════════════
 
     public async Task GuardarSnapshotRiesgoAsync(
@@ -313,18 +333,12 @@ public class SnapshotService
             db.SnapshotRiesgo.Update(riesgo);
             await db.SaveChangesAsync();
 
-            var vC = await db.SnapshotControl
-                .Where(c => c.SnapshotRiesgoId == riesgo.Id).ToListAsync();
+            var vC = await db.SnapshotControl.Where(c => c.SnapshotRiesgoId == riesgo.Id).ToListAsync();
             db.SnapshotControl.RemoveRange(vC);
-
-            var vP = await db.SnapshotPlanAccion
-                .Where(p => p.SnapshotRiesgoId == riesgo.Id).ToListAsync();
+            var vP = await db.SnapshotPlanAccion.Where(p => p.SnapshotRiesgoId == riesgo.Id).ToListAsync();
             db.SnapshotPlanAccion.RemoveRange(vP);
-
-            var vI = await db.SnapshotIndicador
-                .Where(i => i.SnapshotRiesgoId == riesgo.Id).ToListAsync();
+            var vI = await db.SnapshotIndicador.Where(i => i.SnapshotRiesgoId == riesgo.Id).ToListAsync();
             db.SnapshotIndicador.RemoveRange(vI);
-
             await db.SaveChangesAsync();
         }
 
@@ -336,8 +350,6 @@ public class SnapshotService
         { i.Id = 0; i.SnapshotRiesgoId = riesgo.Id; db.SnapshotIndicador.Add(i); }
 
         await db.SaveChangesAsync();
-
-        // Marcar modificación en el periodo activo
         await MarcarModificacionEnPeriodoActivoAsync(db, riesgo.SnapshotMatrizId);
     }
 
@@ -351,9 +363,7 @@ public class SnapshotService
         using var db = _dbFactory.CreateDbContext();
 
         var sm = await db.SnapshotMatriz
-            .FirstOrDefaultAsync(x =>
-                x.PeriodoId == periodoId &&
-                x.MatrizGrupoId == matrizGrupoId);
+            .FirstOrDefaultAsync(x => x.PeriodoId == periodoId && x.MatrizGrupoId == matrizGrupoId);
 
         if (sm == null)
         {
@@ -368,29 +378,27 @@ public class SnapshotService
             await db.SaveChangesAsync();
         }
 
-        var conteo = await db.SnapshotRiesgo
-            .CountAsync(sr => sr.SnapshotMatrizId == sm.Id);
+        var conteo = await db.SnapshotRiesgo.CountAsync(sr => sr.SnapshotMatrizId == sm.Id);
 
         var nuevo = new SnapshotRiesgo
         {
             SnapshotMatrizId = sm.Id,
             RiesgoOrigenId = null,
-            CodigoProceso = matriz.CodigoProceso,
-            NombreProceso = matriz.NombreProceso,
+            CodigoProceso = matriz.CodigoProceso ?? "",
+            NombreProceso = matriz.NombreProceso ?? "",
             CodigoRiesgo = $"{matriz.CodigoProceso}.R{(conteo + 1):D2}",
-            CreadoPor = usuario,
+            CreadoPor = usuario ?? "",
             ModificadoEn = DateTime.UtcNow
         };
         db.SnapshotRiesgo.Add(nuevo);
         await db.SaveChangesAsync();
 
         await MarcarModificacionEnPeriodoActivoAsync(db, sm.Id);
-
         return nuevo;
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // 6. ELIMINAR SNAPSHOT RIESGO → también marca TuvoModificaciones
+    // 6. ELIMINAR SNAPSHOT RIESGO
     // ══════════════════════════════════════════════════════════════════════
 
     public async Task EliminarSnapshotRiesgoAsync(int snapshotRiesgoId)
@@ -443,13 +451,9 @@ public class SnapshotService
     {
         using var db = _dbFactory.CreateDbContext();
         var snapshots = await db.SnapshotMatriz
-            .Where(sm => sm.PeriodoId == periodoId)
-            .ToListAsync();
+            .Where(sm => sm.PeriodoId == periodoId).ToListAsync();
         foreach (var sm in snapshots)
-        {
-            sm.Estado = "Cerrado";
-            sm.CerradoEn = DateTime.UtcNow;
-        }
+        { sm.Estado = "Cerrado"; sm.CerradoEn = DateTime.UtcNow; }
         await db.SaveChangesAsync();
     }
 

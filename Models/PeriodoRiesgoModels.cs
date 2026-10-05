@@ -23,7 +23,11 @@ public class PeriodoRiesgo
     public int Version { get; set; } = 1;            // Sube cuando hay cambios en carga base
     public int NumeroPeriodo { get; set; } = 1;            // Correlativo por año: P-1, P-2, P-3...
     public int AnioRef { get; set; } = DateTime.Now.Year; // Año de referencia del periodo
-    public bool TuvoModificaciones { get; set; } = false;        // Flag que indica si hubo cambios de contenido
+    public bool TuvoModificaciones { get; set; } = false;   // Flag — hubo cambios de contenido
+
+    // Para Validacion/Evidencia: Id del periodo Apertura cerrado que se valida.
+    // Null para periodos de Apertura. El periodo de Validacion lee el snapshot de este Apertura.
+    public int? PeriodoAperturaRefId { get; set; } = null;
 
     // Navegación
     public ICollection<BitacoraPeriodoRiesgo> Bitacora { get; set; }

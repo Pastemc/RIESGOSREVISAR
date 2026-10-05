@@ -4,7 +4,7 @@ using RiesgosElor.Models;
 
 namespace RiesgosElor.Services;
 
-// ── DTO para el resumen (no es modelo EF, solo transporte) ──────────────────
+// ── DTO resumen (no es modelo EF) ───────────────────────────────────────────
 public class RiesgoResumenItem
 {
     public string CodigoProceso { get; set; } = "";
@@ -25,7 +25,7 @@ public class RiesgoService
 
     private AppDbContext Db() => _factory.CreateDbContext();
 
-    // ─── PROCESOS ───────────────────────────────────────────
+    // ─── DICCIONARIO DE PROCESOS ─────────────────────────────────────────
     public static readonly Dictionary<string, string> Procesos = new()
     {
         {"E1.1","Administración del Sistema Integrado de Gestión"},
@@ -109,7 +109,7 @@ public class RiesgoService
         "Cada Área Usuaria"
     };
 
-    // ─── CÓDIGO ──────────────────────────────────────────────
+    // ─── CÓDIGO ──────────────────────────────────────────────────────────
     public async Task<string> GenerarCodigoRiesgoAsync(string codigoProceso)
     {
         using var db = Db();
@@ -122,13 +122,11 @@ public class RiesgoService
         using var db = Db();
         var riesgoIds = await db.Riesgos
             .Where(r => r.CodigoProceso == codigoProceso && r.Id != riesgoIdActual)
-            .Select(r => r.Id)
-            .ToListAsync();
-        return await db.RiesgosControl
-            .CountAsync(c => riesgoIds.Contains(c.RiesgoId));
+            .Select(r => r.Id).ToListAsync();
+        return await db.RiesgosControl.CountAsync(c => riesgoIds.Contains(c.RiesgoId));
     }
 
-    // ─── RIESGOS ─────────────────────────────────────────────
+    // ─── RIESGOS ─────────────────────────────────────────────────────────
     public async Task<List<Riesgo>> GetTodosAsync()
     {
         using var db = Db();
@@ -153,10 +151,8 @@ public class RiesgoService
     public async Task<int> GuardarRiesgoAsync(Riesgo riesgo)
     {
         using var db = Db();
-        if (riesgo.Id == 0)
-            db.Riesgos.Add(riesgo);
-        else
-            db.Riesgos.Update(riesgo);
+        if (riesgo.Id == 0) db.Riesgos.Add(riesgo);
+        else db.Riesgos.Update(riesgo);
         await db.SaveChangesAsync();
         return riesgo.Id;
     }
@@ -168,7 +164,7 @@ public class RiesgoService
         if (r != null) { db.Riesgos.Remove(r); await db.SaveChangesAsync(); }
     }
 
-    // ─── CONTROLES ───────────────────────────────────────────
+    // ─── CONTROLES ───────────────────────────────────────────────────────
     public async Task GuardarControlAsync(RiesgoControl ctrl)
     {
         using var db = Db();
@@ -184,7 +180,7 @@ public class RiesgoService
         if (c != null) { db.RiesgosControl.Remove(c); await db.SaveChangesAsync(); }
     }
 
-    // ─── PLANES ──────────────────────────────────────────────
+    // ─── PLANES ──────────────────────────────────────────────────────────
     public async Task GuardarPlanAsync(PlanAccion plan)
     {
         using var db = Db();
@@ -200,7 +196,7 @@ public class RiesgoService
         if (p != null) { db.PlanesAccion.Remove(p); await db.SaveChangesAsync(); }
     }
 
-    // ─── INDICADORES ─────────────────────────────────────────
+    // ─── INDICADORES ─────────────────────────────────────────────────────
     public async Task GuardarIndicadorAsync(Indicador ind)
     {
         using var db = Db();
@@ -216,7 +212,7 @@ public class RiesgoService
         if (i != null) { db.Indicadores.Remove(i); await db.SaveChangesAsync(); }
     }
 
-    // ─── MATRICES ────────────────────────────────────────────
+    // ─── MATRICES ────────────────────────────────────────────────────────
     public async Task<List<MatrizGrupo>> GetMatricesAsync()
     {
         using var db = Db();
@@ -269,15 +265,13 @@ public class RiesgoService
     {
         using var db = Db();
         var maxNumero = await db.MatrizGrupos.AnyAsync()
-            ? await db.MatrizGrupos.MaxAsync(m => m.Numero)
-            : 0;
+            ? await db.MatrizGrupos.MaxAsync(m => m.Numero) : 0;
         var numero = maxNumero + 1;
 
         foreach (var kv in Procesos)
         {
             var existe = await db.MatrizGrupos.AnyAsync(m => m.CodigoProceso == kv.Key);
             if (existe) continue;
-
             db.MatrizGrupos.Add(new MatrizGrupo
             {
                 Numero = numero++,
@@ -395,13 +389,10 @@ END
 ";
             await db.Database.ExecuteSqlRawAsync(sqlScript);
         }
-        catch
-        {
-            // Ignorar en caso de que ya existan o manejado por EF
-        }
+        catch { /* Ignorar si ya existen */ }
     }
 
-    // ─── TABLAS MAESTRAS (GRC / PIRANI) ─────────────────────
+    // ─── SEED MAESTROS ───────────────────────────────────────────────────
     public async Task EnsureSeedMasterDataAsync()
     {
         using var db = Db();
@@ -461,10 +452,8 @@ END
 
         if (!await db.MaestroResponsables.AnyAsync())
         {
-            var areaGpr = await db.MaestroAreas
-                .OrderBy(a => a.Orden)
+            var areaGpr = await db.MaestroAreas.OrderBy(a => a.Orden)
                 .FirstOrDefaultAsync(a => a.Nombre.Contains("Planeamiento"));
-
             db.MaestroResponsables.Add(new MaestroResponsable
             {
                 Nombre = "Responsable de la Gestion Integral de Riesgos",
@@ -480,14 +469,14 @@ END
         {
             var tiposDef = new List<(string Cat, string Nom, string Desc)>
             {
-                ("Operacional",   "Falla de Proceso Interno",                    "Riesgos por deficiencias en procesos operacionales"),
-                ("Operacional",   "Falla Humana / Negligencia",                  "Riesgo derivado de error humano"),
-                ("Tecnológico",   "Falla de Infraestructura TI / Ciberseguridad","Interrupciones en servidores, redes o software"),
-                ("Tecnológico",   "Pérdida o Alteración de Datos",               "Pérdida de confidencialidad o integridad de datos"),
-                ("Financiero",    "Fraude Interno / Malversación",               "Pérdida financiera por fraude"),
-                ("Cumplimiento",  "Incumplimiento Regulador (OSINERGMIN / OEFA)","Sanciones por incumplimiento de normativas"),
-                ("Estratégico",   "Deficiencia en Planeamiento Institucional",   "Desalineamiento de objetivos estratégicos"),
-                ("Reputacional",  "Afectación a la Imagen Institucional",        "Daño reputacional ante la ciudadanía y reguladores")
+                ("Operacional",  "Falla de Proceso Interno",                    "Riesgos por deficiencias en procesos operacionales"),
+                ("Operacional",  "Falla Humana / Negligencia",                  "Riesgo derivado de error humano"),
+                ("Tecnológico",  "Falla de Infraestructura TI / Ciberseguridad","Interrupciones en servidores, redes o software"),
+                ("Tecnológico",  "Pérdida o Alteración de Datos",               "Pérdida de confidencialidad o integridad de datos"),
+                ("Financiero",   "Fraude Interno / Malversación",               "Pérdida financiera por fraude"),
+                ("Cumplimiento", "Incumplimiento Regulador (OSINERGMIN / OEFA)","Sanciones por incumplimiento de normativas"),
+                ("Estratégico",  "Deficiencia en Planeamiento Institucional",   "Desalineamiento de objetivos estratégicos"),
+                ("Reputacional", "Afectación a la Imagen Institucional",        "Daño reputacional ante la ciudadanía y reguladores")
             };
             int o = 1;
             foreach (var t in tiposDef)
@@ -504,6 +493,7 @@ END
             await db.SaveChangesAsync();
         }
 
+        // Parámetros — incluye "VerificacionEficacia" para PlanEficaz
         var paramsDef = new List<(string Grupo, string Valor, string Desc)>
         {
             ("OrigenRiesgo","Interno","Origen definido por el formato DATOS"),
@@ -511,14 +501,11 @@ END
             ("OrigenRiesgo","Ambos","Origen definido por el formato DATOS"),
             ("FrecuenciaRiesgo","No Recurrente","Frecuencia definida por el formato DATOS"),
             ("FrecuenciaRiesgo","Recurrente","Frecuencia definida por el formato DATOS"),
-            ("TipoRiesgo","Estratégico","Tipo definido por el formato DATOS"),
-            ("TipoRiesgo","Operacional","Tipo definido por el formato DATOS"),
+            ("TipoRiesgo","Estratégicos","Tipo definido por el formato DATOS"),
+            ("TipoRiesgo","Operacionales","Tipo definido por el formato DATOS"),
             ("TipoRiesgo","Tecnologías de la información","Tipo definido por el formato DATOS"),
             ("TipoRiesgo","Reporte","Tipo definido por el formato DATOS"),
             ("TipoRiesgo","Cumplimiento","Tipo definido por el formato DATOS"),
-            ("TipoImpacto","Económico","Aplica a riesgos de nivel entidad FONAFE"),
-            ("TipoImpacto","No económico","Aplica a riesgos de nivel entidad FONAFE"),
-            ("TipoImpacto","Híbrido","Aplica a riesgos de nivel entidad FONAFE"),
             ("FrecuenciaControl","Diaria","Frecuencia definida por el formato DATOS"),
             ("FrecuenciaControl","Semanal","Frecuencia definida por el formato DATOS"),
             ("FrecuenciaControl","Mensual","Frecuencia definida por el formato DATOS"),
@@ -533,6 +520,7 @@ END
             ("AutomatizacionControl","Manual","Automatizacion definida por el formato DATOS"),
             ("AutomatizacionControl","Semiautomático","Automatizacion definida por el formato DATOS"),
             ("AutomatizacionControl","Automático","Automatizacion definida por el formato DATOS"),
+            // EstadoPlan — 3 valores exactos del Excel FONAFE hoja DATOS
             ("EstadoPlan","Concluido","Estado definido por el formato DATOS"),
             ("EstadoPlan","En proceso","Estado definido por el formato DATOS"),
             ("EstadoPlan","No iniciado","Estado definido por el formato DATOS"),
@@ -541,19 +529,18 @@ END
             ("EstrategiaTratamiento","Transferir","Estrategia definida por el formato DATOS"),
             ("EstrategiaTratamiento","Retener o Aceptar","Estrategia definida por el formato DATOS"),
             ("EstrategiaTratamiento","Eliminar","Estrategia definida por el formato DATOS"),
-            ("VerificacionEficacia","Si","Respuesta definida por el formato"),
-            ("VerificacionEficacia","Parcialmente","Respuesta definida por el formato"),
-            ("VerificacionEficacia","No","Respuesta definida por el formato")
+            // VerificacionEficacia — para campo PlanEficaz (col AJ del Excel)
+            ("VerificacionEficacia","Sí","Respuesta para campo ¿El plan fue eficaz?"),
+            ("VerificacionEficacia","No","Respuesta para campo ¿El plan fue eficaz?"),
+            ("VerificacionEficacia","Parcialmente","Respuesta para campo ¿El plan fue eficaz?"),
         };
 
         var ordenParametro = await db.MaestroParametros.AnyAsync()
-            ? await db.MaestroParametros.MaxAsync(p => p.Orden) + 1
-            : 1;
+            ? await db.MaestroParametros.MaxAsync(p => p.Orden) + 1 : 1;
 
         foreach (var p in paramsDef)
         {
-            var existe = await db.MaestroParametros
-                .AnyAsync(x => x.Grupo == p.Grupo && x.Valor == p.Valor);
+            var existe = await db.MaestroParametros.AnyAsync(x => x.Grupo == p.Grupo && x.Valor == p.Valor);
             if (existe) continue;
             db.MaestroParametros.Add(new MaestroParametro
             {
@@ -577,8 +564,7 @@ END
             .ToListAsync();
 
         var numero = await db.MatrizGrupos.AnyAsync()
-            ? await db.MatrizGrupos.MaxAsync(m => m.Numero) + 1
-            : 1;
+            ? await db.MatrizGrupos.MaxAsync(m => m.Numero) + 1 : 1;
 
         foreach (var proceso in procesos)
         {
@@ -601,15 +587,12 @@ END
         await db.SaveChangesAsync();
     }
 
+    // ─── MAESTROS ────────────────────────────────────────────────────────
     public async Task<List<MaestroProceso>> GetMaestroProcesosAsync(bool soloActivos = false)
     {
         await EnsureSeedMasterDataAsync();
         using var db = Db();
-        var q = db.MaestroProcesos
-            .Include(p => p.Padre)
-            .Include(p => p.AreaResponsable)
-            .Include(p => p.Responsable)
-            .AsQueryable();
+        var q = db.MaestroProcesos.Include(p => p.Padre).Include(p => p.AreaResponsable).Include(p => p.Responsable).AsQueryable();
         if (soloActivos) q = q.Where(p => p.Activo);
         return await q.OrderBy(p => p.Orden).ThenBy(p => p.Codigo).ToListAsync();
     }
@@ -649,12 +632,7 @@ END
     {
         using var db = Db();
         await EnsureDatabaseTablesCreatedAsync(db);
-        try
-        {
-            return await db.BitacoraDepartamentoGerencias
-                .OrderByDescending(b => b.FechaCambio)
-                .ToListAsync();
-        }
+        try { return await db.BitacoraDepartamentoGerencias.OrderByDescending(b => b.FechaCambio).ToListAsync(); }
         catch { return new List<BitacoraDepartamentoGerencia>(); }
     }
 
@@ -788,19 +766,20 @@ END
         if (item != null) { db.MaestroParametros.Remove(item); await db.SaveChangesAsync(); }
     }
 
-    // ── Helper: divide celdas con múltiples valores separados por \n ────────
-    // Filtra líneas vacías y marcas visuales como "(X)"
+    // ─── HELPERS ─────────────────────────────────────────────────────────
     private static List<string> SplitCeldaMulti(string celda)
     {
         if (string.IsNullOrWhiteSpace(celda)) return new List<string>();
-        return celda
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(l => l.Trim())
-            .Where(l => !string.IsNullOrWhiteSpace(l) &&
-                        !l.Equals("(X)", StringComparison.OrdinalIgnoreCase) &&
-                        !l.Equals("-", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        return celda.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(l => l.Trim())
+                    .Where(l => !string.IsNullOrWhiteSpace(l) &&
+                                !l.Equals("(X)", StringComparison.OrdinalIgnoreCase) &&
+                                !l.Equals("-", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
     }
+
+    // MetaKRI, DefinicionKRI y similares se guardan COMPLETOS con sus \n
+    private static string TextoCompleto(string texto) => (texto ?? "").Trim();
 
     private static string NormalizarCategoriaArea(string categoria)
     {
@@ -813,15 +792,11 @@ END
         };
     }
 
-    // ═════════════════════════════════════════════════════════════════════
-    // RESUMEN DE RIESGOS — CONSULTA DIRECTA SIN DUPLICADOS
-    // ═════════════════════════════════════════════════════════════════════
+    // ─── RESUMEN RIESGOS ─────────────────────────────────────────────────
     public async Task<List<RiesgoResumenItem>> GetResumenRiesgosAsync(int userId, string rol)
     {
         using var db = Db();
-
         IQueryable<Riesgo> query = db.Riesgos.Include(r => r.Indicadores);
-
         if (rol != "SuperAdmin" && rol != "Admin")
             query = query.Where(r => r.UsuarioId == userId);
 
@@ -838,19 +813,13 @@ END
             .Select(g => g.OrderByDescending(r => r.Id).First())
             .ToList();
 
-        return unicos.Select(r =>
+        return unicos.Select(r => new RiesgoResumenItem
         {
-            // ✅ FIX: Riesgo.GetNivel(int, int) ahora existe como sobrecarga
-            string niv = Riesgo.GetNivel(r.ProbabilidadResidual, r.ImpactoResidual);
-
-            return new RiesgoResumenItem
-            {
-                CodigoProceso = r.CodigoProceso.Trim(),
-                NombreProceso = r.NombreProceso ?? "",
-                CodigoRiesgo = r.CodigoRiesgo.Trim(),
-                NivelResidual = niv,
-                CantIndicadores = r.Indicadores?.Count ?? 0
-            };
+            CodigoProceso = r.CodigoProceso.Trim(),
+            NombreProceso = r.NombreProceso ?? "",
+            CodigoRiesgo = r.CodigoRiesgo.Trim(),
+            NivelResidual = Riesgo.GetNivel(r.ProbabilidadResidual, r.ImpactoResidual),
+            CantIndicadores = r.Indicadores?.Count ?? 0
         }).ToList();
     }
 
@@ -860,16 +829,12 @@ END
     public async Task ValidarDuplicadosAsync(List<FilaCargaMasiva> filas)
     {
         using var db = Db();
-        var codigosBuscados = filas
-            .Select(f => f.CodigoRiesgo)
-            .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Distinct()
-            .ToList();
+        var codigosBuscados = filas.Select(f => f.CodigoRiesgo)
+                                    .Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToList();
 
         var existenciasBd = await db.Riesgos
             .Where(r => codigosBuscados.Contains(r.CodigoRiesgo))
-            .Select(r => r.CodigoRiesgo)
-            .ToListAsync();
+            .Select(r => r.CodigoRiesgo).ToListAsync();
 
         var setBd = new HashSet<string>(existenciasBd, StringComparer.OrdinalIgnoreCase);
 
@@ -878,8 +843,7 @@ END
             if (!string.IsNullOrWhiteSpace(f.CodigoRiesgo) && setBd.Contains(f.CodigoRiesgo))
             {
                 f.ExisteEnBaseDatos = true;
-                if (!f.EsDuplicadoEnArchivo)
-                    f.EstadoDuplicado = "Existe en BD";
+                if (!f.EsDuplicadoEnArchivo) f.EstadoDuplicado = "Existe en BD";
             }
         }
     }
@@ -894,71 +858,85 @@ END
 
         try
         {
-            foreach (var f in filas)
-            {
-                if (!f.EsValido ||
-                    string.IsNullOrWhiteSpace(f.CodigoProceso) ||
-                    string.IsNullOrWhiteSpace(f.CodigoRiesgo))
-                {
-                    res.TotalErrores++;
-                    res.MensajesLog.Add($"Fila {f.FilaNumero}: Omitida — datos incompletos.");
-                    continue;
-                }
+            // ── AGRUPAR filas por CodigoRiesgo ──────────────────────────────
+            // El Excel puede tener múltiples filas para el mismo riesgo
+            // (una por control adicional). Las agrupamos para generar
+            // UN SOLO Riesgo con todos sus controles, planes y KRIs.
+            var grupos = filas
+                .Where(f => !string.IsNullOrWhiteSpace(f.CodigoProceso) &&
+                            !string.IsNullOrWhiteSpace(f.CodigoRiesgo))
+                .GroupBy(f => $"{f.CodigoProceso.Trim().ToUpperInvariant()}|{f.CodigoRiesgo.Trim().ToUpperInvariant()}")
+                .ToList();
 
-                if (!actualizarExistentes && f.ExisteEnBaseDatos)
+            // Filas omitidas (sin código)
+            var filasSinCodigo = filas.Where(f =>
+                string.IsNullOrWhiteSpace(f.CodigoProceso) ||
+                string.IsNullOrWhiteSpace(f.CodigoRiesgo)).ToList();
+            foreach (var f in filasSinCodigo)
+            {
+                res.TotalErrores++;
+                res.MensajesLog.Add($"Fila {f.FilaNumero}: Omitida — falta CodigoProceso o CodigoRiesgo.");
+            }
+
+            foreach (var grupo in grupos)
+            {
+                // La primera fila del grupo tiene los datos principales del riesgo
+                var primera = grupo.First();
+
+                if (!actualizarExistentes && primera.ExisteEnBaseDatos)
                 {
                     res.TotalRiesgosDuplicadosOmitidos++;
-                    res.MensajesLog.Add($"Fila {f.FilaNumero}: {f.CodigoRiesgo} omitido (ya existe en BD).");
+                    res.MensajesLog.Add($"Fila {primera.FilaNumero}: {primera.CodigoRiesgo} omitido (ya existe en BD).");
                     continue;
                 }
 
                 // 1. Buscar o crear MatrizGrupo
                 var matriz = await db.MatrizGrupos
-                    .FirstOrDefaultAsync(m => m.CodigoProceso == f.CodigoProceso);
+                    .FirstOrDefaultAsync(m => m.CodigoProceso == primera.CodigoProceso);
                 if (matriz == null)
                 {
                     matriz = new MatrizGrupo
                     {
-                        Codigo = "MTR-" + f.CodigoProceso,
-                        CodigoProceso = f.CodigoProceso,
-                        NombreProceso = string.IsNullOrWhiteSpace(f.NombreProceso)
-                                        ? "Proceso " + f.CodigoProceso : f.NombreProceso,
-                        Nombre = string.IsNullOrWhiteSpace(f.NombreProceso)
-                                        ? "Matriz " + f.CodigoProceso : f.NombreProceso,
-                        ElaboradoPor = string.IsNullOrWhiteSpace(usuarioNombre)
-                                        ? "SuperAdmin" : usuarioNombre,
+                        Codigo = "MTR-" + primera.CodigoProceso,
+                        CodigoProceso = primera.CodigoProceso,
+                        NombreProceso = string.IsNullOrWhiteSpace(primera.NombreProceso)
+                                        ? "Proceso " + primera.CodigoProceso : primera.NombreProceso,
+                        Nombre = string.IsNullOrWhiteSpace(primera.NombreProceso)
+                                        ? "Matriz " + primera.CodigoProceso : primera.NombreProceso,
+                        ElaboradoPor = string.IsNullOrWhiteSpace(usuarioNombre) ? "SuperAdmin" : usuarioNombre,
                         Version = "1.0",
                         Fecha = DateTime.Now.ToString("yyyy-MM-dd")
                     };
                     db.MatrizGrupos.Add(matriz);
                     await db.SaveChangesAsync();
-                    res.MensajesLog.Add($"Matriz creada para proceso {f.CodigoProceso}.");
+                    res.MensajesLog.Add($"Matriz creada para proceso {primera.CodigoProceso}.");
                 }
 
                 // 2. Buscar o crear Riesgo
                 var riesgo = await db.Riesgos
                     .Include(r => r.Controles)
                     .Include(r => r.PlanesAccion)
+                    .Include(r => r.Indicadores)
                     .FirstOrDefaultAsync(r =>
                         r.MatrizGrupoId == matriz.Id &&
-                        r.CodigoRiesgo == f.CodigoRiesgo);
+                        r.CodigoRiesgo == primera.CodigoRiesgo);
 
                 if (riesgo != null)
                 {
                     if (actualizarExistentes)
                     {
-                        riesgo.DescripcionRiesgo = f.DescripcionRiesgo;
-                        riesgo.GerenciaResponsable = string.IsNullOrWhiteSpace(f.GerenciaResponsable) ? riesgo.GerenciaResponsable : f.GerenciaResponsable;
-                        riesgo.NombreProceso = string.IsNullOrWhiteSpace(f.NombreProceso) ? riesgo.NombreProceso : f.NombreProceso;
-                        riesgo.Subproceso = f.Subproceso;
-                        riesgo.OrigenRiesgo = string.IsNullOrWhiteSpace(f.OrigenRiesgo) ? riesgo.OrigenRiesgo : f.OrigenRiesgo;
-                        riesgo.FrecuenciaRiesgo = string.IsNullOrWhiteSpace(f.FrecuenciaRiesgo) ? riesgo.FrecuenciaRiesgo : f.FrecuenciaRiesgo;
-                        riesgo.TipoRiesgo = string.IsNullOrWhiteSpace(f.TipoRiesgo) ? riesgo.TipoRiesgo : f.TipoRiesgo;
-                        riesgo.ProbabilidadInherente = f.ProbabilidadInherente;
-                        riesgo.ImpactoInherente = f.ImpactoInherente;
-                        riesgo.ProbabilidadResidual = f.ProbabilidadResidual;
-                        riesgo.ImpactoResidual = f.ImpactoResidual;
-                        riesgo.EstrategiaResidual = string.IsNullOrWhiteSpace(f.EstrategiaRespuesta) ? riesgo.EstrategiaResidual : f.EstrategiaRespuesta;
+                        riesgo.DescripcionRiesgo = primera.DescripcionRiesgo;
+                        riesgo.GerenciaResponsable = string.IsNullOrWhiteSpace(primera.GerenciaResponsable) ? riesgo.GerenciaResponsable : primera.GerenciaResponsable;
+                        riesgo.NombreProceso = string.IsNullOrWhiteSpace(primera.NombreProceso) ? riesgo.NombreProceso : primera.NombreProceso;
+                        riesgo.Subproceso = primera.Subproceso;
+                        riesgo.OrigenRiesgo = string.IsNullOrWhiteSpace(primera.OrigenRiesgo) ? riesgo.OrigenRiesgo : primera.OrigenRiesgo;
+                        riesgo.FrecuenciaRiesgo = string.IsNullOrWhiteSpace(primera.FrecuenciaRiesgo) ? riesgo.FrecuenciaRiesgo : primera.FrecuenciaRiesgo;
+                        riesgo.TipoRiesgo = string.IsNullOrWhiteSpace(primera.TipoRiesgo) ? riesgo.TipoRiesgo : primera.TipoRiesgo;
+                        riesgo.ProbabilidadInherente = primera.ProbabilidadInherente;
+                        riesgo.ImpactoInherente = primera.ImpactoInherente;
+                        riesgo.ProbabilidadResidual = primera.ProbabilidadResidual;
+                        riesgo.ImpactoResidual = primera.ImpactoResidual;
+                        riesgo.EstrategiaResidual = string.IsNullOrWhiteSpace(primera.EstrategiaRespuesta) ? riesgo.EstrategiaResidual : primera.EstrategiaRespuesta;
                         res.TotalRiesgosActualizados++;
                     }
                 }
@@ -967,124 +945,187 @@ END
                     riesgo = new Riesgo
                     {
                         MatrizGrupoId = matriz.Id,
-                        CodigoProceso = f.CodigoProceso,
-                        NombreProceso = string.IsNullOrWhiteSpace(f.NombreProceso) ? matriz.NombreProceso : f.NombreProceso,
-                        GerenciaResponsable = string.IsNullOrWhiteSpace(f.GerenciaResponsable) ? "Gerencia General" : f.GerenciaResponsable,
-                        Subproceso = f.Subproceso,
-                        CodigoRiesgo = f.CodigoRiesgo,
-                        DescripcionRiesgo = f.DescripcionRiesgo,
-                        OrigenRiesgo = string.IsNullOrWhiteSpace(f.OrigenRiesgo) ? "Interno" : f.OrigenRiesgo,
-                        FrecuenciaRiesgo = string.IsNullOrWhiteSpace(f.FrecuenciaRiesgo) ? "Recurrente" : f.FrecuenciaRiesgo,
-                        TipoRiesgo = string.IsNullOrWhiteSpace(f.TipoRiesgo) ? "Operacional" : f.TipoRiesgo,
-                        ProbabilidadInherente = f.ProbabilidadInherente,
-                        ImpactoInherente = f.ImpactoInherente,
-                        ProbabilidadResidual = f.ProbabilidadResidual,
-                        ImpactoResidual = f.ImpactoResidual,
-                        EstrategiaResidual = string.IsNullOrWhiteSpace(f.EstrategiaRespuesta) ? "Retener" : f.EstrategiaRespuesta
+                        CodigoProceso = primera.CodigoProceso,
+                        NombreProceso = string.IsNullOrWhiteSpace(primera.NombreProceso) ? matriz.NombreProceso : primera.NombreProceso,
+                        GerenciaResponsable = string.IsNullOrWhiteSpace(primera.GerenciaResponsable) ? "Gerencia General" : primera.GerenciaResponsable,
+                        Subproceso = primera.Subproceso,
+                        CodigoRiesgo = primera.CodigoRiesgo,
+                        DescripcionRiesgo = primera.DescripcionRiesgo,
+                        OrigenRiesgo = string.IsNullOrWhiteSpace(primera.OrigenRiesgo) ? "Interno" : primera.OrigenRiesgo,
+                        FrecuenciaRiesgo = string.IsNullOrWhiteSpace(primera.FrecuenciaRiesgo) ? "Recurrente" : primera.FrecuenciaRiesgo,
+                        TipoRiesgo = string.IsNullOrWhiteSpace(primera.TipoRiesgo) ? "Operacional" : primera.TipoRiesgo,
+                        ProbabilidadInherente = primera.ProbabilidadInherente,
+                        ImpactoInherente = primera.ImpactoInherente,
+                        ProbabilidadResidual = primera.ProbabilidadResidual,
+                        ImpactoResidual = primera.ImpactoResidual,
+                        EstrategiaResidual = string.IsNullOrWhiteSpace(primera.EstrategiaRespuesta) ? "Retener" : primera.EstrategiaRespuesta
                     };
                     db.Riesgos.Add(riesgo);
                     await db.SaveChangesAsync();
                     res.TotalRiesgosNuevos++;
+                    res.MensajesLog.Add($"Riesgo creado: {primera.CodigoRiesgo}");
                 }
 
-                // 3. Control
-                if (!string.IsNullOrWhiteSpace(f.CodigoControl) ||
-                    !string.IsNullOrWhiteSpace(f.DescripcionControl))
+                // 3. Controles — recorrer TODAS las filas del grupo
+                foreach (var fila in grupo)
                 {
-                    var codC = string.IsNullOrWhiteSpace(f.CodigoControl)
-                               ? f.CodigoRiesgo + "-C1" : f.CodigoControl;
-                    var ctrl = riesgo.Controles.FirstOrDefault(c => c.CodigoControl == codC);
-                    if (ctrl == null)
+                    if (string.IsNullOrWhiteSpace(fila.CodigoControl) &&
+                        string.IsNullOrWhiteSpace(fila.DescripcionControl))
+                        continue;
+
+                    var codC = string.IsNullOrWhiteSpace(fila.CodigoControl)
+                               ? fila.CodigoRiesgo + "-C" + (riesgo.Controles.Count + 1)
+                               : fila.CodigoControl;
+
+                    // Recargar controles si venimos de un riesgo existente
+                    var ctrlExist = riesgo.Controles.FirstOrDefault(c =>
+                        c.CodigoControl.Equals(codC, StringComparison.OrdinalIgnoreCase));
+
+                    if (ctrlExist == null)
                     {
-                        ctrl = new RiesgoControl
+                        ctrlExist = new RiesgoControl
                         {
                             RiesgoId = riesgo.Id,
                             CodigoControl = codC,
-                            DescripcionControl = string.IsNullOrWhiteSpace(f.DescripcionControl) ? "Control preventivo" : f.DescripcionControl,
-                            AreaResponsable = f.AreaResponsableControl,
-                            ResponsablesControl = f.ResponsableControl,
-                            FrecuenciaControl = string.IsNullOrWhiteSpace(f.FrecuenciaControl) ? "Cada vez que suceda" : f.FrecuenciaControl,
-                            OportunidadControl = string.IsNullOrWhiteSpace(f.OportunidadControl) ? "Preventivo" : f.OportunidadControl,
-                            AutomatizacionControl = string.IsNullOrWhiteSpace(f.AutomatizacionControl) ? "Manual" : f.AutomatizacionControl,
-                            EvidenciaControl = f.EvidenciaControl
+                            DescripcionControl = string.IsNullOrWhiteSpace(fila.DescripcionControl) ? "Control preventivo" : fila.DescripcionControl,
+                            AreaResponsable = fila.AreaResponsableControl,
+                            ResponsablesControl = fila.ResponsableControl,
+                            FrecuenciaControl = string.IsNullOrWhiteSpace(fila.FrecuenciaControl) ? "Cada vez que suceda" : fila.FrecuenciaControl,
+                            OportunidadControl = string.IsNullOrWhiteSpace(fila.OportunidadControl) ? "Preventivo" : fila.OportunidadControl,
+                            AutomatizacionControl = string.IsNullOrWhiteSpace(fila.AutomatizacionControl) ? "Manual" : fila.AutomatizacionControl,
+                            EvidenciaControl = fila.EvidenciaControl
                         };
-                        db.RiesgosControl.Add(ctrl);
-                        riesgo.Controles.Add(ctrl);
+                        db.RiesgosControl.Add(ctrlExist);
+                        riesgo.Controles.Add(ctrlExist);
                         res.TotalControlesCreados++;
                     }
                     else if (actualizarExistentes)
                     {
-                        ctrl.DescripcionControl = string.IsNullOrWhiteSpace(f.DescripcionControl) ? ctrl.DescripcionControl : f.DescripcionControl;
-                        ctrl.AreaResponsable = string.IsNullOrWhiteSpace(f.AreaResponsableControl) ? ctrl.AreaResponsable : f.AreaResponsableControl;
-                        ctrl.ResponsablesControl = string.IsNullOrWhiteSpace(f.ResponsableControl) ? ctrl.ResponsablesControl : f.ResponsableControl;
-                        ctrl.EvidenciaControl = string.IsNullOrWhiteSpace(f.EvidenciaControl) ? ctrl.EvidenciaControl : f.EvidenciaControl;
+                        if (!string.IsNullOrWhiteSpace(fila.DescripcionControl)) ctrlExist.DescripcionControl = fila.DescripcionControl;
+                        if (!string.IsNullOrWhiteSpace(fila.AreaResponsableControl)) ctrlExist.AreaResponsable = fila.AreaResponsableControl;
+                        if (!string.IsNullOrWhiteSpace(fila.ResponsableControl)) ctrlExist.ResponsablesControl = fila.ResponsableControl;
+                        if (!string.IsNullOrWhiteSpace(fila.EvidenciaControl)) ctrlExist.EvidenciaControl = fila.EvidenciaControl;
                     }
                 }
 
-                // 4. Plan de Acción
-                if (!string.IsNullOrWhiteSpace(f.CodigoPlanAccion) ||
-                    !string.IsNullOrWhiteSpace(f.DescripcionPlanAccion))
+                // 4. Planes — recorrer TODAS las filas del grupo
+                foreach (var fila in grupo)
                 {
-                    var codP = string.IsNullOrWhiteSpace(f.CodigoPlanAccion)
-                               ? f.CodigoRiesgo + "-PA1" : f.CodigoPlanAccion;
-                    var plan = riesgo.PlanesAccion.FirstOrDefault(p => p.CodigoPlan == codP);
-                    if (plan == null)
+                    if (string.IsNullOrWhiteSpace(fila.CodigoPlanAccion) &&
+                        string.IsNullOrWhiteSpace(fila.DescripcionPlanAccion))
+                        continue;
+
+                    var codP = string.IsNullOrWhiteSpace(fila.CodigoPlanAccion)
+                               ? fila.CodigoRiesgo + "-PA" + (riesgo.PlanesAccion.Count + 1)
+                               : fila.CodigoPlanAccion;
+
+                    var planExist = riesgo.PlanesAccion.FirstOrDefault(p =>
+                        p.CodigoPlan.Equals(codP, StringComparison.OrdinalIgnoreCase));
+
+                    if (planExist == null)
                     {
-                        plan = new PlanAccion
+                        planExist = new PlanAccion
                         {
                             RiesgoId = riesgo.Id,
                             CodigoPlan = codP,
-                            DescripcionPlan = string.IsNullOrWhiteSpace(f.DescripcionPlanAccion) ? "Plan de Mitigación" : f.DescripcionPlanAccion,
-                            AreaResponsable = f.AreaResponsablePlan,
-                            ResponsablePlan = f.ResponsablePlan,
-                            InicioPlan = f.InicioPlanAccion ?? DateTime.Now,
-                            EstadoPlan = string.IsNullOrWhiteSpace(f.EstadoPlanAccion) ? "No iniciado" : f.EstadoPlanAccion,
-                            FinPlan = f.FinPlanAccion ?? DateTime.Now.AddMonths(3)
+                            DescripcionPlan = string.IsNullOrWhiteSpace(fila.DescripcionPlanAccion) ? "Plan de Mitigación" : fila.DescripcionPlanAccion,
+                            AreaResponsable = fila.AreaResponsablePlan,
+                            ResponsablePlan = fila.ResponsablePlan,
+                            InicioPlan = fila.InicioPlanAccion,
+                            EstadoPlan = string.IsNullOrWhiteSpace(fila.EstadoPlanAccion) ? "No iniciado" : fila.EstadoPlanAccion,
+                            FinPlan = fila.FinPlanAccion,
+                            FechaPrevista = fila.FechaPrevista,
+                            PlanEficaz = fila.PlanEficaz,
+                            FechaVerificacion = fila.FechaVerificacion,
+                            VerificadoPor = fila.VerificadoPor,
+                            EvidenciaPlan = fila.EvidenciaPlan,
+                            ObservacionesPlan = fila.ObservacionesPlan
                         };
-                        db.PlanesAccion.Add(plan);
-                        riesgo.PlanesAccion.Add(plan);
+                        db.PlanesAccion.Add(planExist);
+                        riesgo.PlanesAccion.Add(planExist);
                         res.TotalPlanesCreados++;
                     }
                     else if (actualizarExistentes)
                     {
-                        plan.DescripcionPlan = string.IsNullOrWhiteSpace(f.DescripcionPlanAccion) ? plan.DescripcionPlan : f.DescripcionPlanAccion;
-                        plan.AreaResponsable = string.IsNullOrWhiteSpace(f.AreaResponsablePlan) ? plan.AreaResponsable : f.AreaResponsablePlan;
-                        plan.ResponsablePlan = string.IsNullOrWhiteSpace(f.ResponsablePlan) ? plan.ResponsablePlan : f.ResponsablePlan;
-                        plan.EstadoPlan = string.IsNullOrWhiteSpace(f.EstadoPlanAccion) ? plan.EstadoPlan : f.EstadoPlanAccion;
+                        if (!string.IsNullOrWhiteSpace(fila.DescripcionPlanAccion)) planExist.DescripcionPlan = fila.DescripcionPlanAccion;
+                        if (!string.IsNullOrWhiteSpace(fila.AreaResponsablePlan)) planExist.AreaResponsable = fila.AreaResponsablePlan;
+                        if (!string.IsNullOrWhiteSpace(fila.ResponsablePlan)) planExist.ResponsablePlan = fila.ResponsablePlan;
+                        if (!string.IsNullOrWhiteSpace(fila.EstadoPlanAccion)) planExist.EstadoPlan = fila.EstadoPlanAccion;
+                        if (fila.FechaPrevista.HasValue) planExist.FechaPrevista = fila.FechaPrevista;
+                        if (!string.IsNullOrWhiteSpace(fila.PlanEficaz)) planExist.PlanEficaz = fila.PlanEficaz;
+                        if (fila.FechaVerificacion.HasValue) planExist.FechaVerificacion = fila.FechaVerificacion;
+                        if (!string.IsNullOrWhiteSpace(fila.VerificadoPor)) planExist.VerificadoPor = fila.VerificadoPor;
+                        if (!string.IsNullOrWhiteSpace(fila.EvidenciaPlan)) planExist.EvidenciaPlan = fila.EvidenciaPlan;
+                        if (!string.IsNullOrWhiteSpace(fila.ObservacionesPlan)) planExist.ObservacionesPlan = fila.ObservacionesPlan;
                     }
                 }
 
-                // 5. KRI — múltiples indicadores por celda separados por \n
-                if (!string.IsNullOrWhiteSpace(f.CodigoKRI))
+                // 5. KRI — recorrer TODAS las filas del grupo
+                // REGLA CLAVE:
+                //   - CodigoKRI puede tener múltiples KRIs separados por \n → SplitCeldaMulti
+                //   - MetaKRI, DefinicionKRI son texto libre → TextoCompleto (NO dividir)
+                //   - Si una celda tiene "Verde:...\nAmbar:...\nRojo:..." es UN SOLO valor
+                foreach (var fila in grupo)
                 {
-                    // Dividir celdas multi-valor: cada línea no vacía y no (X) es un KRI
-                    var codigosKRI = SplitCeldaMulti(f.CodigoKRI);
-                    var definicionesKRI = SplitCeldaMulti(f.DefinicionKRI);
-                    var frecuenciasKRI = SplitCeldaMulti(f.FrecuenciaKRI);
-                    var metasKRI = SplitCeldaMulti(f.MetaKRI);
-                    var actualesKRI = SplitCeldaMulti(f.KRIActual);
-                    var responsablesKRI = SplitCeldaMulti(f.ResponsableKRI);
+                    if (string.IsNullOrWhiteSpace(fila.CodigoKRI)) continue;
+
+                    // Dividir solo los CÓDIGOS por \n (cada línea es un KRI distinto)
+                    var codigosKRI = SplitCeldaMulti(fila.CodigoKRI);
+                    // Para texto libre: si hay múltiples KRIs en una celda, dividir también
+                    // Si hay solo 1 código → el texto completo es para ese KRI
+                    var definicionesKRI = codigosKRI.Count > 1
+                        ? SplitCeldaMulti(fila.DefinicionKRI)
+                        : new List<string> { TextoCompleto(fila.DefinicionKRI) };
+                    var frecuenciasKRI = codigosKRI.Count > 1
+                        ? SplitCeldaMulti(fila.FrecuenciaKRI)
+                        : new List<string> { TextoCompleto(fila.FrecuenciaKRI) };
+                    // MetaKRI SIEMPRE se guarda completa — puede tener Verde/Ambar/Rojo en una sola celda
+                    // Si hay múltiples KRIs por código, se intenta dividir; si no, se guarda todo
+                    var metasKRI = codigosKRI.Count > 1
+                        ? SplitCeldaMulti(fila.MetaKRI)
+                        : new List<string> { TextoCompleto(fila.MetaKRI) };
+                    var actualesKRI = codigosKRI.Count > 1
+                        ? SplitCeldaMulti(fila.KRIActual)
+                        : new List<string> { TextoCompleto(fila.KRIActual) };
+                    var responsablesKRI = codigosKRI.Count > 1
+                        ? SplitCeldaMulti(fila.ResponsableKRI)
+                        : new List<string> { TextoCompleto(fila.ResponsableKRI) };
 
                     for (int k = 0; k < codigosKRI.Count; k++)
                     {
                         var codKRI = codigosKRI[k];
                         if (string.IsNullOrWhiteSpace(codKRI)) continue;
 
-                        // Verificar si ya existe este KRI para este riesgo
-                        var kriExist = await db.Indicadores
-                            .AnyAsync(i => i.RiesgoId == riesgo.Id && i.CodigoKRI == codKRI);
-                        if (kriExist) continue;
+                        var kriExist = await db.Indicadores.FirstOrDefaultAsync(
+                            i => i.RiesgoId == riesgo.Id && i.CodigoKRI == codKRI);
 
-                        db.Indicadores.Add(new Indicador
+                        if (kriExist == null)
                         {
-                            RiesgoId = riesgo.Id,
-                            CodigoKRI = codKRI,
-                            DefinicionKRI = k < definicionesKRI.Count ? definicionesKRI[k] : "",
-                            Frecuencia = k < frecuenciasKRI.Count ? frecuenciasKRI[k] : "",
-                            MetaKRI = k < metasKRI.Count ? metasKRI[k] : "",
-                            KRIActual = k < actualesKRI.Count ? actualesKRI[k] : "",
-                            ResponsableKRI = k < responsablesKRI.Count ? responsablesKRI[k] : ""
-                        });
+                            db.Indicadores.Add(new Indicador
+                            {
+                                RiesgoId = riesgo.Id,
+                                CodigoKRI = codKRI,
+                                // Texto completo para cada campo — preserva multilínea
+                                DefinicionKRI = k < definicionesKRI.Count ? definicionesKRI[k] : "",
+                                Frecuencia = k < frecuenciasKRI.Count ? frecuenciasKRI[k] : "",
+                                MetaKRI = k < metasKRI.Count ? metasKRI[k] : "",
+                                KRIActual = k < actualesKRI.Count ? actualesKRI[k] : "",
+                                ResponsableKRI = k < responsablesKRI.Count ? responsablesKRI[k] : ""
+                            });
+                        }
+                        else if (actualizarExistentes)
+                        {
+                            if (k < definicionesKRI.Count && !string.IsNullOrWhiteSpace(definicionesKRI[k]))
+                                kriExist.DefinicionKRI = definicionesKRI[k];
+                            if (k < frecuenciasKRI.Count && !string.IsNullOrWhiteSpace(frecuenciasKRI[k]))
+                                kriExist.Frecuencia = frecuenciasKRI[k];
+                            if (k < metasKRI.Count && !string.IsNullOrWhiteSpace(metasKRI[k]))
+                                kriExist.MetaKRI = metasKRI[k];
+                            if (k < actualesKRI.Count && !string.IsNullOrWhiteSpace(actualesKRI[k]))
+                                kriExist.KRIActual = actualesKRI[k];
+                            if (k < responsablesKRI.Count && !string.IsNullOrWhiteSpace(responsablesKRI[k]))
+                                kriExist.ResponsableKRI = responsablesKRI[k];
+                        }
                     }
                 }
 
@@ -1093,7 +1134,8 @@ END
 
             await trans.CommitAsync();
             res.MensajesLog.Add(
-                $"Carga completada. Nuevos: {res.TotalRiesgosNuevos}, " +
+                $"Carga completada. " +
+                $"Riesgos nuevos: {res.TotalRiesgosNuevos}, " +
                 $"Actualizados: {res.TotalRiesgosActualizados}, " +
                 $"Controles: {res.TotalControlesCreados}, " +
                 $"Planes: {res.TotalPlanesCreados}.");

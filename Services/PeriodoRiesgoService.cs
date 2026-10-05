@@ -90,32 +90,65 @@ public class PeriodoRiesgoService
         return (numero, version);
     }
 
+    // ── Obtener ultimo periodo de Apertura cerrado (para Validacion) ─────
+    public async Task<PeriodoRiesgo?> GetUltimoAperturaCerradoAsync()
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return await db.PeriodosRiesgo
+            .Where(p => p.TipoPeriodo == "Apertura" && p.Estado == "Cerrado")
+            .OrderByDescending(p => p.Id)
+            .FirstOrDefaultAsync();
+    }
+
     // ── Crear periodo ─────────────────────────────────────────────────────
+    // REGLAS:
+    //   Apertura   → crea snapshot propio, calcula NumeroPeriodo y Version
+    //   Validacion → NO crea snapshot, hereda P-Num y Version del ultimo Apertura cerrado
+    //   Evidencia  → NO crea snapshot (implementacion futura)
+    //   Solo puede haber UN periodo activo en total (cualquier tipo)
     public async Task CrearAsync(PeriodoRiesgo periodo, string usuario)
     {
         using var db = _dbFactory.CreateDbContext();
 
-        // Solo puede haber un periodo activo por TipoPeriodo
-        var activoMismoTipo = await db.PeriodosRiesgo
-            .AnyAsync(p => p.Estado == "Activo" && p.TipoPeriodo == periodo.TipoPeriodo);
-        if (activoMismoTipo)
+        // Regla: solo un periodo activo en todo el sistema
+        var hayActivo = await db.PeriodosRiesgo
+            .AnyAsync(p => p.Estado == "Activo");
+        if (hayActivo)
             throw new InvalidOperationException(
-                $"Ya existe un periodo de {periodo.TipoPeriodo} activo. Ciérralo antes de abrir uno nuevo.");
+                "Ya existe un periodo activo. Ciérralo antes de abrir uno nuevo.");
 
         periodo.Estado = "Activo";
         periodo.CreadoPor = usuario;
         periodo.AnioRef = periodo.FechaInicio.Year;
-        periodo.TuvoModificaciones = false; // siempre arranca en false
-
-        // NumeroPeriodo y Version se calculan en InicializarSnapshotPeriodoAsync
-        // Aquí solo asignamos valores provisionales que serán sobreescritos
+        periodo.TuvoModificaciones = false;
         periodo.NumeroPeriodo = 0;
         periodo.Version = 1;
+        periodo.PeriodoAperturaRefId = null;
+
+        // ── VALIDACION: hereda datos del ultimo Apertura cerrado ──────────
+        bool esValidacion = periodo.TipoPeriodo == "Validación" || periodo.TipoPeriodo == "Validacion";
+        if (esValidacion)
+        {
+            var ultimoApertura = await db.PeriodosRiesgo
+                .Where(p => p.TipoPeriodo == "Apertura" && p.Estado == "Cerrado")
+                .OrderByDescending(p => p.Id)
+                .FirstOrDefaultAsync();
+
+            if (ultimoApertura == null)
+                throw new InvalidOperationException(
+                    "No existe un periodo de Apertura cerrado. " +
+                    "Debes completar y cerrar un periodo de Apertura antes de abrir uno de Validación.");
+
+            // El periodo de Validacion muestra el mismo P-Num y Version del Apertura
+            periodo.NumeroPeriodo = ultimoApertura.NumeroPeriodo;
+            periodo.Version = ultimoApertura.Version;
+            periodo.PeriodoAperturaRefId = ultimoApertura.Id;
+        }
 
         db.PeriodosRiesgo.Add(periodo);
         await db.SaveChangesAsync();
 
-        // Bitácora
+        // Bitacora
         db.BitacoraPeriodoRiesgo.Add(new BitacoraPeriodoRiesgo
         {
             PeriodoId = periodo.Id,
@@ -129,25 +162,28 @@ public class PeriodoRiesgoService
         });
         await db.SaveChangesAsync();
 
-        // InicializarSnapshotPeriodoAsync calcula y graba NumeroPeriodo y Version
+        // Solo Apertura inicializa snapshot y calcula NumeroPeriodo/Version
+        // Validacion y Evidencia leen el snapshot del Apertura referenciado (PeriodoAperturaRefId)
         if (periodo.TipoPeriodo == "Apertura")
+        {
             await _snapSvc.InicializarSnapshotPeriodoAsync(periodo.Id, usuario);
 
-        // Actualizar bitácora con la versión real
-        var periodoActualizado = await db.PeriodosRiesgo.FindAsync(periodo.Id);
-        if (periodoActualizado != null)
-        {
-            var ultimaBitacora = await db.BitacoraPeriodoRiesgo
-                .Where(b => b.PeriodoId == periodo.Id && b.Accion == "Creado")
-                .OrderByDescending(b => b.FechaCambio)
-                .FirstOrDefaultAsync();
-            if (ultimaBitacora != null)
+            // Actualizar bitacora con la version real (calculada por InicializarSnapshot)
+            var periodoActualizado = await db.PeriodosRiesgo.FindAsync(periodo.Id);
+            if (periodoActualizado != null)
             {
-                ultimaBitacora.Motivo =
-                    $"Apertura del periodo {periodoActualizado.NombrePeriodo} " +
-                    $"— {periodoActualizado.TipoPeriodo} " +
-                    $"— P-{periodoActualizado.NumeroPeriodo} V{periodoActualizado.Version}";
-                await db.SaveChangesAsync();
+                var ultimaBitacora = await db.BitacoraPeriodoRiesgo
+                    .Where(b => b.PeriodoId == periodo.Id && b.Accion == "Creado")
+                    .OrderByDescending(b => b.FechaCambio)
+                    .FirstOrDefaultAsync();
+                if (ultimaBitacora != null)
+                {
+                    ultimaBitacora.Motivo =
+                        $"Apertura del periodo {periodoActualizado.NombrePeriodo} " +
+                        $"— {periodoActualizado.TipoPeriodo} " +
+                        $"— P-{periodoActualizado.NumeroPeriodo} V{periodoActualizado.Version}";
+                    await db.SaveChangesAsync();
+                }
             }
         }
     }

@@ -1,6 +1,6 @@
 @page "/periodo-riesgo"
 @layout MainLayout
-@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@attribute [Authorize(Roles = "SuperAdmin")]
 @inject PeriodoRiesgoService PeriodoSvc
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
@@ -852,6 +852,24 @@
                                     </small>
                                 </div>
                             }
+                            @if (tp == "Validación" || tp == "Validacion")
+                            {
+                                <div class="alert mt-3 mb-0 py-2"
+                                     style="border-radius:10px;background:#e8f5e9;border:1px solid #28a745;">
+                                    <i class="fas fa-eye mr-1" style="color:#28a745;"></i>
+                                    <small>
+                                        Este periodo es de <strong>solo lectura</strong>.
+                                        Los riesgos mostrados provienen del periodo de Apertura cerrado
+                                        @if (UltimoAperturaCerrado != null)
+                                        {
+                                            <strong> @UltimoAperturaCerrado.NombrePeriodo
+                                            (P-@(UltimoAperturaCerrado.NumeroPeriodo) V@(UltimoAperturaCerrado.Version))</strong>
+                                        }
+                                        . Los jefes y gerentes podrán <strong>ver y validar</strong> los datos
+                                        pero <strong>no podrán editar ningún riesgo</strong>.
+                                    </small>
+                                </div>
+                            }
                         </div>
 
                         <!-- Footer botones -->
@@ -1239,19 +1257,51 @@
     }
 
     // ═══ MODAL NUEVO ═══
+    // Para Validacion: verificar que existe un Apertura cerrado antes de abrir el modal
+    MPeriodo? UltimoAperturaCerrado = null; // referencia que muestra el modal de Validacion
+
     async Task AbrirModalNuevo(string tipo)
     {
-        MsgModalError = ""; NombrePersonalizado = false;
+        MsgModalError = ""; MsgError = ""; NombrePersonalizado = false;
+        UltimoAperturaCerrado = null;
+
+        bool esValidacion = tipo == "Validación" || tipo == "Validacion";
+
+        if (esValidacion)
+        {
+            // Verificar que existe un periodo de Apertura cerrado
+            UltimoAperturaCerrado = await PeriodoSvc.GetUltimoAperturaCerradoAsync();
+            if (UltimoAperturaCerrado == null)
+            {
+                MsgError = "No puedes abrir un periodo de Validación sin tener un periodo de Apertura cerrado. " +
+                           "Completa y cierra un periodo de Apertura primero.";
+                return;
+            }
+        }
+
         FormPeriodo = new MPeriodo
         {
-            TipoPeriodo = tipo, Frecuencia = "Trimestral",
-            FechaInicio = DateTime.Today, FechaCierre = DateTime.Today.AddMonths(3),
+            TipoPeriodo        = tipo,
+            Frecuencia         = "Trimestral",
+            FechaInicio        = DateTime.Today,
+            FechaCierre        = DateTime.Today.AddMonths(3),
             TuvoModificaciones = false
         };
-        var (num, ver) = await PeriodoSvc.CalcularNumeroVersionAsync(
-            FormPeriodo.FechaInicio.Year, "", false);
-        ProximoNumero  = num;
-        ProximaVersion = ver;
+
+        if (esValidacion && UltimoAperturaCerrado != null)
+        {
+            // Validacion hereda P-Num y Version del Apertura cerrado
+            ProximoNumero  = UltimoAperturaCerrado.NumeroPeriodo;
+            ProximaVersion = UltimoAperturaCerrado.Version;
+        }
+        else
+        {
+            var (num, ver) = await PeriodoSvc.CalcularNumeroVersionAsync(
+                FormPeriodo.FechaInicio.Year, "", false);
+            ProximoNumero  = num;
+            ProximaVersion = ver;
+        }
+
         FormPeriodo.NombrePeriodo = GenerarNombreAutomatico();
         MostrarModalNuevo = true;
     }
@@ -1280,7 +1330,14 @@
             MsgExitoConfirm     = $"'{FormPeriodo.NombrePeriodo}' (P-{ProximoNumero} V{ProximaVersion}) aperturado correctamente.";
             ConfirmacionExitosa = true;
         }
-        catch (Exception ex) { MsgModalError = ex.Message; MostrarConfirmNuevo = false; }
+        catch (Exception ex)
+        {
+            var inner = ex.InnerException?.InnerException?.Message
+                     ?? ex.InnerException?.Message
+                     ?? ex.Message;
+            MsgModalError = inner;
+            MostrarConfirmNuevo = false;
+        }
         finally { Procesando = false; }
     }
 
